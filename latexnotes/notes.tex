@@ -1,0 +1,470 @@
+
+\documentclass{revtex4}
+
+\usepackage{amsmath}
+\usepackage{mathtools}
+\newcommand{\la}{\ensuremath{\left\langle}}
+\newcommand{\ra}{\ensuremath{\right\rangle}}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,decorations.pathmorphing,backgrounds,positioning,fit,petri}
+\begin{document}
+
+\title{KL-notes}
+
+\renewcommand{\vec}[1]{\mathbf{#1}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+
+\newcommand{\hconj}{\ensuremath{\dagger}}
+
+\newcommand{\vx}{\vec{x}}
+\newcommand{\vs}{\vec{s}}
+\newcommand{\vn}{\vec{n}}
+\newcommand{\va}{\vec{a}}
+\newcommand{\vv}{\vec{v}}
+
+\newcommand{\mS}{\mat{S}}
+\newcommand{\mN}{\mat{N}}
+\newcommand{\mR}{\mat{R}}
+\newcommand{\mC}{\mat{C}}
+\newcommand{\mB}{\mat{B}}
+
+\newcommand{\tcm}{\ensuremath{21\,\mathrm{cm}}}
+
+\newcommand{\vnhat}{\hat{\vec{n}}}
+\newcommand{\vu}{\vec{u}}
+
+\newcommand{\brsc}[1]{{\ensuremath{\scriptscriptstyle \left(#1\right)}}}
+
+\maketitle
+
+
+\section{Formalism}
+
+\subsection{Unpolarised Case}
+
+This is based on a combination of the notation of Albert and Ue-Li,
+I've just ripped off some of their notation. I'm keeping this
+unpolarised for the time being, however this is a really bad
+approximation for cylinders.
+
+A particular feed $F_i$ measures a combination of the electric field
+$E(\vnhat)$ coming from various directions on the sky.
+\begin{equation}
+F_i = \int d^2\vnhat \, A_i(\vnhat) E(\vnhat) e^{i \vnhat\cdot\vu_i}\; ,
+\end{equation}
+where the function $A_i(\vnhat)$ gives the amplitude of the beam in
+that direction, and the exponential factor keeps track of the phase
+relative to an arbitrary reference point, and $\vu_i$ is the
+displacement to that point, divided by the wavelength.. We assume that the
+radiation from the sky is \emph{incoherent}, that is
+\begin{equation}
+\la E(\vnhat) E^* (\vnhat') \ra = \delta(\vnhat - \vnhat') I(\vnhat) \; .
+\end{equation}
+
+A visibility $V_{ij}$ is the correlation between two feeds $F_i$
+and $F_j$ at a particular instant
+\begin{align}
+V_{ij} & = \la F_i F_j^* \ra \\
+&= \int d^2\vnhat \, A_i(\vnhat) A_j(\vnhat) e^{i \vnhat \cdot
+  \vu_{ij}} I(\vnhat)
+\end{align}
+where $\vu_{ij} = \vu_i - \vu_j$. For brevity of notation, we will
+introduce an index $\alpha$ which represents individual visibilities,
+or pairs $ij$ of feeds. We will write the above equation can be written in terms of a
+transfer function $B_\alpha$, and will introduce Earth rotation by
+adding a dependence on the azimuthal angle $\phi$. We also introduce a
+term for the noise common to both feeds 
+\begin{equation}
+V_\alpha(\phi) = \int \! d^2\vnhat\, B_\alpha(\vnhat; \phi) I(\vnhat)
++ n_\alpha(\phi)
+\end{equation}
+where
+\begin{equation}
+B_\alpha(\vnhat; \phi) = A_\alpha^2(\vnhat; \phi) e^{i \vnhat \cdot
+  \vu_{\alpha}(\phi)} \; .
+\end{equation}
+As expected in the rotating system the $UV$-plane changes orientation
+with respect to the celestial sphere. Given the periodicity of the
+system, Fourier transforming the system is an obvious next step
+\begin{align}
+V^\alpha_m &= \int \frac{d\phi}{2\pi} V_\alpha(\phi) e^{-i m \phi} \\
+& = \sum_{l m'}\int \frac{d\phi}{2\pi} B^\alpha_{l m'}(\phi) a^{T*}_{l
+  m'}  e^{-i m \phi}+ n^\alpha_m
+\end{align}
+where we have to proceed to the second line we have inserted the
+multipole expansions of both the sky, and the beam transfer
+function. As the $\phi$ dependence simply rotates the functions about
+the polar axis $B^\alpha_{lm}(\phi) =
+B^{\alpha}_{lm}(\phi=0)$. Combined with the exponential factor in the
+integral, this simply generates the Kroenecker delta $\delta_{mm'}$,
+and we find
+\begin{equation}
+V^\alpha_m = \sum_{l} B^\alpha_{l m} a^{T*}_{l m}+ n^\alpha_m \; .
+\end{equation}
+
+\subsection{Polarised Case}
+
+Extending to the polarised case seems not to be too difficult, it just
+requires some careful generalisation of the above case. Again taking
+many cues from Albert.
+
+In this case a feed is generalised, with the index referring not just
+to the position on the telescope but the polarisation too
+\begin{equation}
+F_i(\phi) = \int d^2\vnhat \, A^a_i(\vnhat; \phi) E_a(\vnhat) e^{i
+  \vnhat\cdot\vu_i(\phi)}\; .
+\end{equation}
+In this the index summation over $a$ accounts for the relative angles
+of the polarisation and feed. In most cases it should be possible to
+seperate the function $A_i^a$ into an angular reception pattern, and a
+vector representing the alignment of the dipole for the feed
+\begin{equation}
+A_i^a(\vnhat; \phi) = A_i(\vnhat; \phi) \hat{d}^a_i \; .
+\end{equation}
+The radiation from the sky is still \emph{incoherent}, but now we must
+include its polarisation (neglecting circular polarisation)
+\begin{equation}
+\la E_a(\vnhat) E_b^* (\vnhat') \ra = \left[\mathcal{P}_{ab}^I
+  I(\vnhat) + \mathcal{P}_{ab}^Q Q(\vnhat) + \mathcal{P}_{ab}^U U(\vnhat)\right]\delta(\vnhat - \vnhat') \; ,
+\end{equation}
+where the tensor $\mathcal{P}^I_{ab} = I_{ab}$, the identity, and pulls
+out the total intensity. The $\mathcal{P}^Q_{ab}$, and
+$\mathcal{P}^U_{ab}$ pull out the standard $Q$ and $U$ polarisation
+states, and are equal to the third and first Pauli matrices
+respectively. In summary
+\begin{equation}
+\mathcal{P}^I_{ab} = \begin{pmatrix} 1 & 0 \\ 0 & 1\end{pmatrix} \; ,
+\qquad
+\mathcal{P}^Q_{ab} = \begin{pmatrix} 1 & 0 \\ 0 & -1\end{pmatrix} \; ,
+\qquad
+\mathcal{P}^U_{ab} = \begin{pmatrix} 0 & 1 \\ 1 & 0\end{pmatrix} \; ,
+\end{equation}
+in an orthonormal basis. The standard basis to use in spherical
+geometry are the polar and azimuthal directions, $\hat{\theta}$ and
+$\hat{\phi}$, as these allow spin spherical harmonics to be used
+straightforwardly to decompose the polarisation field.
+
+A visibility has the same definition as before, but now we need to
+take into account the polarisations of the feeds, and the sky
+\begin{equation}
+\label{eq:vispol}
+V_{ij}(\phi) = \int d^2\vnhat \, \left[ B^T_{ij}(\vnhat; \phi) I(\vnhat) +
+  B^Q_{ij}(\vnhat; \phi) Q(\vnhat + B^U_{ij}(\vnhat; \phi) U(\vnhat \right]+ n_{ij}(\phi)
+\end{equation}
+where the beam transfer functions $B^X_{ij}$ are
+\begin{equation}
+B^X_{ij}(\vnhat; \phi) = A_i^a(\vnhat; \phi) A_j^{b *}(\vnhat; \phi)
+\mathcal{P}^X_{ab} \:e^{i \vnhat \cdot
+  \vu_{ij}(\phi)} 
+\end{equation}
+To proceed we need to insert the spherical harmonic decompositions,
+however as polarisation is not a scalar field, we must expand in
+spin-2 harmonics $Y_{lm}^\brsc{\pm 2}(\vnhat)$
+\begin{align}
+I(\vnhat) & = \sum_{lm} a^T_{lm} Y_{lm}(\vnhat) \; ,\\
+Q(\vnhat) + i U(\vnhat) & = \sum_{lm} a^\brsc{+2}_{lm}
+Y^\brsc{+2}_{lm}(\vnhat) \; ,\\
+Q(\vnhat) - i U(\vnhat) & = \sum_{lm} a^\brsc{-2}_{lm}
+Y^\brsc{-2}_{lm}(\vnhat) \; .
+\end{align}
+In actual fact we will insert the complex conjugate of the above
+expressions ($I$, $Q$ and $U$ are real). Presuming that the polarised beam
+transfer matrices also transform as spin fields (pretty sure, should
+check), we decompose them in the same way, with 
+\begin{align}
+B^Q_{\alpha}(\vnhat) + i B^U_{\alpha}(\vnhat) & = \sum_{lm}
+B^\brsc{+2}_{\alpha;lm} (\phi)
+Y^\brsc{+2}_{lm}(\vnhat) \; ,\\
+B^Q_{\alpha}(\vnhat) - i B^U_{\alpha}(\vnhat) & = \sum_{lm}
+B^\brsc{-2}_{\alpha;lm} (\phi)
+Y^\brsc{-2}_{lm}(\vnhat) \; .
+\end{align}
+where for brevity we have again switched to using $\alpha$.
+
+Combined with the orthogonality of the (spin) spherical harmonics this
+allows us to rewrite the visibility equation \eqref{eq:vispol} as
+\begin{equation}
+V_{\alpha}(\phi) = \sum_{lm} \left[B_{\alpha;lm}^T(\phi) a^{T*}_{lm} +
+\frac{1}{2} B_{\alpha;lm}^\brsc{+2}(\phi) a^{\brsc{+2}*}_{lm} +
+\frac{1}{2} B_{\alpha;lm}^\brsc{-2}(\phi) a^{\brsc{-2}*}_{lm}\right] + n_{\alpha}(\phi)
+\; .
+\end{equation}
+Though this has thoroughly transformed the problem into harmonic
+space, it will be more convenient if we further transform into the
+conventional $E$ and $B$ mode decomposition. This can be done by
+making the standard substitutions
+\begin{align}
+a^\brsc{+2}_{lm} & = -\left(a^E_{lm} + i a^B_{lm}\right) \; ,\\
+a^\brsc{-2}_{lm} & = -\left(a^E_{lm} - i a^B_{lm}\right)
+\end{align}
+as well as the corresponding changes for the beam matrices
+\begin{align}
+B^\brsc{+2}_{\alpha;lm} & = -\left(B^E_{\alpha;lm} + i B^B_{\alpha;lm}\right) \; ,\\
+B^\brsc{-2}_{\alpha;lm} & = -\left(B^E_{\alpha;lm} - i
+  B^B_{\alpha;lm}\right) \; .
+\end{align}
+This leaves the visibility as
+\begin{equation}
+V_{\alpha}(\phi) = \sum_{lm} \left[B_{\alpha;lm}^T(\phi) a^{T*}_{lm} +
+B_{\alpha;lm}^E(\phi) a^{E*}_{lm} + B_{\alpha;lm}^B(\phi)
+a^{B*}_{lm}\right] + n_{\alpha}(\phi)
+\; .
+\end{equation}
+In the above the harmonic coefficients are now all the transforms of
+real scalar (or pseudo-scalar) fields. All that is left is to perform
+the Fourier transform in $\phi$, which proceeds as in the unpolarised
+case to give
+\begin{equation}
+V_{\alpha; m} = \sum_{l} \left[B_{\alpha;lm}^T a^{T*}_{lm} +
+B_{\alpha;lm}^E a^{E*}_{lm} + B_{\alpha;lm}^B
+a^{B*}_{lm}\right] + n_{\alpha; m}
+\; .
+\end{equation}
+
+introduce an index $\alpha$ which represents individual visibilities,
+or pairs $ij$ of feeds. We will write the above equation can be written in terms of a
+transfer function $B_\alpha$, and will introduce Earth rotation by
+adding a dependence on the azimuthal angle $\phi$. We also introduce a
+term for the noise common to both feeds 
+\begin{equation}
+V_\alpha(\phi) = \int \! d^2\vnhat\, B_\alpha(\vnhat; \phi) I(\vnhat)
++ n_\alpha(\phi)
+\end{equation}
+where
+\begin{equation}
+B_\alpha(\vnhat; \phi) = A_\alpha^2(\vnhat; \phi) e^{i \vnhat \cdot
+  \vu_{\alpha}(\phi)} \; .
+\end{equation}
+As expected in the rotating system the $UV$-plane changes orientation
+with respect to the celestial sphere. Given the periodicity of the
+system, Fourier transforming the system is an obvious next step
+\begin{align}
+V^\alpha_m &= \int \frac{d\phi}{2\pi} V_\alpha(\phi) e^{-i m \phi} \\
+& = \sum_{l m'}\int \frac{d\phi}{2\pi} B^\alpha_{l m'}(\phi) a^T_{l
+  m'}  e^{-i m \phi}+ n^\alpha_m
+\end{align}
+where we have to proceed to the second line we have inserted the
+multipole expansions of both the sky, and the beam transfer
+function. As the $\phi$ dependence simply rotates the functions about
+the polar axis $B^\alpha_{lm}(\phi) =
+B^{\alpha}_{lm}(\phi=0)$. Combined with the exponential factor in the
+integral, this simply generates the Kroenecker delta $\delta_{mm'}$,
+and we find
+\begin{equation}
+V^\alpha_m = \sum_{l} B^\alpha_{l m} a^T_{l m}+ n^\alpha_m \; .
+\end{equation}
+
+\section{Signal-Noise Eigenmodes}
+
+% Define a measurement in some vector space
+% \begin{equation}
+% x^i = s^i + n^i
+% \end{equation}
+% where $s^i$ and $n^i$ are respectively the signal we are interested in and some
+% form of noise. These components have covariance matrices
+% \begin{equation}
+% \la s^i s^j \ra = S^{ij}, \qquad \la n^i n^j \ra = N^{ij} \; .
+% \end{equation}
+% Let us start with the generalised eigenvalue equation
+% \begin{equation}
+% S^{ij} e_j^\alpha = \lambda N^{ij} e_j^\alpha
+% \end{equation}
+% As $N$ is symmetric positive definite, lets insert its diagonalisation
+% $N^{ij} = f^i_a N^{ab} f^j_b$ into the above equation.
+
+
+
+Define a measurement in some, possibly complex, vector space
+\begin{equation}
+\vx = \vs + \vn
+\end{equation}
+where $\vs$ and $\vn$ are respectively the signal we are interested in and some
+generalised form of noise (for instance in the case of \tcm this may
+include foregrounds). These components have covariance matrices
+\begin{equation}
+\la \vs \vs^\hconj\ \ra = \mS, \qquad \la \vn \vn^\hconj \ra = \mN \; .
+\end{equation}
+We are free to transform the measurement vector as we wish $\vx' = \mR\vx$, provided
+we are careful to update any related quantities. In the case of
+gaussian distributed measurements it is sufficient to transform the
+covariance matrix $\mat{X}' = \la (\mR \vx) (\mR \vx)^\hconj \ra  =
+\mR \mat{X}\mR^\hconj$. The Karhunen-Loeve (KL) transform takes
+advantage of this to produce simultaneous eigenmodes of the signal and
+noise covariances.
+
+Start by making the eigendecomposition of the noise matrix
+\begin{equation}
+\mN = \mR_1^\hconj \mN' \mR_1
+\end{equation}
+where $\mR_1$ is the unitary matrix of eigenvectors (stacked row by
+row), and $\mN'$ is the diagonal matrix of eigenvectors. Using this we
+can transform the data vector $\vx' = \mR_1 \vx$, which produces a new
+signal covariance
+\begin{equation}
+\mS' = \la \vs' \vs'^\hconj \ra = \la (\mR_1 \vs)  (\mR_1 \vs)^\hconj
+\ra = \mR_1 \mS \mR_1^\hconj
+\end{equation}
+and reduces the noise matrix to $\mN'$. As the new noise matrix
+consists solely of positive diagonal elements $(\mN')_{ii} =
+\lambda^N_i$, a further transformation $\vx'' = \mR_2 \vx'$, where
+$\mR_2 = \mN'^{-\frac{1}{2}}$, reduces the noise matrix to the identity
+$\mN'' = \mat{I}$. The signal matrix is transformed to
+\begin{equation}
+\mS'' = \mR_2 \mR_1 \mS \mR_1^\hconj \mR_2^\hconj \; .
+\end{equation}
+Applying any unitary transformation to the data will leave the noise
+covariance as the identity. We use this freedom to diagonalise the
+signal covariance by eigendecomposition $\mS'' = \mR_3^\hconj \mC
+\mR_3$, leaving the total transformation on the data as
+\begin{equation}
+\vx = \mR_3 \mR_2 \mR_1 \vx
+\end{equation}
+
+Let us start with the generalised eigenvalue equation
+\begin{equation}
+S^{ij} e_j^\alpha = \lambda N^{ij} e_j^\alpha
+\end{equation}
+As $N$ is symmetric positive definite, lets insert its diagonalisation
+$N^{ij} = f^i_a N^{ab} f^j_b$ into the above equation.
+
+
+
+\section{Ue-Li's Talk}
+
+\newcommand{\vlrarrow}{\ensuremath{\xrightarrow{\qquad\quad}}}
+
+Our desire when mapping \tcm{} intensity is to obtain quantities like
+the angular diameter distance $d_A$ and the Hubble parameter $H(z)$ as
+a function of redshift. This needs several stages, and importantly
+means propagating the errors through all of them
+\begin{equation}
+T(\theta, \nu) \xrightarrow[\text{thermal noise }\vn]{B_\alpha(\theta,\nu)} \quad \begin{matrix} \\ \\V_\alpha^\nu \\ \\ \mN\end{matrix} \quad
+\vlrarrow \quad a_{lm}^\nu  \quad \vlrarrow \quad \begin{matrix} \\ \\P(k, \mu; z) \\ \\ \mC_P \end{matrix}  \quad \vlrarrow \quad \begin{matrix} \\ \\  d_A,\: H(z)  \\ \\ \sigma_d, \; \sigma_H \end{matrix} \; .
+\end{equation}
+The observation takes the sky $T(\theta, \nu)$ and maps it onto a set
+of visibilities $V_\alpha^\nu$ through the beam transfer function
+$B_\alpha(\theta, \nu)$ with some added thermal noise $\vn$. The index
+$\alpha$ refers to the set of all measurements, that is baselines,
+polarisations etc. Taking into account the statistics of the noise
+$\mN$ this must be reduced down to a map of the sky, from which we can
+remove any foregrounds and this is then propagated into a power
+spectrum $P(k, \mu; z)$ (with a covariance $\mC_P$) from which the
+interesting quantites $d_A(z)$, $H(z)$ and their errors can be
+deduced.
+
+The sky itself can be decomposed into spherical harmonics
+\begin{equation}
+T(\theta, \nu) = \sum_{lm} Y_{lm}(\theta) a_{lm}^\nu \; .
+\end{equation}
+If we are using a transit telescope such as CHIME, the observations
+are periodic in the rotation of the Earth, provided the telescope has
+been `rigidised' giving stationnary noise $\vn$. This allows us to
+decompose the visibilities $V_\alpha^{\nu}(\theta)$ (which are a
+function of right-ascension $\phi$) onto a periodic basis
+\begin{equation}
+V_\alpha^m = \int V_\alpha(\phi) e^{i m \phi} d\phi \; .
+\end{equation}
+This set of visibility modes is the sum the sky, beamed onto the
+visibility, plus the instrumental noise added into the
+mode. Decomposing the beam into spherical harmonics, this is written as
+\begin{equation}
+V_\alpha^{m,\nu} = \sum_{l \geq m} B_{\alpha,l}^{\nu,m} a_{lm}^\nu + n_\alpha^m \; .
+\end{equation}
+We want to extract the sky $a_{lm}$ from this, and we can do this by
+looking at the least squares solution
+\begin{equation}
+\tilde{\va} = {\underbracket{(\mB^\hconj \mN^{-1} \mB)}_{\text{singular}}}^{-1} \mB^\hconj \mN^{-1} \vv \; .
+\end{equation}
+As we expect the quantity in brackets to be singular this motivates
+the use of the dirty map
+\begin{equation}
+\tilde{\va}^0 = \mB^\hconj \mN^{-1} \vv \; .
+\end{equation}
+What exactly is the noise matrix $\mN$? If we were simply interested
+in mapping the sky it would simply be the covariance of the
+instrumental noise, however as we are interested in the \tcm {} signal it
+is actually the covariance of the data with this set to zero and so it
+should include galactic foregrounds
+\begin{equation}
+N_{\alpha \alpha'} = \la V_\alpha V_{\alpha'} \ra \rvert_{s = 0}  = \delta_{\alpha \alpha'} \sigma_n^2 + F_{\alpha \alpha'}
+\end{equation}
+where $F_{\alpha\alpha'}$ is the foreground covariance transfered into
+the observed space. In the above we have omitted the $m$ and $\nu$
+indices for clarity.
+
+For simplicity let's assume that the foregrounds are isotropic (depend
+only on $l$), and are perfectly correlated in frequency, then they can
+be written as
+\begin{equation}
+\la a^f_l a^f_{l'} \ra = C_l^f \delta_{l l'} \delta_{m m'} F(\nu) F(\nu') \; .
+\end{equation}
+
+The beam matrix transfers the foreground correlations on the sky into their noise contribution
+\begin{equation}
+N_{\alpha \alpha'} = \delta_{\alpha \alpha'} \sigma_n^2 + \underbracket{B_{\alpha l} C_l^f B_{\alpha' l}^\hconj}_{F_{\alpha \alpha'}} \; .
+\end{equation}
+To diagonalise the foreground contribution $\mat{F} = \mS
+\mat{\Lambda} \mS^\hconj$ we need to rotate the space of visibilities
+$\vec{w} = \mS^\hconj \vv$. As the instrumental noise component is the
+identity matrix (multiplied by $\sigma_n^2$), it is unchanged by this
+transformation. This leaves a new noise covariance in this basis
+\begin{equation}
+\mN = \mat{I} \sigma_n^2 + \begin{pmatrix} \lambda_\text{max} & & 0 \\ & \ddots & \\ 0 & & \lambda_\text{min}
+\end{pmatrix} \; .
+\end{equation}
+From this covariance matrix we can see that if $\lambda_\text{min} \gg
+\sigma_n^2$, all modes are dominated by foregrounds, and the signal
+can never be seen with the instrumental precision. As the olny freedom
+we have is in the beam $B_\alpha$, the experiment must be designed so
+that this is not inevitable.
+
+\begin{figure}
+\begin{tikzpicture}
+
+\draw (0,0) -- (4,0) -- (4,6) -- (0,6) -- cycle;
+\draw (4.1,0) -- (8.1,0) -- (8.1,6) -- (4.1,6) -- cycle;
+
+\draw[fill=black] (2,3) circle(0.1);
+\draw[fill=black] (6.1,4) circle(0.1);
+
+\draw[<->] (0,-0.5) -- (4,-0.5)
+node [below,midway] {$W$};
+
+\draw[dashed] (0,3) -- (10,3);
+\draw[dashed] (0,4) -- (10,4);
+
+\draw[<->] (9.5,3) -- (9.5,4)
+node [right,midway] {$D$};
+
+\draw[dashed] (2,0) -- (2,8);
+\draw[dashed] (6.1,0) -- (6.1,8);
+
+\draw[<->] (2,7) -- (6.1,7)
+node [above,midway] {$W+\epsilon$};
+
+
+\end{tikzpicture}
+\caption{A pair of cylinders (infintely long) of width $W$ and
+  separation $\epsilon$. We consider a pair of dipoles one on each
+  cylinder, such that they are separated by $W+\epsilon$ In the E-W
+  direction and by $D$ in the N-S direction.}
+\label{fig:2cylinder}
+\end{figure}
+
+In Figure~\ref{fig:2cylinder} a dipole pair is considered on two
+cylinders. These correspond to a position in the u-v place of $u = W /
+\lambda$ and $v = D / \lambda$ (ignoring the small cylinder separation
+$\lambda$ for now). In terms of spherical harmonics coefficients on
+the sky, points in the u-v plane map to $m \sim 2\pi u$ and $l \sim
+\sqrt{m^2 + (2\pi v)^2}$. However because of the finite cylinder width
+(and separation) the visibilities are sensitive to a range in $m$
+\begin{equation}
+V_{m,\nu} \qquad \frac{2 \pi \epsilon}{\lambda} < m < \frac{4 \pi
+  W}{\lambda}
+\end{equation}
+which corresponds to the closest, and furthest points of each
+cylinder. This means that when we are considering quantities like the
+beam transfer $B_{\alpha,l}^{m,\nu}$ we only need consider a finite
+range in $m$ as we can't possibly be sensitive to higher values.
+\end{document}

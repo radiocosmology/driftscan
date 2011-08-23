@@ -1,5 +1,9 @@
+"""A module of useful functions when dealikng with Spherical Polar
+co-ordinates.
+"""
 
 import numpy as np
+
 
 def sph_to_cart(sph_arr):
     """Convert a vector in Spherical Polar coordinates to Cartesians.
@@ -7,10 +11,9 @@ def sph_to_cart(sph_arr):
     Parameters
     ----------
     sph_arr : np.ndarry
-        A vector (or array of) in spherical polar co-ordinates. Values
-        should be packed as [r, theta, phi] along the last
-        axis. Alternatively they can be packed as [theta, phi] in
-        which case r is assumed to be one.
+        A vector (or array of) in spherical polar co-ordinates. Values should be
+        packed as [r, theta, phi] along the last axis. Alternatively they can be
+        packed as [theta, phi] in which case r is assumed to be one.
 
     Returns
     -------
@@ -25,15 +28,15 @@ def sph_to_cart(sph_arr):
 
     # Useful quantities
     if sph_arr.shape[-1] == 3:
-        r = sph_arr[...,0]
+        radius = sph_arr[..., 0]
     else:
-        r = 1.0
+        radius = 1.0
 
-    st = np.sin(sph_arr[...,-2])
+    sintheta = np.sin(sph_arr[..., -2])
 
-    cart_arr[...,0] = r * st * np.cos(sph_arr[...,-1])  # x-axis
-    cart_arr[...,1] = r * st * np.sin(sph_arr[...,-1])  # y-axis
-    cart_arr[...,2] = r * np.cos(sph_arr[...,-2])       # z-axis
+    cart_arr[..., 0] = radius * sintheta * np.cos(sph_arr[..., -1])  # x-axis
+    cart_arr[..., 1] = radius * sintheta * np.sin(sph_arr[..., -1])  # y-axis
+    cart_arr[..., 2] = radius * np.cos(sph_arr[..., -2])       # z-axis
 
     return cart_arr
 
@@ -45,8 +48,8 @@ def sph_dot(arr1, arr2):
     ----------
     arr, arr2 : np.ndarray
         Two arrays of vectors in spherical polars [theta, phi], (or
-        alternatively as [theta, phi]). Should be broadcastable
-        against each other.
+        alternatively as [theta, phi]). Should be broadcastable against each
+        other.
 
     Returns
     -------
@@ -58,8 +61,8 @@ def sph_dot(arr1, arr2):
 
 
 def thetaphi_plane(sph_arr):
-    """For each position, return the theta, phi unit vectors (in
-    spherical polars).
+    """For each position, return the theta, phi unit vectors (in spherical
+    polars).
 
     Parameters
     ----------
@@ -69,26 +72,25 @@ def thetaphi_plane(sph_arr):
     Returns
     -------
     thetahat, phihat : np.ndarray
-        Unit vectors in the theta and phi directions (still in
-        spherical polars).
+        Unit vectors in the theta and phi directions (still in spherical
+        polars).
     """
     thetahat = sph_arr.copy()
-    thetahat[...,-2] += np.pi / 2.0
+    thetahat[..., -2] += np.pi / 2.0
 
     phihat = sph_arr.copy()
-    phihat[...,-2] = np.pi / 2.0
-    phihat[...,-1] += np.pi / 2.0
+    phihat[..., -2] = np.pi / 2.0
+    phihat[..., -1] += np.pi / 2.0
 
     if sph_arr.shape[-1] == 3:
-        thetahat[...,0] = 1.0
-        phihat[...,0] = 1.0
+        thetahat[..., 0] = 1.0
+        phihat[..., 0] = 1.0
 
     return thetahat, phihat
 
 
 def thetaphi_plane_cart(sph_arr):
-    """For each position, return the theta, phi unit vectors (in
-    cartesians).
+    """For each position, return the theta, phi unit vectors (in cartesians).
 
     Parameters
     ----------
@@ -98,12 +100,8 @@ def thetaphi_plane_cart(sph_arr):
     Returns
     -------
     thetahat, phihat : np.ndarray
-        Unit vectors in the theta and phi directions (in
-        cartesian coordinates).
+        Unit vectors in the theta and phi directions (in cartesian coordinates).
     """
     that, phat = thetaphi_plane(sph_arr)
 
     return sph_to_cart(that), sph_to_cart(phat)
-    
-    
-    

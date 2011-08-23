@@ -1,20 +1,19 @@
 
-
+## Matplotlib imports for plotting figures
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
-
-from plotutil import *
-
 cm = matplotlib.cm.gray
 
+import time
 import numpy as np
 
 import healpy
-import hputil
 
-import visibility
-import time
+from cylsim import visibility
+from cylsim import hputil
+from cylsim.plotutil import *
+
 
 
 

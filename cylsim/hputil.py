@@ -25,7 +25,7 @@ def ang_positions(nside):
     
     angpos = np.empty([npix, 2], dtype = np.float64)
 
-    angpos[:,0], angpos[:,1] = healpy.pix2ang(nside, np.arange(npix))
+    angpos[:, 0], angpos[:, 1] = healpy.pix2ang(nside, np.arange(npix))
 
     return angpos
 
@@ -71,16 +71,16 @@ def _make_full_alm(alm_half, centered = False):
 
     alm = np.zeros([lmax, 2*mmax - 1], dtype=alm_half.dtype)
 
-    alm_neg = alm_half[:,:0:-1].conj()
-    mf = (-1)**np.arange(mmax)[:0:-1][np.newaxis,:]
-    alm_neg = mf *alm_neg
+    alm_neg = alm_half[:, :0:-1].conj()
+    mfactor = (-1)**np.arange(mmax)[:0:-1][np.newaxis, :]
+    alm_neg = mfactor *alm_neg
 
     if not centered:
-        alm[:lmax,:mmax] = alm_half
-        alm[:lmax,mmax:] = alm_neg
+        alm[:lmax, :mmax] = alm_half
+        alm[:lmax, mmax:] = alm_neg
     else:
-        alm[:lmax,(mmax-1):] = alm_half
-        alm[:lmax,:(mmax-1)] = alm_neg
+        alm[:lmax, (mmax-1):] = alm_half
+        alm[:lmax, :(mmax-1)] = alm_neg
 
     return alm
     
@@ -92,13 +92,13 @@ def sphtrans_complex(hpmap, lmax = None, centered = False):
     hpmap : np.ndarray
         A complex Healpix map.
     lmax : scalar, optional
-        The maximum l to calculate. If `None` (default), calculate up
-        to 3*nside - 1.
+        The maximum l to calculate. If `None` (default), calculate up to 3*nside
+        - 1.
     centered : boolean, optional
-        If False (default) similar to an FFT, alm[l,:lmax+1] contains
-        m >= 0, and the latter half alm[l,lmax+1:], contains m < 0. If
-        True the first half opf alm[l,:] contains m < 0, and the
-        second half m > 0. m = 0 is the central column.
+        If False (default) similar to an FFT, alm[l,:lmax+1] contains m >= 0,
+        and the latter half alm[l,lmax+1:], contains m < 0. If True the first
+        half opf alm[l,:] contains m < 0, and the second half m > 0. m = 0 is
+        the central column.
         
     Returns
     -------
@@ -108,8 +108,10 @@ def sphtrans_complex(hpmap, lmax = None, centered = False):
     if lmax == None:
         lmax = 3*healpy.npix2nside(hpmap.size) - 1
 
-    rlm = _make_full_alm(sphtrans_real(hpmap.real, lmax = lmax), centered = centered)
-    ilm = _make_full_alm(sphtrans_real(hpmap.imag, lmax = lmax), centered = centered)
+    rlm = _make_full_alm(sphtrans_real(hpmap.real, lmax = lmax),
+                         centered = centered)
+    ilm = _make_full_alm(sphtrans_real(hpmap.imag, lmax = lmax),
+                         centered = centered)
 
     alm = rlm + 1.0J * ilm
 
@@ -117,8 +119,7 @@ def sphtrans_complex(hpmap, lmax = None, centered = False):
 
 
 def sphtrans_real_pol(hpmaps, lmax = None):
-    """Spherical Harmonic transform of polarisation functions on the
-    sky.
+    """Spherical Harmonic transform of polarisation functions on the sky.
 
     Accepts real T, Q and U like maps, and returns :math:`a^T_{lm}`
     :math:`a^E_{lm}` and :math:`a^B_{lm}`.
@@ -128,8 +129,8 @@ def sphtrans_real_pol(hpmaps, lmax = None):
     hpmaps : list of np.ndarray
         A list of Healpix maps, assumed to be T, Q, and U.
     lmax : scalar, optional
-        The maximum l to calculate. If `None` (default), calculate up
-        to 3*nside - 1.
+        The maximum l to calculate. If `None` (default), calculate up to 3*nside
+        - 1.
 
     Returns
     -------
@@ -147,7 +148,8 @@ def sphtrans_real_pol(hpmaps, lmax = None):
 
     alms = [np.zeros([lmax+1, lmax+1], dtype=np.complex128) for i in range(3)]
 
-    tlms = healpy.map2alm([np.ascontiguousarray(hpmap) for hpmap in hpmaps], lmax=lmax)
+    tlms = healpy.map2alm([np.ascontiguousarray(hpmap) for hpmap in hpmaps],
+                          lmax=lmax)
 
     for i in range(3):
         alms[i][np.triu_indices(lmax+1)] = tlms[i]
@@ -158,8 +160,8 @@ def sphtrans_real_pol(hpmaps, lmax = None):
 
 
 def sphtrans_complex_pol(hpmaps, lmax = None, centered = False):
-    """Spherical harmonic transform of the polarisation on the sky
-    (can be complex).
+    """Spherical harmonic transform of the polarisation on the sky (can be
+    complex).
 
     Accepts complex T, Q and U like maps, and returns :math:`a^T_{lm}`
     :math:`a^E_{lm}` and :math:`a^B_{lm}`.
@@ -169,13 +171,13 @@ def sphtrans_complex_pol(hpmaps, lmax = None, centered = False):
     hpmaps : np.ndarray
          A list of complex Healpix maps, assumed to be T, Q, and U.
     lmax : scalar, optional
-        The maximum l to calculate. If `None` (default), calculate up
-        to 3*nside - 1.
+        The maximum l to calculate. If `None` (default), calculate up to 3*nside
+        - 1.
     centered : boolean, optional
-        If False (default) similar to an FFT, alm[l,:lmax+1] contains
-        m >= 0, and the latter half alm[l,lmax+1:], contains m < 0. If
-        True the first half opf alm[l,:] contains m < 0, and the
-        second half m > 0. m = 0 is the central column.
+        If False (default) similar to an FFT, alm[l,:lmax+1] contains m >= 0,
+        and the latter half alm[l,lmax+1:], contains m < 0. If True the first
+        half opf alm[l,:] contains m < 0, and the second half m > 0. m = 0 is
+        the central column.
         
     Returns
     -------
@@ -185,8 +187,10 @@ def sphtrans_complex_pol(hpmaps, lmax = None, centered = False):
     if lmax == None:
         lmax = 3*healpy.npix2nside(hpmaps[0].size) - 1
 
-    rlms = [_make_full_alm(alm, centered = centered) for alm in sphtrans_real_pol([hpmap.real for hpmap in hpmaps], lmax = lmax)]
-    ilms = [_make_full_alm(alm, centered = centered) for alm in sphtrans_real_pol([hpmap.imag for hpmap in hpmaps], lmax = lmax)]
+    rlms = [_make_full_alm(alm, centered = centered) for alm in
+            sphtrans_real_pol([hpmap.real for hpmap in hpmaps], lmax = lmax)]
+    ilms = [_make_full_alm(alm, centered = centered) for alm in
+            sphtrans_real_pol([hpmap.imag for hpmap in hpmaps], lmax = lmax)]
 
     alms = [rlm + 1.0J * ilm for rlm, ilm in zip(rlms, ilms)]
 

@@ -1,4 +1,5 @@
 
+## Matplotlib imports for plotting figures
 import matplotlib
 matplotlib.use('PDF')
 from matplotlib import pyplot as plt
@@ -7,10 +8,9 @@ cm = matplotlib.cm.gray
 import numpy as np
 
 import healpy
-import hputil
 
-import visibility
-
+from cylsim import hputil
+from cylsim import visibility
 
 
 

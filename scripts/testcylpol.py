@@ -21,10 +21,10 @@ from cylsim.plotutil import *
 zenith = np.array([1.0, np.pi / 4, 0.0])
 
 # Set cylinder properties
-cylwidth = 10.0
-feedspacing = 2.0
+cylwidth = 60.0
+feedspacing = 60.0
 ncyl = 2
-nfeed = 3
+nfeed = 2
 
 
 # Specify feed alignments
@@ -63,7 +63,7 @@ pIQUyy = visibility.pol_IQU(angpos, zenith, feedy, feedy)
 st = time.time()
 
 # Calculate fringe for the specified visibility
-f1 = visibility.fringe(angpos, zenith, [cylwidth, 3*feedspacing])
+f1 = visibility.fringe(angpos, zenith, [cylwidth, feedspacing])
 
 # Overall complex visibility on the sky
 cvIQUxx = h * bx * bx * f1 * pIQUxx

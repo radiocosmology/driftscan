@@ -1,5 +1,5 @@
 
-\documentclass{revtex4}
+\documentclass[onecolumn]{revtex4}
 
 
 \input{mathdef}
@@ -103,7 +103,7 @@ the alignment of the dipole for the feed
 The radiation from the sky is still \emph{incoherent}, but now we must include
 its polarisation (neglecting circular polarisation)
 \begin{equation}
-  \la E_a(\vnhat) E_b^* (\vnhat') \ra = \left[\calP_{ab}^I
+  \la E_a(\vnhat) E_b^* (\vnhat') \ra = \\ \left[\calP_{ab}^I
     I(\vnhat) + \calP_{ab}^Q Q(\vnhat) + \calP_{ab}^U U(\vnhat)\right]\delta(\vnhat - \vnhat') \; ,
 \end{equation}
 where the tensor $\calP^I_{ab} = I_{ab}$, the identity, and pulls out the total
@@ -198,37 +198,6 @@ a^{B*}_{lm}\right] + n_{\alpha; m}
 \; .
 \end{equation}
 
-introduce an index $\alpha$ which represents individual visibilities, or pairs
-$ij$ of feeds. We will write the above equation can be written in terms of a
-transfer function $B_\alpha$, and will introduce Earth rotation by addiqng a
-dependence on the azimuthal angle $\phi$. We also introduce a term for the noise
-common to both feeds
-\begin{equation}
-  V_\alpha(\phi) = \int \! d^2\vnhat\, B_\alpha(\vnhat; \phi) I(\vnhat)
-  + n_\alpha(\phi)
-\end{equation}
-where
-\begin{equation}
-  B_\alpha(\vnhat; \phi) = A_\alpha^2(\vnhat; \phi) e^{i \vnhat \cdot
-    \vu_{\alpha}(\phi)} \; .
-\end{equation}
-As expected in the rotating system the $UV$-plane changes orientation with
-respect to the celestial sphere. Given the periodicity of the system, Fourier
-transforming the system is an obvious next step
-\begin{align}
-  V^\alpha_m &= \int \frac{d\phi}{2\pi} V_\alpha(\phi) e^{-i m \phi} \\
-  & = \sum_{l m'}\int \frac{d\phi}{2\pi} B^\alpha_{l m'}(\phi) a^T_{l m'} e^{-i
-    m \phi}+ n^\alpha_m
-\end{align}
-where we have to proceed to the second line we have inserted the multipole
-expansions of both the sky, and the beam transfer function. As the $\phi$
-dependence simply rotates the functions about the polar axis
-$B^\alpha_{lm}(\phi) = B^{\alpha}_{lm}(\phi=0)$. Combined with the exponential
-factor in the integral, this simply generates the Kroenecker delta
-$\delta_{mm'}$, and we find
-\begin{equation}
-V^\alpha_m = \sum_{l} B^\alpha_{l m} a^T_{l m}+ n^\alpha_m \; .
-\end{equation}
 
 \section{Signal-Noise Eigenmodes}
 
@@ -300,6 +269,76 @@ S^{ij} e_j^\alpha = \lambda N^{ij} e_j^\alpha
 \end{equation}
 As $N$ is symmetric positive definite, lets insert its diagonalisation $N^{ij} =
 f^i_a N^{ab} f^j_b$ into the above equation.
+
+\section{SVD decomposition}
+
+The beam transfer matrices above can be written in an explicit matrix notation.
+\begin{equation}
+\left(\mB_m^X\right)_{(\alpha \nu) (l \nu')} = B_{\alpha;lm}^X \delta_{\nu \nu'}
+\end{equation}
+where the row index labels all baseline+feed ($\alpha$) and frequency
+combinations ($\nu$), whereas the column index is over all multipole ($l$) and
+frequencies ($\nu'$). From here onwards we'll drop the subscript $m$, denoting
+the spherical harmonic order, all the equations below are valid for any $m$. In
+general the number of distinct baselines $\alpha_nx$ is different to the maximum
+multipole sampled $l_\tmax$ (usually $l_\tmax \ll \alpha_n$). The matrix
+$\mB_m^X$ is of size $m \times n$, where $m = \alpha_n \nu_n$, $n = l_\tmax
+\nu_n$ and $\nu_n$ is the number of frequency bins. The sky, which we'll write
+as a vector $\va^X$ of length $n$, is projected onto a much higher dimensional
+space of visibilities $\vv$ (vector length $m$)
+\begin{equation}
+\vv = \left(\mB^T \va^T + \mB^E \va^E + \mB^B \va^B \right) + \vn
+\end{equation}
+where the noise vector $\vn$ is of length $m$. For notational convenience we can
+define the block matrix and vector
+\begin{equation}
+\mB = \left(\begin{array}{c|c|c} & & \\ \mB^T & \mB^E & \mB^B \\ &
+    &\end{array}\right)
+\;, \quad
+\va = \left(\begin{array}{c} \va^T \\ \hline \va^E \\ \hline
+    \va^B\end{array}\right)
+\end{equation}
+of size $m \times 3 n$ and $3 n$, such that
+\begin{equation}
+\label{eq:matnot}
+\vv = \mB\, \va + \vn \; .
+\end{equation}
+Fundamentally we are only interested in deriving real properties of the sky,
+which is usually of much lower dimension than the space of visibilities, and so
+for computational efficiency it make sense to project out degrees of freedom
+that cannot describe a polarised sky. However as $\mB$ is not guaranteed to be
+full-rank, we cannot project \eqref{eq:matnot} with a (pseudo-)inverse
+matrix. By performing the singular value decomposition of $\mB$
+\begin{equation}
+\mB = \mU \msigma \mV^*
+\end{equation}
+which can be expressed in terms of the decompositions of the individual blocks
+$\mB^X_m = \mU_m^X \msigma_m^X \mV^{X *}_m$ as
+\begin{equation}
+\mU =  \left(\begin{array}{c|c|c} & & \\ \mU^T & \mU^E & \mU^B \\ &
+    &\end{array}\right) \; , \quad
+\msigma =  \left(\begin{array}{c|c|c} \msigma^T & & \\ \hline & \msigma^E & \\
+    \hline & & \msigma^B \end{array}\right)
+ \; , \quad
+\mV =  \left(\begin{array}{c|c|c} \mV^T & & \\ \hline & \mV^E & \\
+    \hline & & \mV^B\end{array}\right) \; .
+\end{equation}
+To project down onto the subspace we can simply pre-multiply \eqref{eq:matnot}
+with the matrix of left-singular vectors $\mU^*$. Defining $\vvt =
+\mU^*\vv$, $\vnt = \mU^*\vn$ and $\mBt = \mU^*\mB = \msigma
+\mV^*$, we have
+\begin{equation}
+\label{eq:matnot2}
+\vvt = \mBt\, \va + \vnt = \msigma \mV^* \va + \mU^* \vn \; .
+\end{equation}
+
+It will make sense to perform a singular value decomposition of
+the matrix $\mB$
+\begin{equation}
+\mB^X_m = \mU_m^X \msigma_m^X \mV^{X *}_m
+\end{equation}
+
+Notationally
 
 
 

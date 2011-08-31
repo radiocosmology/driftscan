@@ -61,7 +61,7 @@ def sphtrans_real(hpmap, lmax = None):
 
     alm[np.triu_indices(lmax+1)] = tlm
 
-    return alm
+    return alm.T
 
 
 def _make_full_alm(alm_half, centered = False):
@@ -118,7 +118,7 @@ def sphtrans_complex(hpmap, lmax = None, centered = False):
     return alm
 
 
-def sphtrans_real_pol(hpmaps, lmax = None):
+def sphtrans_real_pol(hpmaps, lmax = None, lside=None):
     """Spherical Harmonic transform of polarisation functions on the sky.
 
     Accepts real T, Q and U like maps, and returns :math:`a^T_{lm}`
@@ -146,7 +146,10 @@ def sphtrans_real_pol(hpmaps, lmax = None):
     if lmax == None:
         lmax = 3*healpy.npix2nside(hpmaps[0].size) - 1
 
-    alms = [np.zeros([lmax+1, lmax+1], dtype=np.complex128) for i in range(3)]
+    if lside == None or lside < lmax:
+        lside = lmax
+
+    alms = [np.zeros([lside+1, lside+1], dtype=np.complex128) for i in range(3)]
 
     tlms = healpy.map2alm([np.ascontiguousarray(hpmap) for hpmap in hpmaps],
                           lmax=lmax)
@@ -154,12 +157,12 @@ def sphtrans_real_pol(hpmaps, lmax = None):
     for i in range(3):
         alms[i][np.triu_indices(lmax+1)] = tlms[i]
 
-    return alms
+    return [alm.T for alm in alms]
 
 
 
 
-def sphtrans_complex_pol(hpmaps, lmax = None, centered = False):
+def sphtrans_complex_pol(hpmaps, lmax = None, centered = False, lside=None):
     """Spherical harmonic transform of the polarisation on the sky (can be
     complex).
 
@@ -188,9 +191,9 @@ def sphtrans_complex_pol(hpmaps, lmax = None, centered = False):
         lmax = 3*healpy.npix2nside(hpmaps[0].size) - 1
 
     rlms = [_make_full_alm(alm, centered = centered) for alm in
-            sphtrans_real_pol([hpmap.real for hpmap in hpmaps], lmax = lmax)]
+            sphtrans_real_pol([hpmap.real for hpmap in hpmaps], lmax = lmax, lside=lside)]
     ilms = [_make_full_alm(alm, centered = centered) for alm in
-            sphtrans_real_pol([hpmap.imag for hpmap in hpmaps], lmax = lmax)]
+            sphtrans_real_pol([hpmap.imag for hpmap in hpmaps], lmax = lmax, lside=lside)]
 
     alms = [rlm + 1.0J * ilm for rlm, ilm in zip(rlms, ilms)]
 

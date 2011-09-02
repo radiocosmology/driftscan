@@ -7,7 +7,7 @@ class CylinderTelescope(object):
 
 
     num_cylinders = 2
-    num_feeds = 10
+    num_feeds = 3
 
     cylinder_width = 20.0
     feed_spacing = 0.5
@@ -19,6 +19,8 @@ class CylinderTelescope(object):
     freq_upper = 800.0
 
     num_freq = 20
+
+    accuracy_boost = 1
 
 
     def __init__(self, latitude=45, longitude=0):
@@ -128,6 +130,83 @@ class CylinderTelescope(object):
         pos[:,1] = np.arange(self.num_feeds) * self.feed_spacing
 
         return pos
+
+
+    def _best_nside(self, lmax):
+        nside = int(2**(self.accuracy_boost + np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
+        return nside
+
+        
+    def transfer_matrices(self, bl_indices, f_indices, mfirst = False):
+        import pdb
+        from progressbar import ProgressBar
+
+        progress = ProgressBar()
+
+        if np.shape(bl_indices) != np.shape(f_indices):
+            raise Exception("Index arrays must be the same shape.")
+
+        if np.min(bl_indices) < 0 or np.max(bl_indices) >= self.baselines.shape[0]:
+            raise Exception("Baseline indices aren't valid")
+
+        if np.min(f_indices) < 0 or np.max(f_indices) >= self.frequencies.shape[0]:
+            raise Exception("Frequency indices aren't valid")
+
+        wavelength = 3e2 / self.frequencies[np.array(f_indices)]
+        uv_arr = self.baselines[np.array(bl_indices)] / wavelength[...,np.newaxis]  # Replace with constant c
+
+        mmax = np.ceil(2 * np.pi * (uv_arr[...,1] + (self.cylinder_width / wavelength)))
+        lmax = np.ceil((mmax**2 + (2*np.pi*uv_arr[...,0])**2)**0.5)
+
+        all_lmax = lmax.max()
+
+        tarray = self._make_matrix_array(np.shape(bl_indices), mfirst, all_lmax)
+
+        print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
+
+        i_arr = np.argsort(lmax.flat)
+
+        for i in progress(range(i_arr.size)):
+            ind = np.unravel_index(i_arr[i], lmax.shape)
+            trans = self._transfer_single(uv_arr[ind], lmax[ind], all_lmax)
+
+            self._copy_single_into_array(tarray, trans, ind, mfirst)
+
+        return tarray
+
+
+    def transfer_for_freq(self, freq, mfirst = True):
+
+        if freq < 0 or freq >= self.num_freq:
+            raise Exception("Frequency index not valid.")
+
+        bi = np.arange(self.baselines.shape[0])
+        fi = freq * np.ones_like(bi)
+
+        return self.transfer_matrices(bi, fi, mfirst = mfirst)
+
+
+    def transfer_for_baseline(self, baseline, mfirst = True):
+
+        if baseline < 0 or baseline >= self.baselines.shape[0]:
+            raise Exception("Frequency index not valid.")
+
+        fi = np.arange(self.num_freq)
+        bi = baseline * np.ones_like(fi)
+
+        return self.transfer_matrices(bi, fi, mfirst = mfirst)
+
+
+class PolarisedCylinderTelescope(CylinderTelescope):
+
+
+    feedx = np.array([1.0, 0.0])
+    feedy = np.array([0.0, 1.0])
+
+    cylinder_xy_ratio = 1.0
+
+
+
         
     def _init_trans(self, nside):
 
@@ -152,11 +231,7 @@ class CylinderTelescope(object):
         self._mIQUxy = self._horizon * self._beamx * self._beamy * self._pIQUxy
         self._mIQUyy = self._horizon * self._beamy * self._beamy * self._pIQUyy
 
-    def _best_nside(self, lmax):
-        nside = int(2**(np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
-        return nside
 
-    #@profile
     def _transfer_single(self, uv, lmax, lside):
 
         if self._nside != self._best_nside(lmax):
@@ -178,67 +253,79 @@ class CylinderTelescope(object):
 
         return [btransxx, btransxy, btransyy]
 
-    #@profile
-    def transfer_matrices(self, bl_indices, f_indices):
-        import pdb
-        from progressbar import ProgressBar
 
-        progress = ProgressBar()
+    def _make_matrix_array(self, shape, mfirst, lmax):
 
-        if np.shape(bl_indices) != np.shape(f_indices):
-            raise Exception("Index arrays must be the same shape.")
-
-        if np.min(bl_indices) < 0 or np.max(bl_indices) >= self.baselines.shape[0]:
-            raise Exception("Baseline indices aren't valid")
-
-        if np.min(f_indices) < 0 or np.max(f_indices) >= self.frequencies.shape[0]:
-            raise Exception("Frequency indices aren't valid")
-
-        wavelength = 3e2 / self.frequencies[np.array(f_indices)]
-        uv_arr = self.baselines[np.array(bl_indices)] / wavelength[...,np.newaxis]  # Replace with constant c
-
-        mmax = np.ceil(2 * np.pi * (uv_arr[...,1] + (self.cylinder_width / wavelength)))
-        lmax = np.ceil((mmax**2 + (2*np.pi*uv_arr[...,0])**2)**0.5)
-
-        all_lmax = lmax.max()
-
-        tarray = np.zeros(np.shape(bl_indices) + (3, 3, all_lmax+1, 2*all_lmax+1) ,dtype=np.complex128)
-        print "Size: %i elements. Memory %f GB." % (tarray.size, tarray.size * 8.0 / 2**30)
-
-        i_arr = np.argsort(lmax.flat)
-
-        for i in progress(range(i_arr.size)):
-            ind = np.unravel_index(i_arr[i], lmax.shape)
-            trans = self._transfer_single(uv_arr[ind], lmax[ind], all_lmax)
-            #tarray[ind] = np.array(trans)
-            tarray[ind,0,0] = trans[0][0]
-            tarray[ind,0,1] = trans[0][1]
-            tarray[ind,0,2] = trans[0][2]
-
-            tarray[ind,1,0] = trans[1][0]
-            tarray[ind,1,1] = trans[1][1]
-            tarray[ind,1,2] = trans[1][2]
-
-            tarray[ind,2,0] = trans[2][0]
-            tarray[ind,2,1] = trans[2][1]
-            tarray[ind,2,2] = trans[2][2]
+        if mfirst:
+            tarray = np.zeros((2*lmax+1,) + shape + (3, 3, lmax+1) ,dtype=np.complex128)
+        else:
+            tarray = np.zeros(shape + (3, 3, lmax+1, 2*lmax+1), dtype=np.complex128)
 
         return tarray
 
 
-    def transfer_for_freq(self, freq):
+    def _copy_single_into_array(self, tarray, tsingle, ind, mfirst):
+        for pi in range(3):
+            for pj in range(3):
+                islice = (((slice(None),) + ind + (pi,pj) + (slice(None),))
+                          if mfirst else (ind + (pi,pj) + (slice(None),slice(None))))
+                tarray[islice] = tsingle[pi][pj].T if mfirst else tsingle[pi][pj]
 
-        if freq < 0 or freq >= self.num_freq:
-            raise Exception("Frequency index not valid.")
-
-        bi = np.arange(self.baselines.shape[0])
-        fi = freq * np.ones_like(bi)
-
-        return self.transfer_matrices(bi, fi)
-
-        
 
         
         
 
+
+class UnpolarisedCylinderTelescope(CylinderTelescope):
+
+
+    def _init_trans(self, nside):
+
+        # Angular positions in healpix map of nside
+        self._nside = nside
+        self._angpos = hputil.ang_positions(nside)
+
+        # The horizon function
+        self._horizon = visibility.horizon(self._angpos, self.zenith)
+
+        # Beam
+        self._beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
+
+        # Multiplied quantity
+        self._mul = self._horizon * self._beam
+
+
+    def _transfer_single(self, uv, lmax, lside):
+
+        if self._nside != self._best_nside(lmax):
+            self._init_trans(self._best_nside(lmax))
+
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        cvis = self._mul * fringe
+
+        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = int(lmax), lside=lside)
+
+        return btrans
+
+
+    def _make_matrix_array(self, shape, mfirst, lmax):
+
+        if mfirst:
+            tarray = np.zeros((2*lmax+1,) + shape + (lmax+1,), dtype=np.complex128)
+        else:
+            tarray = np.zeros(shape + (lmax+1, 2*lmax+1), dtype=np.complex128)
+
+        return tarray
+
+    def _copy_single_into_array(self, tarray, tsingle, ind, mfirst):
+
+        islice = (slice(None),) + ind + (slice(None),) if mfirst else ind
+        tarray[islice] = tsingle.T if mfirst else tsingle
+
+
+        
+        
+
+        
         

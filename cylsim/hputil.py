@@ -30,7 +30,7 @@ def ang_positions(nside):
     return angpos
 
 
-def sphtrans_real(hpmap, lmax = None):
+def sphtrans_real(hpmap, lmax = None, lside = None):
     """Spherical Harmonic transform of a real map.
 
     Parameters
@@ -55,7 +55,10 @@ def sphtrans_real(hpmap, lmax = None):
     if lmax == None:
         lmax = 3*healpy.npix2nside(hpmap.size) - 1
 
-    alm = np.zeros([lmax+1, lmax+1], dtype=np.complex128)
+    if lside == None or lside < lmax:
+        lside = lmax
+
+    alm = np.zeros([lside+1, lside+1], dtype=np.complex128)
 
     tlm = healpy.map2alm(np.ascontiguousarray(hpmap), lmax=lmax)
 
@@ -84,7 +87,7 @@ def _make_full_alm(alm_half, centered = False):
 
     return alm
     
-def sphtrans_complex(hpmap, lmax = None, centered = False):
+def sphtrans_complex(hpmap, lmax = None, centered = False, lside = None):
     """Spherical harmonic transform of a complex function.
 
     Parameters
@@ -108,9 +111,9 @@ def sphtrans_complex(hpmap, lmax = None, centered = False):
     if lmax == None:
         lmax = 3*healpy.npix2nside(hpmap.size) - 1
 
-    rlm = _make_full_alm(sphtrans_real(hpmap.real, lmax = lmax),
+    rlm = _make_full_alm(sphtrans_real(hpmap.real, lmax = lmax, lside=lside),
                          centered = centered)
-    ilm = _make_full_alm(sphtrans_real(hpmap.imag, lmax = lmax),
+    ilm = _make_full_alm(sphtrans_real(hpmap.imag, lmax = lmax, lside=lside),
                          centered = centered)
 
     alm = rlm + 1.0J * ilm

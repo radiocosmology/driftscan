@@ -22,7 +22,7 @@ nbase = cyl.baselines.shape[0]
 
 
 
-fbase = "beamtrans_alpha_%0"+int(np.ceil(np.log10(nbase)))+"d.npy"
+fbase = "beamtrans_alpha_%0"+repr(int(np.ceil(np.log10(nbase))))+"d.npy"
 
 
 data = None
@@ -30,7 +30,7 @@ if rank == 0:
     print rank, size
     
     baseind = np.random.permutation(nbase)
-    data = np.array_split(arr, size)
+    data = np.array_split(baseind, size)
 
     
     

@@ -199,76 +199,6 @@ a^{B*}_{lm}\right] + n_{\alpha; m}
 \end{equation}
 
 
-\section{Signal-Noise Eigenmodes}
-
-% Define a measurement in some vector space
-% \begin{equation}
-% x^i = s^i + n^i
-% \end{equation}
-% where $s^i$ and $n^i$ are respectively the signal we are interested in and some
-% form of noise. These components have covariance matrices
-% \begin{equation}
-% \la s^i s^j \ra = S^{ij}, \qquad \la n^i n^j \ra = N^{ij} \; .
-% \end{equation}
-% Let us start with the generalised eigenvalue equation
-% \begin{equation}
-% S^{ij} e_j^\alpha = \lambda N^{ij} e_j^\alpha
-% \end{equation}
-% As $N$ is symmetric positive definite, lets insert its diagonalisation
-% $N^{ij} = f^i_a N^{ab} f^j_b$ into the above equation.
-
-
-
-Define a measurement in some, possibly complex, vector space
-\begin{equation}
-\vx = \vs + \vn
-\end{equation}
-where $\vs$ and $\vn$ are respectively the signal we are interested in and some
-generalised form of noise (for instance in the case of \tcm this may include
-foregrounds). These components have covariance matrices
-\begin{equation}
-\la \vs \vs^\hconj\ \ra = \mS, \qquad \la \vn \vn^\hconj \ra = \mN \; .
-\end{equation}
-We are free to transform the measurement vector as we wish $\vx' = \mR\vx$,
-provided we are careful to update any related quantities. In the case of
-gaussian distributed measurements it is sufficient to transform the covariance
-matrix $\mat{X}' = \la (\mR \vx) (\mR \vx)^\hconj \ra = \mR
-\mat{X}\mR^\hconj$. The Karhunen-Loeve (KL) transform takes advantage of this to
-produce simultaneous eigenmodes of the signal and noise covariances.
-
-Start by making the eigendecomposition of the noise matrix
-\begin{equation}
-\mN = \mR_1^\hconj \mN' \mR_1
-\end{equation}
-where $\mR_1$ is the unitary matrix of eigenvectors (stacked row by row), and
-$\mN'$ is the diagonal matrix of eigenvectors. Using this we can transform the
-data vector $\vx' = \mR_1 \vx$, which produces a new signal covariance
-\begin{equation}
-\mS' = \la \vs' \vs'^\hconj \ra = \la (\mR_1 \vs)  (\mR_1 \vs)^\hconj
-\ra = \mR_1 \mS \mR_1^\hconj
-\end{equation}
-and reduces the noise matrix to $\mN'$. As the new noise matrix consists solely
-of positive diagonal elements $(\mN')_{ii} = \lambda^N_i$, a further
-transformation $\vx'' = \mR_2 \vx'$, where $\mR_2 = \mN'^{-\frac{1}{2}}$,
-reduces the noise matrix to the identity $\mN'' = \mat{I}$. The signal matrix is
-transformed to
-\begin{equation}
-\mS'' = \mR_2 \mR_1 \mS \mR_1^\hconj \mR_2^\hconj \; .
-\end{equation}
-Applying any unitary transformation to the data will leave the noise covariance
-as the identity. We use this freedom to diagonalise the signal covariance by
-eigendecomposition $\mS'' = \mR_3^\hconj \mC \mR_3$, leaving the total
-transformation on the data as
-\begin{equation}
-\vx = \mR_3 \mR_2 \mR_1 \vx
-\end{equation}
-
-Let us start with the generalised eigenvalue equation
-\begin{equation}
-S^{ij} e_j^\alpha = \lambda N^{ij} e_j^\alpha
-\end{equation}
-As $N$ is symmetric positive definite, lets insert its diagonalisation $N^{ij} =
-f^i_a N^{ab} f^j_b$ into the above equation.
 
 \section{SVD decomposition}
 
@@ -282,26 +212,26 @@ frequencies ($\nu'$). From here onwards we'll drop the subscript $m$, denoting
 the spherical harmonic order, all the equations below are valid for any $m$. In
 general the number of distinct baselines $\alpha_nx$ is different to the maximum
 multipole sampled $l_\tmax$ (usually $l_\tmax \ll \alpha_n$). The matrix
-$\mB_m^X$ is of size $m \times n$, where $m = \alpha_n \nu_n$, $n = l_\tmax
+$\mB_X$ is of size $m \times n$, where $m = \alpha_n \nu_n$, $n = l_\tmax
 \nu_n$ and $\nu_n$ is the number of frequency bins. The sky, which we'll write
-as a vector $\va^X$ of length $n$, is projected onto a much higher dimensional
+as a vector $\va_X$ of length $n$, is projected onto a much higher dimensional
 space of visibilities $\vv$ (vector length $m$)
 \begin{equation}
-\vv = \left(\mB^T \va^T + \mB^E \va^E + \mB^B \va^B \right) + \vn
+\vv = \left(\mB_T \va_T^* + \mB_E \va_E^* + \mB_B \va_B^* \right) + \vn
 \end{equation}
 where the noise vector $\vn$ is of length $m$. For notational convenience we can
 define the block matrix and vector
 \begin{equation}
-\mB = \left(\begin{array}{c|c|c} & & \\ \mB^T & \mB^E & \mB^B \\ &
+\mB = \left(\begin{array}{c|c|c} & & \\ \mB_T & \mB_E & \mB_B \\ &
     &\end{array}\right)
 \;, \quad
-\va = \left(\begin{array}{c} \va^T \\ \hline \va^E \\ \hline
-    \va^B\end{array}\right)
+\va = \left(\begin{array}{c} \va_T \\ \hline \va_E \\ \hline
+    \va_B\end{array}\right)
 \end{equation}
 of size $m \times 3 n$ and $3 n$, such that
 \begin{equation}
 \label{eq:matnot}
-\vv = \mB\, \va + \vn \; .
+\vv = \mB\, \va^* + \vn \; .
 \end{equation}
 Fundamentally we are only interested in deriving real properties of the sky,
 which is usually of much lower dimension than the space of visibilities, and so
@@ -310,36 +240,32 @@ that cannot describe a polarised sky. However as $\mB$ is not guaranteed to be
 full-rank, we cannot project \eqref{eq:matnot} with a (pseudo-)inverse
 matrix. By performing the singular value decomposition of $\mB$
 \begin{equation}
-\mB = \mU \msigma \mV^*
+\mB = \mU \msigma \mV^\dagger
 \end{equation}
 which can be expressed in terms of the decompositions of the individual blocks
-$\mB^X_m = \mU_m^X \msigma_m^X \mV^{X *}_m$ as
+$\mB_X = \mU_X \msigma_X \mV^{\dagger}_X$ as
 \begin{equation}
-\mU =  \left(\begin{array}{c|c|c} & & \\ \mU^T & \mU^E & \mU^B \\ &
+\mU =  \left(\begin{array}{c|c|c} & & \\ \mU_T & \mU_E & \mU_B \\ &
     &\end{array}\right) \; , \quad
-\msigma =  \left(\begin{array}{c|c|c} \msigma^T & & \\ \hline & \msigma^E & \\
-    \hline & & \msigma^B \end{array}\right)
+\msigma =  \left(\begin{array}{c|c|c} \msigma_T & & \\ \hline & \msigma_E & \\
+    \hline & & \msigma_B \end{array}\right)
  \; , \quad
-\mV =  \left(\begin{array}{c|c|c} \mV^T & & \\ \hline & \mV^E & \\
-    \hline & & \mV^B\end{array}\right) \; .
+\mV =  \left(\begin{array}{c|c|c} \mV_T & & \\ \hline & \mV_E & \\
+    \hline & & \mV_B\end{array}\right) \; .
 \end{equation}
 To project down onto the subspace we can simply pre-multiply \eqref{eq:matnot}
-with the matrix of left-singular vectors $\mU^*$. Defining $\vvt =
-\mU^*\vv$, $\vnt = \mU^*\vn$ and $\mBt = \mU^*\mB = \msigma
-\mV^*$, we have
+with the matrix of left-singular vectors $\mU^\dagger$. Defining $\vvt =
+\mU^\dagger \vv$, $\vnt = \mU^\dagger \vn$ and $\mBt = \mU^\dagger \mB = \msigma
+\mV^\dagger$, we have
 \begin{equation}
 \label{eq:matnot2}
-\vvt = \mBt\, \va + \vnt = \msigma \mV^* \va + \mU^* \vn \; .
+\vvt = \mBt\, \va^* + \vnt = \msigma \mV^\dagger \va^* + \mU^\dagger \vn \; .
 \end{equation}
 
-It will make sense to perform a singular value decomposition of
-the matrix $\mB$
-\begin{equation}
-\mB^X_m = \mU_m^X \msigma_m^X \mV^{X *}_m
-\end{equation}
-
-Notationally
-
+A useful simplification comes from the fact that the measured visibilities do
+not mix any frequencies. This means that the beam matrices $\mB_X$ are
+block-diagonal in frequency and therefore their SVD decomposition is the obvious
+block-diagonal combination of the SVDs of individual frequencies.
 
 
 \section{Ue-Li's Talk}
@@ -475,4 +401,84 @@ which corresponds to the closest, and furthest points of each cylinder. This
 means that when we are considering quantities like the beam transfer
 $B_{\alpha,l}^{m,\nu}$ we only need consider a finite range in $m$ as we can't
 possibly be sensitive to higher values.
+
+\appendix
+
+
+\section{Signal-Noise Eigenmodes}
+
+% Define a measurement in some vector space
+% \begin{equation}
+% x^i = s^i + n^i
+% \end{equation}
+% where $s^i$ and $n^i$ are respectively the signal we are interested in and some
+% form of noise. These components have covariance matrices
+% \begin{equation}
+% \la s^i s^j \ra = S^{ij}, \qquad \la n^i n^j \ra = N^{ij} \; .
+% \end{equation}
+% Let us start with the generalised eigenvalue equation
+% \begin{equation}
+% S^{ij} e_j^\alpha = \lambda N^{ij} e_j^\alpha
+% \end{equation}
+% As $N$ is symmetric positive definite, lets insert its diagonalisation
+% $N^{ij} = f^i_a N^{ab} f^j_b$ into the above equation.
+
+
+\noindent
+Define a measurement in a vector space (which may be complex)
+\begin{equation}
+\vx = \vs + \vn
+\end{equation}
+where $\vs$ and $\vn$ are respectively the signal we are interested in and some
+generalised form of noise (for instance in the case of \tcm this may include
+foregrounds). These components have covariance matrices
+\begin{equation}
+\la \vs \vs^\hconj\ \ra = \mS, \qquad \la \vn \vn^\hconj \ra = \mN \; .
+\end{equation}
+We are free to transform the measurement vector as we wish $\vx' = \mR\vx$,
+provided we are careful to update any related quantities. In the case of
+gaussian distributed measurements it is sufficient to transform the covariance
+matrix $\mat{X}' = \la (\mR \vx) (\mR \vx)^\hconj \ra = \mR
+\mat{X}\mR^\hconj$. The Karhunen-Loeve (KL) transform takes advantage of this to
+produce simultaneous eigenmodes of the signal and noise covariances.
+
+Start by making the eigendecomposition of the noise matrix
+\begin{equation}
+\mN = \mR_1^\hconj \mN' \mR_1
+\end{equation}
+where $\mR_1$ is the unitary matrix of eigenvectors (stacked row by row), and
+$\mN'$ is the diagonal matrix of eigenvalues. Using this we can transform the
+data vector $\vx' = \mR_1 \vx$, which produces a new signal covariance
+\begin{equation}
+\mS' = \la \vs' \vs'^\hconj \ra = \la (\mR_1 \vs)  (\mR_1 \vs)^\hconj
+\ra = \mR_1 \mS \mR_1^\hconj
+\end{equation}
+and reduces the noise matrix to $\mN'$. As the new noise matrix consists solely
+of positive diagonal elements $(\mN')_{ii} = \lambda^N_i$, a further
+transformation $\vx'' = \mR_2 \vx'$, where $\mR_2 = \mN'^{-\frac{1}{2}}$,
+reduces the noise matrix to the identity $\mN'' = \mat{I}$. The signal matrix is
+transformed to
+\begin{equation}
+\mS'' = \mR_2 \mR_1 \mS \mR_1^\hconj \mR_2^\hconj \; .
+\end{equation}
+Applying any unitary transformation to the data will leave the noise covariance
+as the identity. We use this freedom to diagonalise the signal covariance by
+eigendecomposition $\mS'' = \mR_3^\hconj \mC \mR_3$, leaving the total
+transformation on the data as
+\begin{equation}
+\vx \rightarrow \vx' = \mR_3 \mR_2 \mR_1 \vx \; .
+\end{equation}
+
+Rather than explicitly constructing the three transformations, it is equivalent
+to find the solutions to the generalised eigenvalue problem
+\begin{equation}
+\mS \vx = \lambda \mN \vx \; .
+\end{equation}
+
+%% Tidy up explanation.
+
+
 \end{document}
+
+
+

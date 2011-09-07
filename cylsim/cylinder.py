@@ -22,6 +22,10 @@ class CylinderTelescope(object):
 
     accuracy_boost = 1
 
+    print_progress = False
+
+    _extdelkeys = []
+
 
     def __init__(self, latitude=45, longitude=0):
         """Initialise a cylinder object.
@@ -38,6 +42,20 @@ class CylinderTelescope(object):
         self._init_trans(2)
 
 
+
+    def __getstate__(self):
+
+        state = self.__dict__.copy()
+
+        delkeys = ['_baselines', '_redundancy', '_frequencies'] + self._extdelkeys
+
+        for key in delkeys:
+            if key in state:
+                del state[key]
+
+        return state
+            
+    
 
     _baselines = None
 
@@ -85,7 +103,7 @@ class CylinderTelescope(object):
     @property
     def frequencies(self):
 
-        if self._frequencies== None:
+        if self._frequencies == None:
             self.calculate_frequencies()
 
         return self._frequencies
@@ -136,12 +154,46 @@ class CylinderTelescope(object):
         nside = int(2**(self.accuracy_boost + np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
         return nside
 
-        
-    def transfer_matrices(self, bl_indices, f_indices, mfirst = False):
-        import pdb
-        from progressbar import ProgressBar
 
-        progress = ProgressBar()
+    def max_lm(self, freq_index = None):
+        """Get the maximum (l,m) that the telescope is sensitive to.
+        
+        Parameters
+        ----------
+        freq_index : integer, optional
+            The frequency to calculate the maximum's at. If None (default), use
+            the maximum frequency, and hence the maximum (l,m) at any frequency.
+
+        Returns
+        -------
+        lmax, mmax : integer
+        """
+        
+        if freq_index == None:
+            freq = self.frequencies.max()
+        else:
+            freq = self.frequencies[freq_index]
+
+        wavelength = 3e2 / freq
+
+        umax = (np.abs(self.baselines[:,0]).max() + self.cylinder_width) / wavelength
+        vmax = np.abs(self.baselines[:,1]).max()  / wavelength
+
+        mmax = np.ceil(2 * np.pi * umax)
+        lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5)
+
+        return int(lmax), int(mmax)
+        
+
+        
+    def transfer_matrices(self, bl_indices, f_indices, mfirst = False, global_lmax = True):
+
+        ## Setup a progress bar if required.
+        progress = lambda x: x
+        if self.print_progress:
+            from progressbar import ProgressBar
+            progress = ProgressBar()
+
 
         if np.shape(bl_indices) != np.shape(f_indices):
             raise Exception("Index arrays must be the same shape.")
@@ -155,10 +207,13 @@ class CylinderTelescope(object):
         wavelength = 3e2 / self.frequencies[np.array(f_indices)]
         uv_arr = self.baselines[np.array(bl_indices)] / wavelength[...,np.newaxis]  # Replace with constant c
 
-        mmax = np.ceil(2 * np.pi * (uv_arr[...,1] + (self.cylinder_width / wavelength)))
-        lmax = np.ceil((mmax**2 + (2*np.pi*uv_arr[...,0])**2)**0.5)
+        mmax = np.ceil(2 * np.pi * (uv_arr[...,0] + (self.cylinder_width / wavelength)))
+        lmax = np.ceil((mmax**2 + (2*np.pi*uv_arr[...,1])**2)**0.5)
 
-        all_lmax = lmax.max()
+        if global_lmax:
+            all_lmax, all_mmax = self.max_lm()
+        else:
+            all_lmax = lmax.max()
 
         tarray = self._make_matrix_array(np.shape(bl_indices), mfirst, all_lmax)
 
@@ -175,7 +230,7 @@ class CylinderTelescope(object):
         return tarray
 
 
-    def transfer_for_freq(self, freq, mfirst = True):
+    def transfer_for_frequency(self, freq, mfirst = True):
 
         if freq < 0 or freq >= self.num_freq:
             raise Exception("Frequency index not valid.")
@@ -206,7 +261,9 @@ class PolarisedCylinderTelescope(CylinderTelescope):
     cylinder_xy_ratio = 1.0
 
 
-
+    ## Extra fields to remove when pickling.
+    _extdelkeys = ['_nside', '_angpos', '_horizon', '_beamx', '_beamy',
+                   '_pIQUxx', '_pIQUxy', '_pIQUyy', '_mIQUxx', '_mIQUxy', '_mIQUyy']
         
     def _init_trans(self, nside):
 
@@ -278,6 +335,9 @@ class PolarisedCylinderTelescope(CylinderTelescope):
 
 class UnpolarisedCylinderTelescope(CylinderTelescope):
 
+
+    ## Extra fields to remove when pickling.
+    _extdelkeys = ['_nside', '_angpos', '_horizon', '_beam', '_mul']
 
     def _init_trans(self, nside):
 

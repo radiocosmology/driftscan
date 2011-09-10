@@ -113,6 +113,15 @@ class CylinderTelescope(object):
         self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
 
 
+    _redundancy = None
+
+    @property
+    def redundancy(self):
+
+        if self._redundancy == None:
+            self.calculate_baselines()
+
+        return self._redundancy
         
 
     def feed_positions(self):

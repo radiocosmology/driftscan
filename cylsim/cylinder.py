@@ -7,7 +7,7 @@ class CylinderTelescope(object):
 
 
     num_cylinders = 2
-    num_feeds = 3
+    num_feeds = 6
 
     cylinder_width = 20.0
     feed_spacing = 0.5
@@ -18,7 +18,7 @@ class CylinderTelescope(object):
     freq_lower = 400.0
     freq_upper = 800.0
 
-    num_freq = 20
+    num_freq = 50
 
     accuracy_boost = 1
 

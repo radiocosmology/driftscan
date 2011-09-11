@@ -29,8 +29,6 @@ cyl = cylinder.UnpolarisedCylinderTelescope()
 
 ## Cylinder must be finalised by here
 
-if not os.path.exists(args.rootdir):
-    os.makedirs(args.rootdir)
   
 root = args.rootdir + "/" + args.filestem + "beammatrix"
 
@@ -60,10 +58,16 @@ if rank == 0:
     freqind = np.random.permutation(nfreq)
     data = np.array_split(freqind, size)
 
+    # Create directory if required
+    if not os.path.exists(args.rootdir):
+        os.makedirs(args.rootdir)
+
     ## Write out a copy of the telescope config
     with open(root+"_cylobj.pickle", 'w') as f:
         pickle.dump(cyl, f)
 
+        
+comm.Barrier()
     
 
 local_fi = comm.scatter(data, root=0)

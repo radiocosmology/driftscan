@@ -13,6 +13,11 @@ import scipy.linalg as la
 import argparse
 import os
 
+from simulations.foregroundmap import matrix_root_manynull
+
+import healpy
+
+
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
 parser.add_argument('rootdir', help='Root directory to create files in.')
 parser.add_argument('filestem', default='', help='Prefix to add created files.', nargs='?')
@@ -84,3 +89,66 @@ nside = nfreq*nbase
 evals, evecs = la.eigh(cvb_sg.reshape((nside,nside)), (cvb_fg + cvb_nm).reshape((nside,nside)))
     
 evecs2 = evecs.reshape((nfreq,nbase,nside))
+
+
+fg_ch = np.zeros_like(cv_fg)
+sg_ch = np.zeros_like(cv_sg)
+
+print "Rotating matrices..."
+for i in range(fg_ch.shape[0]):
+    #fg_ch[i] = np.linalg.cholesky(cv_fg[i])
+    #sg_ch[i] = np.linalg.cholesky(cv_sg[i])
+    fg_ch[i] = matrix_root_manynull(cv_fg[i], truncate = False)
+    sg_ch[i] = matrix_root_manynull(cv_sg[i], truncate = False)
+
+
+la, ma = healpy.Alm.getlm(lmax)
+larr = la
+marr = ma
+
+print "Generating random variables..."
+gv_fg = (np.random.standard_normal(la.shape + (nfreq,)) + 1.0J * np.random.standard_normal(la.shape + (nfreq,))) / 2.0**0.5
+gv_sg = (np.random.standard_normal(la.shape + (nfreq,)) + 1.0J * np.random.standard_normal(la.shape + (nfreq,))) / 2.0**0.5
+
+print "Transforming variables..."
+for i, l in enumerate(la):
+    gv_fg[i] = np.dot(fg_ch[l], gv_fg[i])
+    gv_sg[i] = np.dot(sg_ch[l], gv_sg[i])
+
+
+
+#nside = cyl._best_nside(lmax)
+#npix = healpy.nside2npix(nside)
+
+#map_fg = np.empty((nfreq, npix))
+#map_sg = np.empty((nfreq, npix))
+
+print "Making maps..."
+
+for i in range(nfreq):
+    pass
+#    map_fg[i,:] = healpy.alm2map(gv_fg[:,i].copy(), nside)
+#    map_sg[i,:] = healpy.alm2map(gv_sg[:,i].copy(), nside)
+
+
+#alm = np.zeros((lmax+1, lmax+1), dtype=np.complex128)
+#alm[np.triu_indices(lmax+1)] = gv_fg[:,0]
+
+import loadbeam
+
+
+mapfgm = np.zeros((nfreq, lmax+1), dtype=np.complex128)
+mapfgm[:,100:] = gv_fg[np.where(ma == mi),:][0].T
+projfg = loadbeam.block_mv(beam, mapfgm)
+
+
+mapsgm = np.zeros((nfreq, lmax+1), dtype=np.complex128)
+mapsgm[:,100:] = gv_sg[np.where(ma == mi),:][0].T
+projsg = loadbeam.block_mv(beam, mapsgm)
+
+projnm = (np.random.standard_normal((nfreq, nbase)) + 1.0J * np.random.standard_normal((nfreq, nbase)) ) * (cvb_nm.reshape((nside, nside)).diagonal().reshape((nfreq, nbase)) / 2.0)**0.5
+
+
+ma_fg = np.dot(evecs.T.conj(), projfg.flat)
+ma_sg = np.dot(evecs.T.conj(), projsg.flat)
+ma_nm = np.dot(evecs.T.conj(), projnm.flat)

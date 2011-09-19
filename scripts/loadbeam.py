@@ -21,7 +21,7 @@ def beam_m(root, mi):
     nfreq = cyl.frequencies.shape[0]
 
     lmax, mmax = cyl.max_lm()
-    mbase = root + "_m_%0"+repr(int(np.ceil(np.log10(mmax+1))))+"d.hdf5"
+    mbase = root + "_m_%+0"+repr(int(np.ceil(np.log10(mmax+1)))+1)+"d.hdf5"
 
     ffmt = "%0"+repr(int(np.ceil(np.log10(nfreq+1))))+"d"
     
@@ -49,14 +49,14 @@ def beam_freq(root, fi):
     lmax, mmax = cyl.max_lm()
     fbase = root + "_freq_%0"+repr(int(np.ceil(np.log10(nfreq+1))))+"d.hdf5"
 
-    mfmt = "%0"+repr(int(np.ceil(np.log10(mmax+1))))+"d"
+    mfmt = "%+0"+repr(int(np.ceil(np.log10(mmax+1)))+1)+"d"
     
     
-    beam = np.zeros((mmax+1, nbase, lmax+1), dtype=np.complex128)
+    beam = np.zeros((2*mmax+1, nbase, lmax+1), dtype=np.complex128)
 
     ffile = h5py.File(fbase % fi, 'r')
 
-    for mi in range(mmax):
+    for mi in range(-mmax,mmax+1):
 
         mstr = 'm_section/' + (mfmt % mi)
         

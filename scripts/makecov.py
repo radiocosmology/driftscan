@@ -1,4 +1,4 @@
-
+import loadbeam
 import numpy as np
 
 import h5py
@@ -17,6 +17,9 @@ from simulations.foregroundmap import matrix_root_manynull
 
 import healpy
 
+import matplotlib
+matplotlib.use('PDF')
+from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
 parser.add_argument('rootdir', help='Root directory to create files in.')
@@ -60,16 +63,7 @@ cr = corr21cm.Corr21cm()
 
 cv_sg = cr.angular_powerspectrum_fft(np.arange(lmax+1)[:,np.newaxis,np.newaxis], za[np.newaxis,:,np.newaxis], za[np.newaxis,np.newaxis,:])
 
-beam = np.zeros((nfreq, nbase, lmax+1), dtype=np.complex128)
-
-mfile = h5py.File(mbase % mi, 'r')
-
-for fi in range(nfreq):
-
-    fstr = 'freq_section/' + (ffmt % fi)
-
-    beam[fi] = mfile[fstr]
-
+beam = loadbeam.beam_m(root, mi)
 
 cvb_fg = np.zeros((nfreq, nbase, nfreq, nbase), dtype=np.complex128)
 cvb_sg = np.zeros((nfreq, nbase, nfreq, nbase), dtype=np.complex128)
@@ -115,7 +109,7 @@ for i, l in enumerate(la):
     gv_fg[i] = np.dot(fg_ch[l], gv_fg[i])
     gv_sg[i] = np.dot(sg_ch[l], gv_sg[i])
 
-
+del fg_ch
 
 #nside = cyl._best_nside(lmax)
 #npix = healpy.nside2npix(nside)
@@ -134,7 +128,7 @@ for i in range(nfreq):
 #alm = np.zeros((lmax+1, lmax+1), dtype=np.complex128)
 #alm[np.triu_indices(lmax+1)] = gv_fg[:,0]
 
-import loadbeam
+
 
 
 mapfgm = np.zeros((nfreq, lmax+1), dtype=np.complex128)
@@ -152,3 +146,63 @@ projnm = (np.random.standard_normal((nfreq, nbase)) + 1.0J * np.random.standard_
 ma_fg = np.dot(evecs.T.conj(), projfg.flat)
 ma_sg = np.dot(evecs.T.conj(), projsg.flat)
 ma_nm = np.dot(evecs.T.conj(), projnm.flat)
+
+
+f = plt.figure(1)
+ax = f.add_subplot(111)
+
+ax.set_xlabel("Mode number")
+ax.set_title("Signal/Noise amplitude")
+
+ax.plot(evals**0.5)
+
+f.savefig("evals.pdf")
+
+ax.plot(np.abs(ma_fg))
+f.savefig("evals+fg.pdf")
+
+ax.plot(np.abs(ma_nm))
+f.savefig("evals+fg+nm.pdf")
+
+ax.plot(np.abs(ma_sg))
+f.savefig("evals+fg+nm+sg.pdf")
+
+
+
+if False:
+    bf = loadbeam.beam_freq(root, 0)
+
+    from cylsim import hputil
+    import healpy
+
+    u, sig, v = loadbeam.block_svd(bf, full_matrices=False)
+
+    del u, sig
+
+    v2 = np.zeros((2*lmax+1, nbase, lmax+1), dtype=np.complex128)
+
+    v2[:mmax+1] = v[:mmax+1]
+    v2[-mmax:] = v[-mmax:]
+
+    del v
+
+    almhalf = np.zeros((lmax+1, lmax+1), dtype=np.complex128)
+    almhalf[np.triu_indices(lmax+1)] = gv_fg[:,0]
+
+    almf = hputil._make_full_alm(almhalf).T.copy()
+
+    almfproj = loadbeam.block_mv(v2, loadbeam.block_mv(v2, almf), conj=True)
+
+    almhalf2 = np.zeros_like(almhalf)
+
+    almhalf2[:,0] = almfproj[0]
+
+    for mi in range(1,mmax+1):
+        almhalf2[:,mi] = 0.5*(almfproj[mi] + (-1)**mi * almfproj[-mi].conj())
+
+        almfold = almhalf2[np.triu_indices(lmax+1)]
+
+    nside = cyl._best_nside(lmax)
+    mapfull = healpy.alm2map(gv_fg[:,0].copy(), nside)
+    mapproj = healpy.alm2map(almfold, nside)
+

@@ -41,9 +41,9 @@ nfreq = cyl.frequencies.shape[0]
 
 ## Construct patterns for filenames
 freqbase = root + "_freq_%0"+repr(int(np.ceil(np.log10(nfreq+1))))+"d.hdf5"
-mbase = root + "_m_%0"+repr(int(np.ceil(np.log10(mmax+1))))+"d.hdf5"
+mbase = root + "_m_%+0"+repr(int(np.ceil(np.log10(mmax+1))) + 1)+"d.hdf5"
 
-mfmt = "%0"+repr(int(np.ceil(np.log10(mmax+1))))+"d"
+mfmt = "%+0"+repr(int(np.ceil(np.log10(mmax+1))) + 1)+"d"
 ffmt = "%0"+repr(int(np.ceil(np.log10(nfreq+1))))+"d"
 
 ## Setup MPI
@@ -59,7 +59,7 @@ if rank == 0:
     print " Splitting into %i m-modes from %i frequencies." % (mmax, nfreq)
 
     ## Calculate m-modes for each process to work on.
-    m_ind = np.arange(mmax)
+    m_ind = np.arange(-mmax, mmax+1)
     data = [m_ind[i::size] for i in range(size)]  # Split into alternating sublists
 
     

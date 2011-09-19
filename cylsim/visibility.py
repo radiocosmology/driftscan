@@ -68,8 +68,7 @@ def cylinder_beam(sph_arr, zenith, cylwidth):
     # Construct uhat.
     uhatc, vhatc = uv_plane_cart(zenith)
     
-    return np.exp(-0.5 * (np.inner(coord.sph_to_cart(sph_arr),
-                                   cylwidth * uhatc)**2))
+    return np.exp(-1.0 * np.pi * (np.inner(coord.sph_to_cart(sph_arr), cylwidth * uhatc)**2))
 
 
 def pol_IQU(sph_arr, zenith, feed1, feed2):

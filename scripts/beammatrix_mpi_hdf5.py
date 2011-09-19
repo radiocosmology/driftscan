@@ -26,6 +26,7 @@ size = comm.Get_size()
 
 cyl = cylinder.UnpolarisedCylinderTelescope()
 
+cyl.feed_spacing = 4.0
 
 ## Cylinder must be finalised by here
 
@@ -44,7 +45,7 @@ cylpickle = pickle.dumps(cyl)
 
 
 fbase = root + "_freq_%0"+repr(int(np.ceil(np.log10(nfreq+1))))+"d.hdf5"
-mfmt = "%0"+repr(int(np.ceil(np.log10(mmax+1))))+"d"
+mfmt = "%+0"+repr(int(np.ceil(np.log10(mmax+1))) + 1)+"d"
 
 
 
@@ -54,6 +55,8 @@ mfmt = "%0"+repr(int(np.ceil(np.log10(mmax+1))))+"d"
 data = None
 if rank == 0:
     print "== Distributing across %i processes ==\n\n" % size
+
+    print "Calculating %d frequencies each with mmax = %d" % (nfreq, mmax)
     
     freqind = np.random.permutation(nfreq)
     data = np.array_split(freqind, size)
@@ -88,7 +91,10 @@ for fi in local_fi:
     f.attrs['frequency'] = cyl.frequencies[fi]
     f.attrs['cylobj'] = cylpickle
 
-    for m in range(mmax):
+    for m in range(-mmax, mmax+1):
+
+        # Symmetrise beam such that it only responds to real skies.
+        #bsym = 0.5*(btrans[m,:,:] + (-1)**m * btrans[-m,:,:])
         
         dset = mgrp.create_dataset((mfmt % m), data=btrans[m,:,:], compression='gzip')
         dset.attrs['m'] = m

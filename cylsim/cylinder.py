@@ -1,7 +1,10 @@
+## Aargh correct beam frequency scaling.
 import numpy as np
 
 import hputil
 import visibility
+
+from utils import units
 
 class CylinderTelescope(object):
 
@@ -61,7 +64,7 @@ class CylinderTelescope(object):
 
     @property
     def baselines(self):
-
+        """The unique baselines in the telescope."""
         if self._baselines == None:
             self.calculate_baselines()
 
@@ -102,7 +105,7 @@ class CylinderTelescope(object):
 
     @property
     def frequencies(self):
-
+        """The centre of each frequency band."""
         if self._frequencies == None:
             self.calculate_frequencies()
 
@@ -117,7 +120,8 @@ class CylinderTelescope(object):
 
     @property
     def redundancy(self):
-
+        """The redundancy of each baseline (corresponds to entries in
+        cyl.baselines)."""
         if self._redundancy == None:
             self.calculate_baselines()
 
@@ -125,7 +129,14 @@ class CylinderTelescope(object):
         
 
     def feed_positions(self):
-
+        """Get the set of feed positions on *all* cylinders.
+        
+        Returns
+        -------
+        feed_positions : np.ndarray
+            The positions in the telescope plane of the receivers. Packed as
+            [[u1, v1], [u2, v2], ...].
+        """
         fplist = [self.feed_positions_cylinder(i) for i in range(self.num_cylinders)]
 
         return np.vstack(fplist)
@@ -160,8 +171,8 @@ class CylinderTelescope(object):
 
 
     def _best_nside(self, lmax):
-        nside = int(2**(self.accuracy_boost + np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
-        return nside
+        ## REMOVE me.
+        return hputil.nside_for_lmax(lmax)
 
 
     def max_lm(self, freq_index = None):
@@ -232,7 +243,7 @@ class CylinderTelescope(object):
 
         for i in progress(range(i_arr.size)):
             ind = np.unravel_index(i_arr[i], lmax.shape)
-            trans = self._transfer_single(uv_arr[ind], lmax[ind], all_lmax)
+            trans = self._transfer_single(uv_arr[ind], wavelength[ind], lmax[ind], all_lmax)
 
             self._copy_single_into_array(tarray, trans, ind, mfirst)
 
@@ -283,31 +294,31 @@ class PolarisedCylinderTelescope(CylinderTelescope):
         # The horizon function
         self._horizon = visibility.horizon(self._angpos, self.zenith)
 
-        # Differentiate beams
-        self._beamx = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
-        self._beamy = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
-
         # Polarisation projections of feed pairs
         self._pIQUxx = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedx)
         self._pIQUxy = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedy)
         self._pIQUyy = visibility.pol_IQU(self._angpos, self.zenith, self.feedy, self.feedy)
 
         # Multiplied pairs
-        self._mIQUxx = self._horizon * self._beamx * self._beamx * self._pIQUxx
-        self._mIQUxy = self._horizon * self._beamx * self._beamy * self._pIQUxy
-        self._mIQUyy = self._horizon * self._beamy * self._beamy * self._pIQUyy
+        self._mIQUxx = self._horizon * self._pIQUxx
+        self._mIQUxy = self._horizon * self._pIQUxy
+        self._mIQUyy = self._horizon * self._pIQUyy
 
 
-    def _transfer_single(self, uv, lmax, lside):
+    def _transfer_single(self, uv, wavelength, lmax, lside):
 
-        if self._nside != self._best_nside(lmax):
-            self._init_trans(self._best_nside(lmax))
+        if self._nside != hputil.nside_for_lmax(lmax):
+            self._init_trans(hputil.nside_for_lmax(lmax))
 
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        cvIQUxx = self._mIQUxx * fringe
-        cvIQUxy = self._mIQUxy * fringe
-        cvIQUyy = self._mIQUyy * fringe
+        # Beams
+        beamx = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
+        beamy = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
+
+        cvIQUxx = self._mIQUxx * fringe * beamx**2
+        cvIQUxy = self._mIQUxy * fringe * beamx * beamy
+        cvIQUyy = self._mIQUyy * fringe * beamy**2
 
         ### If beams ever become complex need to do yx combination.
         btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,
@@ -358,20 +369,21 @@ class UnpolarisedCylinderTelescope(CylinderTelescope):
         self._horizon = visibility.horizon(self._angpos, self.zenith)
 
         # Beam
-        self._beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
+        #self._beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
 
         # Multiplied quantity
-        self._mul = self._horizon * self._beam
+        self._mul = self._horizon #* self._beam
 
 
-    def _transfer_single(self, uv, lmax, lside):
+    def _transfer_single(self, uv, wavelength, lmax, lside):
 
-        if self._nside != self._best_nside(lmax):
-            self._init_trans(self._best_nside(lmax))
-
+        if self._nside != hputil.nside_for_lmax(lmax):
+            self._init_trans(hputil.nside_for_lmax(lmax))
+        ## Need to fix this.
+        beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        cvis = self._mul * fringe
+        cvis = self._mul * fringe * beam**2
 
         btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = int(lmax), lside=lside)
 

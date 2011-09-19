@@ -28,7 +28,8 @@ mmax = 2*np.pi*cylwidth*ncyl
 lmax = (mmax**2 + (2*np.pi*feedspacing*nfeed)**2)**0.5
 
 # Estimate corresponding sky map resolution (i.e. Healpix nside)
-nside = 2*int(2**(np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
+#nside = 2*int(2**(np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
+nside = 512
 
 print "l-max %i, m-max %i" % (lmax, mmax)
 print "Nside=%i is required." % nside
@@ -60,9 +61,16 @@ healpy.mollview(b1, fig=1, min=-1, max=1, title = 'Beam', cmap = cm)
 f.savefig("beam.pdf")
 f.clf()
 
-healpy.mollview(f1.real, fig=1, min=-1, max=1, title = 'Fringe', cmap = cm)
+
+healpy.mollview((h1*b1).real, fig=1, min=-1, max=1, title = 'Horizon + Beam', cmap = cm)
+f.savefig("hbeam.pdf")
+f.clf()
+
+healpy.mollview((h1*b1*f1).real, fig=1, min=-1, max=1, title = 'Fringe', cmap = cm)
 f.savefig("fringe.pdf")
 f.clf()
+
+
 
 healpy.mollview(cvis.real, fig=1, min=-1, max=1, title = 'Fringe', cmap = cm)
 f.savefig("visibility.pdf")
@@ -76,4 +84,22 @@ ax.set_xlabel("$m$")
 ax.set_ylabel("$l$")
 
 f.savefig("alm.pdf")
+
+cgconv = healpy.rotator.get_coordconv_matrix(('C', 'G'))
+
+rotconv = healpy.rotator.rotateDirection(cgconv[0], theta=angpos[:,0], phi=angpos[:,1])
+
+haslam = healpy.fitsfunc.read_map("/Users/richard/Downloads/haslam.fits")
+haslamc = healpy.get_interp_val(haslam, theta=rotconv[0], phi=rotconv[1])
+
+
+healpy.mollview(haslamc.real, fig=1, title = 'Sky')
+f.savefig("haslam.pdf")
+f.clf()
+
+
+
+healpy.mollview((haslamc * f1 * h1 * b1).real, fig=1, title = 'Observed sky')
+f.savefig("haslamvis.pdf")
+f.clf()
 

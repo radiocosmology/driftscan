@@ -5,8 +5,6 @@ from cylsim import cylinder
 
 import h5py
 
-import scipy.linalg
-
 def get_cylinder(root):
     with open(root+"_cylobj.pickle", 'r') as f:
         cyl = pickle.load(f)
@@ -65,50 +63,3 @@ def beam_freq(root, fi):
     return beam
 
 
-def block_svd(matrix, full_matrices=True):
-
-    nblocks, n, m = matrix.shape
-    dt = matrix.dtype
-    k = min(n, m)
-    sig = np.zeros((nblocks, k), dtype=dt)
-    
-    if full_matrices:
-        u = np.zeros((nblocks, n, n), dtype=dt)
-        v = np.zeros((nblocks, m, m), dtype=dt)
-    else:
-        u = np.zeros((nblocks, n, k), dtype=dt)
-        v = np.zeros((nblocks, k, m), dtype=dt)
-
-
-    for ib in range(nblocks):
-        u[ib], sig[ib], v[ib] = scipy.linalg.svd(matrix[ib], full_matrices=full_matrices)
-
-    return u, sig, v
-
-
-def block_mv(matrix, vector, conj=False):
-
-    if conj:
-        nblocks, m, n = matrix.shape
-    else:
-        nblocks, n, m = matrix.shape
-
-    if vector.shape != (nblocks, m):
-        raise Exception("Shapes not compatible.")
-
-    # Check dtype
-    if conj:
-        dt = np.dot(matrix[0].T.conj(), vector[0]).dtype
-    else:
-        dt = np.dot(matrix[0], vector[0]).dtype
-
-    nvector = np.empty((nblocks, n), dtype=dt)
-
-    if conj:
-        for i in range(nblocks):
-            nvector[i] = np.dot(matrix[i].T.conj(), vector[i])
-    else:
-        for i in range(nblocks):
-            nvector[i] = np.dot(matrix[i], vector[i])
-
-    return nvector

@@ -26,8 +26,6 @@ size = comm.Get_size()
 
 cyl = cylinder.UnpolarisedCylinderTelescope()
 
-cyl.feed_spacing = 4.0
-
 ## Cylinder must be finalised by here
 
   

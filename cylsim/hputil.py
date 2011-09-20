@@ -31,7 +31,7 @@ def ang_positions(nside):
     return angpos
 
 
-def nside_for_lmax(self, lmax):
+def nside_for_lmax(lmax, accuracy_boost=1):
     """Return an nside appropriate for a spherical harmonic decomposition.
 
     Parameters
@@ -44,11 +44,11 @@ def nside_for_lmax(self, lmax):
     nside : integer
         Appropriate nside for decomposition. Is power of two.
     """
-    nside = int(2**(self.accuracy_boost + np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
+    nside = int(2**(accuracy_boost + np.ceil(np.log((lmax + 1) / 3.0) / np.log(2.0))))
     return nside
 
 
-def unpack_alm(self, alm, lmax, fullm = False):
+def unpack_alm(alm, lmax, fullm = False):
     """Unpack :math:`a_{lm}` from Healpix format into 2D [l,m] array.
 
     This only unpacks into the
@@ -78,7 +78,8 @@ def unpack_alm(self, alm, lmax, fullm = False):
 
     return almarray
 
-def pack_alm(self, almarray, lmax = None):
+
+def pack_alm(almarray, lmax = None):
     """Pack :math:`a_{lm}` into Healpix format from 2D [l,m] array.
 
     This only unpacks into the
@@ -104,9 +105,49 @@ def pack_alm(self, almarray, lmax = None):
     if not lmax:
         lmax = almarray.shape[0] - 1
 
-    alm = almarray[np.triu_indices(lmax+1)]
+    alm = (almarray.T)[np.triu_indices(lmax+1)]
 
     return alm
+
+
+
+def _make_full_alm(alm_half, centered = False):
+    ## Construct an array of a_{lm} including both positive and
+    ## negative m, from one including only positive m.
+    lmax, mmax = alm_half.shape
+
+    alm = np.zeros([lmax, 2*mmax - 1], dtype=alm_half.dtype)
+
+    alm_neg = alm_half[:, :0:-1].conj()
+    mfactor = (-1)**np.arange(mmax)[:0:-1][np.newaxis, :]
+    alm_neg = mfactor *alm_neg
+
+    if not centered:
+        alm[:lmax, :mmax] = alm_half
+        alm[:lmax, mmax:] = alm_neg
+    else:
+        alm[:lmax, (mmax-1):] = alm_half
+        alm[:lmax, :(mmax-1)] = alm_neg
+
+    return alm
+
+
+def _make_half_alm(alm_full):
+    ## Construct an array of a_{lm} including only positive m, from one both
+    ## positive and negative m.
+    lside, mside = alm_full.shape
+
+    alm = np.zeros([lside, lside], dtype=alm_full.dtype)
+
+    # Copy zero frequency modes
+    alm[:,0] = alm_full[:,0]
+
+    # Project such that only alms corresponding to a real field are included.
+    for mi in range(1,lside):
+        alm[:,mi] = 0.5*(alm_full[:,mi] + (-1)**0.5 * alm_full[:,mi])
+
+    return alm
+
 
     
 
@@ -146,43 +187,6 @@ def sphtrans_real(hpmap, lmax = None, lside = None):
 
     return alm.T
 
-
-def _make_full_alm(alm_half, centered = False):
-    ## Construct an array of a_{lm} including both positive and
-    ## negative m, from one including only positive m.
-    lmax, mmax = alm_half.shape
-
-    alm = np.zeros([lmax, 2*mmax - 1], dtype=alm_half.dtype)
-
-    alm_neg = alm_half[:, :0:-1].conj()
-    mfactor = (-1)**np.arange(mmax)[:0:-1][np.newaxis, :]
-    alm_neg = mfactor *alm_neg
-
-    if not centered:
-        alm[:lmax, :mmax] = alm_half
-        alm[:lmax, mmax:] = alm_neg
-    else:
-        alm[:lmax, (mmax-1):] = alm_half
-        alm[:lmax, :(mmax-1)] = alm_neg
-
-    return alm
-
-
-def _make_half_alm(alm_full):
-    ## Construct an array of a_{lm} including only positive m, from one both
-    ## positive and negative m.
-    lside, mside = alm_full.shape
-
-    alm = np.zeros([lside, lside], dtype=alm_full.dtype)
-
-    # Copy zero frequency modes
-    alm[:,0] = alm_full[:,0]
-
-    # Project such that only alms corresponding to a real field are included.
-    for mi in range(1,lside):
-        alm[:,mi] = 0.5*(alm_full[:,mi] + (-1)**0.5 * alm_full[:,mi])
-
-    return alm
 
     
 def sphtrans_complex(hpmap, lmax = None, centered = False, lside = None):

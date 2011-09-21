@@ -1,4 +1,4 @@
-## Aargh correct beam frequency scaling.
+
 import numpy as np
 
 import hputil
@@ -6,44 +6,65 @@ import visibility
 
 from utils import units
 
-class CylinderTelescope(object):
+
+def in_range(arr, min, max):
+    return (arr >= min).all() and (arr < max).all()
+
+def out_of_range(arr, min, max):
+    return not inrange(arr, min, max)
 
 
-    num_cylinders = 2
-    num_feeds = 6
 
-    cylinder_width = 20.0
-    feed_spacing = 0.5
+def max_lm(baselines, wavelengths, width):
+    """Get the maximum (l,m) that a baseline is sensitive to.
 
-    feedx = np.array([1.0, 0.0])
-    feedy = np.array([0.0, 1.0])
+    Parameters
+    ----------
+    baselines : np.ndarray
+        An array of baselines.
+    wavelengths : np.ndarray
+        An array of frequencies.
+    width : np.ndarray
+        Width of the receiver in the u-direction.
+
+    Returns
+    -------
+    lmax, mmax : array_like
+    """
+
+    umax = (np.abs(baselines[:,0]) + width) / wavelengths
+    vmax = np.abs(baselines[:,1])  / wavelengths
+
+    mmax = np.ceil(2 * np.pi * umax).astype(np.int64)
+    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)
+
+    return lmax, mmax
+
+
+
+class TransitTelescope(object):
+    """Base class for simulating any transit interferometer.
+    """
 
     freq_lower = 400.0
     freq_upper = 800.0
 
     num_freq = 50
 
-    accuracy_boost = 1
-
-    print_progress = False
-
     _extdelkeys = []
 
 
     def __init__(self, latitude=45, longitude=0):
-        """Initialise a cylinder object.
+        """Initialise a telescope object.
         
         Parameters
         ----------
         latitude, longitude : scalar
-        Position on the Earths surface of the telescope (in degrees).
+            Position on the Earths surface of the telescope (in degrees).
         """
 
         self.zenith = np.array([np.pi / 2.0 - np.radians(latitude),
                                 np.remainder(np.radians(longitude), 2*np.pi)])
-
-        self._init_trans(2)
-
 
 
     def __getstate__(self):
@@ -60,6 +81,8 @@ class CylinderTelescope(object):
             
     
 
+    #========= Properties related to baselines =========
+
     _baselines = None
 
     @property
@@ -69,6 +92,56 @@ class CylinderTelescope(object):
             self.calculate_baselines()
 
         return self._baselines
+
+
+    _redundancy = None
+
+    @property
+    def redundancy(self):
+        """The redundancy of each baseline (corresponds to entries in
+        cyl.baselines)."""
+        if self._redundancy == None:
+            self.calculate_baselines()
+
+        return self._redundancy
+
+    @property
+    def nbase(self):
+        """The number of unique baselines."""
+        return self.baselines.shape[0]
+    
+    #===================================================
+
+
+
+    #======== Properties related to frequencies ========
+    
+    _frequencies = None
+
+    @property
+    def frequencies(self):
+        """The centre of each frequency band (in MHz)."""
+        if self._frequencies == None:
+            self.calculate_frequencies()
+
+        return self._frequencies
+
+    def calculate_frequencies(self):
+
+        self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
+
+
+    @property
+    def wavelengths(self):
+        """The central wavelength of each frequency band (in metres)."""
+        return units.c / (1e6 * self.frequencies)
+
+    @property
+    def nfreq(self):
+        """The central wavelength of each frequency band (in metres)."""
+        return units.c / (1e6 * self.frequencies)
+
+    #===================================================
 
 
     def calculate_baselines(self):
@@ -101,32 +174,130 @@ class CylinderTelescope(object):
 
 
 
-    _frequencies = None
-
-    @property
-    def frequencies(self):
-        """The centre of each frequency band."""
-        if self._frequencies == None:
-            self.calculate_frequencies()
-
-        return self._frequencies
-
-    def calculate_frequencies(self):
-
-        self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
-
-
-    _redundancy = None
-
-    @property
-    def redundancy(self):
-        """The redundancy of each baseline (corresponds to entries in
-        cyl.baselines)."""
-        if self._redundancy == None:
-            self.calculate_baselines()
-
-        return self._redundancy
         
+
+        
+    def transfer_matrices(self, bl_indices, f_indices, mfirst = False, global_lmax = True):
+
+        ## Setup a progress bar if required.
+        progress = lambda x: x
+        if self.print_progress:
+            from progressbar import ProgressBar
+            progress = ProgressBar()
+
+        # Broadcast arrays against each other
+        bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
+
+        ## Check indices are all in range
+        if out_of_range(bl_indices, 0, self.nbase):
+            raise Exception("Baseline indices aren't valid")
+
+        if out_of_range(f_indices, 0, self.nfreq):
+            raise Exception("Frequency indices aren't valid")
+
+        lmax, mmax = max_lm(self.baselines[bl_indices], self.wavelengths[f_indices], self.u_width)
+
+        lside = self.lmax if global_lmax else lmax.max()
+
+        tarray = self._make_matrix_array((bl_indices.shape, mfirst, all_lmax)
+
+        print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
+
+        i_arr = np.argsort(lmax.flat)
+
+        for iflat in progress(np.argsort(lmax.flat)):
+            ind = np.unravel_index(iflat, lmax.shape)
+            
+            trans = self._transfer_single(bl_indices[ind], f_indices[ind], lmax[ind], lside)
+            self._copy_single_into_array(tarray, trans, ind, mfirst)
+
+        return tarray
+
+
+    def transfer_for_frequency(self, freq, mfirst = True):
+
+        if freq < 0 or freq >= self.num_freq:
+            raise Exception("Frequency index not valid.")
+
+        bi = np.arange(self.baselines.shape[0])
+        fi = freq * np.ones_like(bi)
+
+        return self.transfer_matrices(bi, fi, mfirst = mfirst)
+
+
+    def transfer_for_baseline(self, baseline, mfirst = True):
+
+        if baseline < 0 or baseline >= self.baselines.shape[0]:
+            raise Exception("Frequency index not valid.")
+
+        fi = np.arange(self.num_freq)
+        bi = baseline * np.ones_like(fi)
+
+        return self.transfer_matrices(bi, fi, mfirst = mfirst)
+
+
+
+
+class CylinderTelescope(TransitTelescope):
+
+
+    num_cylinders = 2
+    num_feeds = 6
+
+    cylinder_width = 20.0
+    feed_spacing = 0.5
+
+    accuracy_boost = 1
+
+    print_progress = False
+
+    _extdelkeys = []
+
+
+    def __init__(self, latitude = 45, longitude = 0):
+        """Initialise a cylinder object.
+        
+        Parameters
+        ----------
+        latitude, longitude : scalar
+            Position on the Earths surface of the telescope (in degrees).
+        """
+
+        TransitTelescope(self, latitude, longitude)
+
+        self._init_trans(2)
+
+
+    def calculate_baselines(self):
+        """Calculate all the unique baselines and their redundancies.
+
+        Returns
+        -------
+        baselines : np.ndarray
+            An array of all the baselines. Packed as [ [u1, v1], [u2, v2], ...]
+
+        redundancy : np.ndarray
+            For each baseline give the number of pairs if feeds, that have it.
+        """
+
+        feed_pos = self.feed_positions()
+        
+        bl1 = feed_pos[np.newaxis,:,:] - feed_pos[:,np.newaxis,:]
+        bl2 = bl1[np.triu_indices(feed_pos.shape[0], 1)]
+
+        bl3, ind = np.unique(bl2[...,0] + 1.0J * bl2[...,1], return_inverse=True)
+
+        baselines = np.empty([bl3.shape[0], 2], dtype=np.float64)
+        baselines[:,0] = bl3.real
+        baselines[:,1] = bl3.imag
+
+        redundancy = np.bincount(ind)
+
+        self._baselines = baselines
+        self._redundancy = redundancy
+
+
+
 
     def feed_positions(self):
         """Get the set of feed positions on *all* cylinders.
@@ -170,11 +341,6 @@ class CylinderTelescope(object):
         return pos
 
 
-    def _best_nside(self, lmax):
-        ## REMOVE me.
-        return hputil.nside_for_lmax(lmax)
-
-
     def max_lm(self, freq_index = None):
         """Get the maximum (l,m) that the telescope is sensitive to.
         
@@ -205,71 +371,7 @@ class CylinderTelescope(object):
         return int(lmax), int(mmax)
         
 
-        
-    def transfer_matrices(self, bl_indices, f_indices, mfirst = False, global_lmax = True):
 
-        ## Setup a progress bar if required.
-        progress = lambda x: x
-        if self.print_progress:
-            from progressbar import ProgressBar
-            progress = ProgressBar()
-
-
-        if np.shape(bl_indices) != np.shape(f_indices):
-            raise Exception("Index arrays must be the same shape.")
-
-        if np.min(bl_indices) < 0 or np.max(bl_indices) >= self.baselines.shape[0]:
-            raise Exception("Baseline indices aren't valid")
-
-        if np.min(f_indices) < 0 or np.max(f_indices) >= self.frequencies.shape[0]:
-            raise Exception("Frequency indices aren't valid")
-
-        wavelength = 3e2 / self.frequencies[np.array(f_indices)]
-        uv_arr = self.baselines[np.array(bl_indices)] / wavelength[...,np.newaxis]  # Replace with constant c
-
-        mmax = np.ceil(2 * np.pi * (uv_arr[...,0] + (self.cylinder_width / wavelength)))
-        lmax = np.ceil((mmax**2 + (2*np.pi*uv_arr[...,1])**2)**0.5)
-
-        if global_lmax:
-            all_lmax, all_mmax = self.max_lm()
-        else:
-            all_lmax = lmax.max()
-
-        tarray = self._make_matrix_array(np.shape(bl_indices), mfirst, all_lmax)
-
-        print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
-
-        i_arr = np.argsort(lmax.flat)
-
-        for i in progress(range(i_arr.size)):
-            ind = np.unravel_index(i_arr[i], lmax.shape)
-            trans = self._transfer_single(uv_arr[ind], wavelength[ind], lmax[ind], all_lmax)
-
-            self._copy_single_into_array(tarray, trans, ind, mfirst)
-
-        return tarray
-
-
-    def transfer_for_frequency(self, freq, mfirst = True):
-
-        if freq < 0 or freq >= self.num_freq:
-            raise Exception("Frequency index not valid.")
-
-        bi = np.arange(self.baselines.shape[0])
-        fi = freq * np.ones_like(bi)
-
-        return self.transfer_matrices(bi, fi, mfirst = mfirst)
-
-
-    def transfer_for_baseline(self, baseline, mfirst = True):
-
-        if baseline < 0 or baseline >= self.baselines.shape[0]:
-            raise Exception("Frequency index not valid.")
-
-        fi = np.arange(self.num_freq)
-        bi = baseline * np.ones_like(fi)
-
-        return self.transfer_matrices(bi, fi, mfirst = mfirst)
 
 
 class PolarisedCylinderTelescope(CylinderTelescope):

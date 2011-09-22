@@ -405,9 +405,6 @@ class TransitTelescope(object):
 
 
 
-
-
-
 class CylinderTelescope(TransitTelescope):
 
 
@@ -516,6 +513,68 @@ class CylinderTelescope(TransitTelescope):
 
 
 
+class UnpolarisedTelescope(TransitTelescope):
+
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def beam(self, feed):
+        """Beam for a particular feed.
+        
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+
+        Returns
+        -------
+        beam : np.ndarray
+            A Healpix map (of size self._nside) of the beam. Potentially
+            complex.
+        """
+        return
+    
+
+    def _init_trans(self, nside):
+
+        # Angular positions in healpix map of nside
+        self._nside = nside
+        self._angpos = hputil.ang_positions(nside)
+
+        # The horizon function
+        self._horizon = visibility.horizon(self._angpos, self.zenith)
+
+        # Beam
+        #self._beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
+
+        # Multiplied quantity
+        self._mul = self._horizon #* self._beam
+
+
+    def _transfer_single(self, uv, wavelength, lmax, lside):
+
+        if self._nside != hputil.nside_for_lmax(lmax):
+            self._init_trans(hputil.nside_for_lmax(lmax))
+        ## Need to fix this.
+        beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        cvis = self._mul * fringe * beam**2
+
+        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = int(lmax), lside=lside)
+
+        return btrans
+
+
+    def _make_matrix_array(self, shape, lmax):
+        return np.zeros(shape + (lmax+1, 2*lmax+1), dtype=np.complex128)
+
+    def _copy_single_into_array(self, tarray, tsingle, ind):
+        tarray[ind] = tsingle
+
+
+
+
 
 class PolarisedCylinderTelescope(CylinderTelescope):
 
@@ -592,49 +651,6 @@ class PolarisedCylinderTelescope(CylinderTelescope):
         
         
 
-
-class UnpolarisedCylinderTelescope(CylinderTelescope):
-
-
-    ## Extra fields to remove when pickling.
-    _extdelkeys = ['_nside', '_angpos', '_horizon', '_beam', '_mul']
-
-    def _init_trans(self, nside):
-
-        # Angular positions in healpix map of nside
-        self._nside = nside
-        self._angpos = hputil.ang_positions(nside)
-
-        # The horizon function
-        self._horizon = visibility.horizon(self._angpos, self.zenith)
-
-        # Beam
-        #self._beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
-
-        # Multiplied quantity
-        self._mul = self._horizon #* self._beam
-
-
-    def _transfer_single(self, uv, wavelength, lmax, lside):
-
-        if self._nside != hputil.nside_for_lmax(lmax):
-            self._init_trans(hputil.nside_for_lmax(lmax))
-        ## Need to fix this.
-        beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
-
-        cvis = self._mul * fringe * beam**2
-
-        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = int(lmax), lside=lside)
-
-        return btrans
-
-
-    def _make_matrix_array(self, shape, lmax):
-        return np.zeros(shape + (lmax+1, 2*lmax+1), dtype=np.complex128)
-
-    def _copy_single_into_array(self, tarray, tsingle, ind):
-        tarray[ind] = tsingle
 
 
         

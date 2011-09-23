@@ -52,6 +52,27 @@ def max_lm(baselines, wavelengths, width):
 
 class TransitTelescope(object):
     """Base class for simulating any transit interferometer.
+    
+    This is an abstract class, and several methods must be implemented before it
+    is usable. These are:
+
+    * `feedpositions` - a property which contains the positions of all the feeds
+    * `_get_unique` -  calculates which baselines are identical
+    * `_transfer_single` - calculate the beam transfer for a single baseline+freq
+    * `_make_matrix_array` - makes an array of the right size to hold the
+      transfer functions
+    * `_copy_transfer_into_single` - copy a single transfer matrix into a
+      collection.
+
+    The last two are required for supporting polarised beam functions.
+    
+    Properties
+    ----------
+    freq_lower, freq_higher : scalar
+        The center of the lowest and highest frequency bands.
+    num_freq : scalar
+        The number of frequency bands (only use for setting up the frequency
+        binning). Generally using `nfreq` is preferred.
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
 
@@ -304,6 +325,20 @@ class TransitTelescope(object):
 
 
 
+    def _init_trans(self, nside):
+        ## Internal function for generating some common Healpix maps (position,
+        ## horizon). These should need to be generated only when nside changes.
+        
+        # Angular positions in healpix map of nside
+        self._nside = nside
+        self._angpos = hputil.ang_positions(nside)
+
+        # The horizon function
+        self._horizon = visibility.horizon(self._angpos, self.zenith)
+
+
+
+
     #===================================================
     #================ ABSTRACT METHODS =================
     #===================================================
@@ -314,11 +349,20 @@ class TransitTelescope(object):
         """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
         return
 
+     # Implement to specify feed positions in the telescope.
+    @abc.abstractproperty
+    def u_width(self):
+        """The approximate physical width (in the u-direction) of the dish/telescope etc, for
+        calculating the maximum (l,m)."""
+        return
+
 
     # Implement to determine which baselines are unique
     @abc.abstractmethod
     def _get_unique(self, fpairs):
         """Calculate the unique baseline pairs.
+
+        **Abstract method** must be implemented.
         
         Parameters
         ----------
@@ -339,6 +383,8 @@ class TransitTelescope(object):
     @abc.abstractmethod
     def _transfer_single(self, bl_index, f_index, lmax, lside):
         """Calculate transfer matrix for a single baseline+frequency.
+        
+        **Abstract method** must be implemented.
 
         Parameters
         ----------
@@ -365,6 +411,8 @@ class TransitTelescope(object):
     def _make_matrix_array(self, shape, lside):
         """Create an array large enough to hold `shape` transfers up to size
         `lside`.
+        
+        **Abstract method** must be implemented.
 
         This strange abstraction is to allow subclasses to consider polarised
         feeds.
@@ -386,7 +434,9 @@ class TransitTelescope(object):
     @abc.abstractmethod
     def _copy_single_into_array(self, tarray, tsingle, ind):
         """Copy a single transfer into a larger array at position `ind`.
-
+        
+        **Abstract method** must be implemented.
+        
         Parameters
         ----------
         tarray : np.ndarray
@@ -405,6 +455,147 @@ class TransitTelescope(object):
 
 
 
+
+
+class UnpolarisedTelescope(TransitTelescope):
+    """A base for an unpolarised telescope.
+
+    Again, an abstract class, but the only things that require implementing are
+    the `feedpositions`, `_get_unique` and the `beam` function.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def beam(self, feed, freq):
+        """Beam for a particular feed.
+        
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
+
+        Returns
+        -------
+        beam : np.ndarray
+            A Healpix map (of size self._nside) of the beam. Potentially
+            complex.
+        """
+        return
+    
+
+    #===== Implementations of abstract functions =======
+
+    def _transfer_single(self, bl_index, f_index, lmax, lside):
+        
+        if self._nside != hputil.nside_for_lmax(lmax):
+            self._init_trans(hputil.nside_for_lmax(lmax))
+
+        # Get beam maps for each feed.
+        feedi, feedj = self.feedpairs[bl_index]
+        beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
+
+        # Get baseline separation and fringe map.
+        uv = self.baselines[bl_index] / self.wavelength[f_index]
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        # Calculate the complex visibility
+        cvis = self._horizon * fringe * beami * beamj
+
+        # Perform the harmonic transform to get the transfer matrix.
+        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside)
+
+        return btrans
+
+    def _make_matrix_array(self, shape, lmax):
+        return np.zeros(shape + (lmax+1, 2*lmax+1), dtype=np.complex128)
+
+    def _copy_single_into_array(self, tarray, tsingle, ind):
+        tarray[ind] = tsingle
+
+    #===================================================
+
+
+
+class PolarisedTelescope(TransitTelescope):
+ """A base for a polarised telescope.
+
+    Again, an abstract class, but the only things that require implementing are
+    the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
+
+    Properties
+    ----------
+    feedx, feedy : np.ndarray
+        Two element vectors giving the orientation of the x, y polarisations in
+        the UV plane. The directions are assumed to be the same over all feeds.
+    """
+
+    feedx = np.array([1.0, 0.0])
+    feedy = np.array([0.0, 1.0])
+
+
+    
+    def _init_trans(self, nside):
+        ## Override _init_trans to generate the polarisation projections.
+        
+        TransitTelescope._init_trans(self, nside)
+
+        # Polarisation projections of feed pairs
+        self._pIQUxx = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedx)
+        self._pIQUxy = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedy)
+        self._pIQUyy = visibility.pol_IQU(self._angpos, self.zenith, self.feedy, self.feedy)
+
+        # Multiplied pairs
+        self._mIQUxx = self._horizon * self._pIQUxx
+        self._mIQUxy = self._horizon * self._pIQUxy
+        self._mIQUyy = self._horizon * self._pIQUyy
+
+
+    #===== Implementations of abstract functions =======
+
+    def _transfer_single(self, bl_index, f_index lmax, lside):
+
+        if self._nside != hputil.nside_for_lmax(lmax):
+            self._init_trans(hputil.nside_for_lmax(lmax))
+
+        # Get beam maps for each feed.
+        feedi, feedj = self.feedpairs[bl_index]
+        beamix, beamjx = self.beamx(feedi, f_index), self.beamx(feedj, f_index)
+        beamiy, beamjy = self.beamy(feedi, f_index), self.beamy(feedj, f_index)
+
+        # Get baseline separation and fringe map.
+        uv = self.baselines[bl_index] / self.wavelength[f_index]
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        cvIQUxx = self._mIQUxx * fringe * beamix * beamjx
+        cvIQUxy = self._mIQUxy * fringe * beamix * beamjy
+        cvIQUyy = self._mIQUyy * fringe * beamiy * beamjy
+
+        ### If beams ever become complex need to do yx combination.
+        btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,
+                                               lmax = int(lmax), lside=lside)
+        btransxy = hputil.sphtrans_complex_pol(cvIQUxy, centered = False,
+                                               lmax = int(lmax), lside=lside)
+        btransyy = hputil.sphtrans_complex_pol(cvIQUyy, centered = False,
+                                               lmax = int(lmax), lside=lside)
+
+        return [btransxx, btransxy, btransyy]
+
+
+    def _make_matrix_array(self, shape, lmax):
+        return np.zeros(shape + (3, 3, lmax+1, 2*lmax+1), dtype=np.complex128)
+
+    def _copy_single_into_array(self, tarray, tsingle, ind):
+        for pi in range(3):
+            for pj in range(3):
+                islice = (ind + (pi,pj) + (slice(None),slice(None)))
+                tarray[islice] = tsingle[pi][pj]
+
+    #===================================================
+
+
+
 class CylinderTelescope(TransitTelescope):
 
 
@@ -414,66 +605,54 @@ class CylinderTelescope(TransitTelescope):
     cylinder_width = 20.0
     feed_spacing = 0.5
 
-    accuracy_boost = 1
+    ## u-width property override
+    @property
+    def u_width(self):
+        return self.cylinder_width
 
-    print_progress = False
-
-    _extdelkeys = []
-
-
-    def __init__(self, latitude = 45, longitude = 0):
-        """Initialise a cylinder object.
+    def _get_unique(self, feedpairs):
+        """Calculate the unique baseline pairs.
+        
+        Pairs are considered identical if they have the same baseline
+        separation,
         
         Parameters
         ----------
-        latitude, longitude : scalar
-            Position on the Earths surface of the telescope (in degrees).
-        """
-
-        TransitTelescope.__init__(self, latitude, longitude)
-
-        self._init_trans(2)
-
-
-    def calculate_baselines(self):
-        """Calculate all the unique baselines and their redundancies.
+        fpairs : np.ndarray
+            An array of all the feed pairs, packed as [[i1, i2, ...], [j1, j2, ...] ].
 
         Returns
         -------
         baselines : np.ndarray
-            An array of all the baselines. Packed as [ [u1, v1], [u2, v2], ...]
-
+            An array of all the unique pairs. Packed as [ [i1, i2, ...], [j1, j2, ...]].
         redundancy : np.ndarray
-            For each baseline give the number of pairs if feeds, that have it.
+            For each unique pair, give the number of equivalent pairs.
         """
+        # Calculate separation of all pairs, and map into a half plane (so
+        # baselines and their negative are identical).
+        bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
+        bl1 = map_half_plane(bl1)
 
-        feed_pos = self.feed_positions()
+        # Turn separation into a complex number and find unique elements
+        ub, ind, inv = np.unique(bl1[...,0] + 1.0J * bl1[...,1], return_index=True, return_inverse=True)
+
+        # Bin to find redundancy of each pair
+        redundancy = np.bincount(inv)
+
+        # Construct array of pairs
+        upairs = feedpairs[:,ind]
         
-        bl1 = feed_pos[np.newaxis,:,:] - feed_pos[:,np.newaxis,:]
-        bl2 = bl1[np.triu_indices(feed_pos.shape[0], 1)]
-
-        bl3, ind = np.unique(bl2[...,0] + 1.0J * bl2[...,1], return_inverse=True)
-
-        baselines = np.empty([bl3.shape[0], 2], dtype=np.float64)
-        baselines[:,0] = bl3.real
-        baselines[:,1] = bl3.imag
-
-        redundancy = np.bincount(ind)
-
-        self._baselines = baselines
-        self._redundancy = redundancy
+        return upairs, redundancy
 
 
 
-
-
-
-    def feed_positions(self):
-        """Get the set of feed positions on *all* cylinders.
+    @property
+    def feedpositions(self):
+        """The set of feed positions on *all* cylinders.
         
         Returns
         -------
-        feed_positions : np.ndarray
+        feedpositions : np.ndarray
             The positions in the telescope plane of the receivers. Packed as
             [[u1, v1], [u2, v2], ...].
         """
@@ -510,151 +689,37 @@ class CylinderTelescope(TransitTelescope):
         return pos
 
 
+        
+        
 
+class UnpolarisedCylinderTelescope(CylinderTelescope, UnpolarisedTelescope):
 
+    _bc_freq = None
+    _bc_nside = None
 
-class UnpolarisedTelescope(TransitTelescope):
-
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def beam(self, feed):
+    def beam(self, feed, freq):
         """Beam for a particular feed.
         
         Parameters
         ----------
         feed : integer
             Index for the feed.
-
+        freq : integer
+            Index for the frequency.
+        
         Returns
         -------
         beam : np.ndarray
             A Healpix map (of size self._nside) of the beam. Potentially
             complex.
         """
-        return
-    
 
-    def _init_trans(self, nside):
+        if self._bc_freq != freq or self._bc_nside != self._nside:
+            self._bc_map = visibility.cylinder_beam(self._angpos, self.zenith,
+                                                    self.cylinder_width / self.wavelengths[freq])
 
-        # Angular positions in healpix map of nside
-        self._nside = nside
-        self._angpos = hputil.ang_positions(nside)
+            self._bc_freq = freq
+            self._bc_nside = self._nside
 
-        # The horizon function
-        self._horizon = visibility.horizon(self._angpos, self.zenith)
-
-        # Beam
-        #self._beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width)
-
-        # Multiplied quantity
-        self._mul = self._horizon #* self._beam
-
-
-    def _transfer_single(self, uv, wavelength, lmax, lside):
-
-        if self._nside != hputil.nside_for_lmax(lmax):
-            self._init_trans(hputil.nside_for_lmax(lmax))
-        ## Need to fix this.
-        beam = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
-
-        cvis = self._mul * fringe * beam**2
-
-        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = int(lmax), lside=lside)
-
-        return btrans
-
-
-    def _make_matrix_array(self, shape, lmax):
-        return np.zeros(shape + (lmax+1, 2*lmax+1), dtype=np.complex128)
-
-    def _copy_single_into_array(self, tarray, tsingle, ind):
-        tarray[ind] = tsingle
-
-
-
-
-
-class PolarisedCylinderTelescope(CylinderTelescope):
-
-
-    feedx = np.array([1.0, 0.0])
-    feedy = np.array([0.0, 1.0])
-
-    cylinder_xy_ratio = 1.0
-
-
-    ## Extra fields to remove when pickling.
-    _extdelkeys = ['_nside', '_angpos', '_horizon', '_beamx', '_beamy',
-                   '_pIQUxx', '_pIQUxy', '_pIQUyy', '_mIQUxx', '_mIQUxy', '_mIQUyy']
-        
-    def _init_trans(self, nside):
-
-        # Angular positions in healpix map of nside
-        self._nside = nside
-        self._angpos = hputil.ang_positions(nside)
-
-        # The horizon function
-        self._horizon = visibility.horizon(self._angpos, self.zenith)
-
-        # Polarisation projections of feed pairs
-        self._pIQUxx = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedx)
-        self._pIQUxy = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedy)
-        self._pIQUyy = visibility.pol_IQU(self._angpos, self.zenith, self.feedy, self.feedy)
-
-        # Multiplied pairs
-        self._mIQUxx = self._horizon * self._pIQUxx
-        self._mIQUxy = self._horizon * self._pIQUxy
-        self._mIQUyy = self._horizon * self._pIQUyy
-
-
-    def _transfer_single(self, uv, wavelength, lmax, lside):
-
-        if self._nside != hputil.nside_for_lmax(lmax):
-            self._init_trans(hputil.nside_for_lmax(lmax))
-
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
-
-        # Beams
-        beamx = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
-        beamy = visibility.cylinder_beam(self._angpos, self.zenith, self.cylinder_width / wavelength)
-
-        cvIQUxx = self._mIQUxx * fringe * beamx**2
-        cvIQUxy = self._mIQUxy * fringe * beamx * beamy
-        cvIQUyy = self._mIQUyy * fringe * beamy**2
-
-        ### If beams ever become complex need to do yx combination.
-        btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,
-                                               lmax = int(lmax), lside=lside)
-        btransxy = hputil.sphtrans_complex_pol(cvIQUxy, centered = False,
-                                               lmax = int(lmax), lside=lside)
-        btransyy = hputil.sphtrans_complex_pol(cvIQUyy, centered = False,
-                                               lmax = int(lmax), lside=lside)
-
-        return [btransxx, btransxy, btransyy]
-
-
-    def _make_matrix_array(self, shape, lmax):
-        tarray = np.zeros(shape + (3, 3, lmax+1, 2*lmax+1), dtype=np.complex128)
-
-        return tarray
-
-
-    def _copy_single_into_array(self, tarray, tsingle, ind):
-        for pi in range(3):
-            for pj in range(3):
-                islice = (ind + (pi,pj) + (slice(None),slice(None)))
-                tarray[islice] = tsingle[pi][pj]
-
-
-        
-        
-
-
-
-        
-        
-
-        
-        
+        return self._bc_map
+            

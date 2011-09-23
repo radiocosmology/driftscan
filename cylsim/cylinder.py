@@ -519,22 +519,23 @@ class UnpolarisedTelescope(TransitTelescope):
 
 
 class PolarisedTelescope(TransitTelescope):
- """A base for a polarised telescope.
-
+    """A base for a polarised telescope.
+    
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
-
+    
     Properties
     ----------
     feedx, feedy : np.ndarray
         Two element vectors giving the orientation of the x, y polarisations in
         the UV plane. The directions are assumed to be the same over all feeds.
     """
-
+    __metaclass__ = abc.ABCMeta
+    
     feedx = np.array([1.0, 0.0])
     feedy = np.array([0.0, 1.0])
-
-
+    
+    
     
     def _init_trans(self, nside):
         ## Override _init_trans to generate the polarisation projections.

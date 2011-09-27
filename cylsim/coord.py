@@ -41,6 +41,36 @@ def sph_to_cart(sph_arr):
     return cart_arr
 
 
+def cart_to_sph(cart_arr):
+    """Convert a cartesian vector into Spherical Polars.
+    
+    Uses the same convention as `sph_to_cart`.
+
+    Parameters
+    ----------
+    cart_arr : np.ndarray
+        Array of cartesians.
+
+    Returns
+    -------
+    sph_arr : np.ndarray
+        Array of spherical polars (packed as [[ r1, theta1, phi1], [r2, theta2,
+        phi2], ...]
+    """
+    sph_arr = np.empty_like(cart_arr)
+    
+    sph_arr[..., 2] = np.arctan2(cart_arr[..., 1], cart_arr[..., 0])
+
+    sph_arr[..., 0] = np.sum(cart_arr**2, axis=-1)**0.5
+
+    sph_arr[..., 1] = np.arccos(cart_arr[..., 2] / sph_arr[..., 0])
+
+    return sph_arr
+    
+
+    
+
+
 def sph_dot(arr1, arr2):
     """Take the scalar product in spherical polars.
     
@@ -105,3 +135,20 @@ def thetaphi_plane_cart(sph_arr):
     that, phat = thetaphi_plane(sph_arr)
 
     return sph_to_cart(that), sph_to_cart(phat)
+
+
+def groundsph_to_cart(gsph, zenith):
+
+    ta = gsph[..., 0]
+    pa = gsph[..., 1]
+
+    zenc = sph_to_cart(zenith)
+
+    that, phat = thetaphi_plane_cart(zenith)
+
+    cart_arr = np.empty(ta.shape + (3,), dtype=ta.dtype)
+
+    cart_arr = (ta[..., np.newaxis] * that + pa[..., np.newaxis] * phat
+                + ((1.0 - ta**2 - pa**2)**0.5)[..., np.newaxis] * zenc)
+
+    return cart_arr

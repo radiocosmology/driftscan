@@ -99,6 +99,7 @@ class TransitTelescope(object):
         self.zenith = np.array([np.pi / 2.0 - np.radians(latitude),
                                 np.remainder(np.radians(longitude), 2*np.pi)])
 
+        self._init_trans(2)
 
     def __getstate__(self):
 
@@ -181,8 +182,8 @@ class TransitTelescope(object):
 
     @property
     def nfreq(self):
-        """The central wavelength of each frequency band (in metres)."""
-        return units.c / (1e6 * self.frequencies)
+        """The number of frequency bins."""
+        return self.frequencies.shape[0]
 
     #===================================================
 
@@ -555,7 +556,7 @@ class PolarisedTelescope(TransitTelescope):
 
     #===== Implementations of abstract functions =======
 
-    def _transfer_single(self, bl_index, f_index lmax, lside):
+    def _transfer_single(self, bl_index, f_index, lmax, lside):
 
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))

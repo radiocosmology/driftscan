@@ -1,0 +1,1 @@
+* Add a v_width parameter to TransitTelescope for calculating lmax.

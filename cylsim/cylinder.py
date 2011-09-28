@@ -13,7 +13,7 @@ def in_range(arr, min, max):
     return (arr >= min).all() and (arr < max).all()
 
 def out_of_range(arr, min, max):
-    return not inrange(arr, min, max)
+    return not in_range(arr, min, max)
 
 
 def map_half_plane(arr):
@@ -201,6 +201,25 @@ class TransitTelescope(object):
 
 
 
+
+    #===== Properties related to harmonic spread =======
+
+    @property
+    def lmax(self):
+        """The maximum l the telescope is sensitive to."""
+        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width)
+        return lmax.max()
+
+    @property
+    def mmax(self):
+        """The maximum m the telescope is sensitive to."""
+        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width)
+        return mmax.max()
+
+    #===================================================
+
+    
+
     #== Methods for calculating the unique baselines ===
     
     def calculate_baselines(self):
@@ -263,12 +282,12 @@ class TransitTelescope(object):
         # Fetch the set of lmax's for the baselines (in order to reduce time
         # regenerating Healpix maps)
         lmax, mmax = max_lm(self.baselines[bl_indices], self.wavelengths[f_indices], self.u_width)
-
+        lmax = lmax*2
         # Set the size of the (l,m) array to write into
         lside = self.lmax if global_lmax else lmax.max()
 
         # Generate the array for the Transfer functions
-        tarray = self._make_matrix_array(bl_indices.shape, all_lmax)
+        tarray = self._make_matrix_array(bl_indices.shape, lside)
 
         print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
 
@@ -276,7 +295,7 @@ class TransitTelescope(object):
         # order, calculating the transfer matrices
         i_arr = np.argsort(lmax.flat)
         
-        for iflat in self._progress(np.argsort(lmax.flat)):
+        for iflat in np.argsort(lmax.flat):
             ind = np.unravel_index(iflat, lmax.shape)
             
             trans = self._transfer_single(bl_indices[ind], f_indices[ind], lmax[ind], lside)
@@ -498,7 +517,7 @@ class UnpolarisedTelescope(TransitTelescope):
         beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
 
         # Get baseline separation and fringe map.
-        uv = self.baselines[bl_index] / self.wavelength[f_index]
+        uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
         # Calculate the complex visibility
@@ -567,7 +586,7 @@ class PolarisedTelescope(TransitTelescope):
         beamiy, beamjy = self.beamy(feedi, f_index), self.beamy(feedj, f_index)
 
         # Get baseline separation and fringe map.
-        uv = self.baselines[bl_index] / self.wavelength[f_index]
+        uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
         cvIQUxx = self._mIQUxx * fringe * beamix * beamjx

@@ -6,7 +6,10 @@ Uses the healpy module.
 import healpy
 
 import numpy as np
+import os
 
+### Healpy SH routines seem to crash occasionally if using OMP, do disable.
+os.environ['OMP_NUM_THREADS'] = '1'
 
 def ang_positions(nside):
     """Fetch the angular position of each pixel in a map.

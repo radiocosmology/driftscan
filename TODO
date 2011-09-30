@@ -1,1 +1,2 @@
 * Add a v_width parameter to TransitTelescope for calculating lmax.
+* Take into account finite bandwidth effect on fringes.

@@ -405,6 +405,39 @@ possibly be sensitive to higher values.
 \appendix
 
 
+\section{Noise Powerspectrum}
+
+Provided we are in the limit where the system temperature dominates the antenna
+temperature, $T_\text{sys} \gg T_A$, the instrumental noise is described by the
+radiometer equation
+\begin{equation}
+\sigma_T^2 = \frac{T_\text{sys}^2(\nu)}{\tau \Delta\nu} \; ,
+\end{equation}
+where $\tau$ is the integration time, and $\Delta\nu$ is the width of the
+bandwidth of the channel. Assuming that the integration is over a uniform
+rectangular window of length $\tau$, and the noise has a white spectrum, the
+correlation function
+\begin{equation}
+\zeta(t) = \la n(t') n(t' - t) \ra = \sigma_T^2 \tri{(t / \tau)} \; ,
+\end{equation}
+where the triangle function $\tri{(x)} = 1 - \left\lvert x \right\rvert$ for
+$\left\lvert x \right\rvert < 1$.
+
+As we need to consider the problem in terms of Earth rotation, we identify
+distinct sidereal days and treat the averaged noise as periodic. This discrete
+power spectrum of the noise, defined by $\la n_m n_m' \ra = N_m \delta_{m m'}$,
+is
+\begin{equation}
+N_m = \frac{T_\text{sys}^2(\nu)}{2 \pi N_\text{day} \Delta\nu_\phi} \sinc{\left(\frac{m
+      \Delta\phi}{2}\right)}^2 \; ,
+\end{equation}
+where $N_\text{day}$ is the number of complete sidereal days that have been
+observed, and we have changed units into radians by defining $\Delta\phi = 2\pi
+\tau / t_\text{sid}$, and $\Delta\nu_\phi = t_\text{sid} \Delta\nu / 2\pi$.
+Usually we would want the integration length to be smaller than any angular
+scale we are interested in, in this limit $m \Delta\phi \ll 1$, and the $\sinc$
+factor is $\sim 1$.
+
 \section{Signal-Noise Eigenmodes}
 
 % Define a measurement in some vector space

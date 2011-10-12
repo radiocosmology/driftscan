@@ -156,6 +156,7 @@ class BeamTransfer(object):
             print 'f index %i. Creating file: %s' % (fi, self._ffile % fi)
             
             f = h5py.File(self._ffile % fi, 'w')
+            f.create_group('m_section')
 
             # Calculate transfer matrices for each frequency
             btrans = self.telescope.transfer_for_frequency(fi)
@@ -189,7 +190,7 @@ class BeamTransfer(object):
 
             ## Create hdf5 file for each m-mode
             f = h5py.File(self._mfile % mi, 'w')
-
+            f.create_group('freq_section')
             ## For each frequency read in the current m-mode and copy into file.
             for fi in np.arange(self.telescope.nfreq):
 

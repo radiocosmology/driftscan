@@ -9,6 +9,8 @@ import scipy.linalg as la
 
 import time
 
+import h5py
+
 import argparse
 import os
 
@@ -18,26 +20,20 @@ import healpy
 
 from progressbar import ProgressBar
 
-#import matplotlib
-#matplotlib.use('PDF')
-#from matplotlib import pyplot as plt
-
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
 parser.add_argument('rootdir', help='Root directory to create files in.')
-parser.add_argument('filestem', default='', help='Prefix to add created files.', nargs='?')
 
 args = parser.parse_args()
 
-mi = 100
-
 print "Reading beam matrices..."
-
-## The filename root of the files we want.
-root = args.rootdir + "/" + args.filestem + "beammatrix"
 
 bt = beamtransfer.BeamTransfer(args.rootdir)
 
 cyl = bt.telescope
+
+mlist = range(-cyl.mmax, cyl.mmax+1)
+
+mlocal = beamtransfer.partition_list_mpi(mlist)
 
 print "Constructing C_l(z,z') matrices...."
 
@@ -53,50 +49,65 @@ cv_fg += (fps.angular_powerspectrum(np.arange(cyl.lmax+1))[:,np.newaxis,np.newax
 
 za = units.nu21 / cyl.frequencies - 1.0
 
+
+## Construct signal matrix C_l(nu, nu')
 cr = corr21cm.Corr21cm()
 
 cv_sg = cr.angular_powerspectrum_fft(np.arange(cyl.lmax+1)[:,np.newaxis,np.newaxis], za[np.newaxis,:,np.newaxis], za[np.newaxis,np.newaxis,:])
 
-beam = bt.beam_m(mi)
-
-#cvb_fg = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
-#cvb_sg = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
-#cvb_nm = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
-
-print "Constructing signal and noise covariances..."
-
-cvb_s = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
-cvb_n = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
-
-
+## Construct thermal noise
 tsys = 50.0
 bw = np.abs(cyl.frequencies[1] - cyl.frequencies[0]) * 1e6
 delnu = units.t_sidereal * bw / (2*np.pi)
 ndays = 365
 noisepower = tsys**2 / (2 * np.pi * delnu * ndays)
-
+noisebase = noisepower * np.diag(1.0 / cyl.redundancy)
 print "Noise: T_sys = %f K, Bandwidth %f MHz, %i days. Total %g" % (tsys, bw / 1e6, ndays, noisepower)
 
-noisebase = noisepower * np.diag(1.0 / cyl.redundancy)
-
-progress = ProgressBar()
-for fi in progress(range(cyl.nfreq)):
-    for fj in range(cyl.nfreq):
-        cvb_n[fi,:,fj,:] = np.dot((beam[fi] * cv_fg[:,fi,fj]), beam[fj].conj().T)
-        cvb_s[fi,:,fj,:] = np.dot((beam[fi] * cv_sg[:,fi,fj]), beam[fj].conj().T)
-    cvb_n[fi,:,fi,:] += noisebase
-
+ev_pat = args.rootdir+"/ev_"+beamtransfer._intpattern(cyl.mmax)+".hdf5"
 
 nside = cyl.nfreq*cyl.nbase
 
-#evals, evecs = la.eigh(cvb_s.reshape((nside,nside)), cvb_n.reshape((nside,nside)))
+for mi in mlocal:
 
-print "Solving for Eigenvalues...."
+    beam = bt.beam_m(mi)
 
-cvb_sr = cvb_s.reshape((nside,nside))
-cvb_nr = cvb_n.reshape((nside,nside))
+    print "Constructing signal and noise covariances for m = %i ..." % (mi)
 
-st = time.time()
-evals, evecs = la.eigh(cvb_sr, cvb_nr, overwrite_a=True, overwrite_b=True)
-et=time.time()
-print "Time =", (et-st)
+    cvb_s = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
+    cvb_n = np.zeros((cyl.nfreq, cyl.nbase, cyl.nfreq, cyl.nbase), dtype=np.complex128)
+
+
+    #progress = ProgressBar()
+    for fi in range(cyl.nfreq):
+        for fj in range(cyl.nfreq):
+            cvb_n[fi,:,fj,:] = np.dot((beam[fi] * cv_fg[:,fi,fj]), beam[fj].conj().T)
+            cvb_s[fi,:,fj,:] = np.dot((beam[fi] * cv_sg[:,fi,fj]), beam[fj].conj().T)
+        cvb_n[fi,:,fi,:] += noisebase
+
+    
+    
+
+    #evals, evecs = la.eigh(cvb_s.reshape((nside,nside)), cvb_n.reshape((nside,nside)))
+    
+    print "Solving for Eigenvalues...."
+
+    cvb_sr = cvb_s.reshape((nside,nside))
+    cvb_nr = cvb_n.reshape((nside,nside))
+
+    st = time.time()
+    evals, evecs = la.eigh(cvb_sr, cvb_nr, overwrite_a=True, overwrite_b=True)
+    et=time.time()
+    print "Time =", (et-st)
+
+
+    ## Write out Eigenvals and Vectors
+    print "Creating file %s ...." % (ev_pat % mi)
+    f = h5py.File(ev_pat % mi, 'w')
+    f.attrs['m'] = mi
+
+    f.create_dataset('evals', data=evals)
+    f.create_dataset('evecs', data=evecs, compression='gzip')
+
+    f.close()
+

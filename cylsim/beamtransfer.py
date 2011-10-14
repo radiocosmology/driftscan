@@ -5,46 +5,8 @@ import numpy as np
 
 import h5py
 
-
-_rank = 0
-_size = 1
-_comm = None
-
-## Try to setup MPI and get the comm, rank and size.
-## If not they should end up as rank=0, size=1.
-try:
-    from mpi4py import MPI
-
-    _comm = MPI.COMM_WORLD
-    
-    rank = _comm.Get_rank()
-    size = _comm.Get_size()
-
-    _rank = rank if rank else 0
-    _size = size if size else 1
-    
-except ImportError:
-    pass
-
-
-def _intpattern(n):
-    """Pattern that prints out a number upto `n` (integer - always shows sign)."""
-    return ("%+0" + repr(int(np.ceil(np.log10(n + 1))) + 1) + "d")
-
-
-def _natpattern(n):
-    """Pattern that prints out a number upto `n` (natural number - no sign)."""
-    return ("%0" + repr(int(np.ceil(np.log10(n + 1)))) + "d")
-
-
-def partition_list_alternate(full_list, i, n):
-    """Partition a list into `n` pieces. Return the `i`th partition."""
-    return full_list[i::n]
-
-
-def partition_list_mpi(full_list):
-    """Return the partition of a list specific to the current MPI process."""
-    return partition_list_alternate(full_list, _rank, _size)
+import mpiutil
+import util
 
 
 
@@ -63,12 +25,12 @@ class BeamTransfer(object):
     @property
     def _mfile(self):
         # Pattern to form the `m` ordered file.
-        return self.directory + "/beam_m_" + _intpattern(self.telescope.mmax) + ".hdf5"
+        return self.directory + "/beam_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
 
     @property
     def _ffile(self):
         # Pattern to form the `freq` ordered file.
-        return self.directory + "/beam_f_" + _natpattern(self.telescope.nfreq) + ".hdf5"
+        return self.directory + "/beam_f_" + util.natpattern(self.telescope.nfreq) + ".hdf5"
 
     #===================================================
 
@@ -79,12 +41,12 @@ class BeamTransfer(object):
     @property
     def _msection(self):
         # The pattern for `m` datasets in freq files.
-        return "m_section/" + _intpattern(self.telescope.mmax)
+        return "m_section/" + util.intpattern(self.telescope.mmax)
 
     @property
     def _fsection(self):
         # The pattern for `freq` datasets in m files.
-        return "freq_section/" + _natpattern(self.telescope.nfreq)
+        return "freq_section/" + util.natpattern(self.telescope.nfreq)
 
     #===================================================
 
@@ -101,9 +63,10 @@ class BeamTransfer(object):
         self.telescope = telescope
         
         # Create directory if required
-        if not os.path.exists(directory):
+        if mpiutil.rank0 and not os.path.exists(directory):
             os.makedirs(directory)
-            
+
+        mpiutil.barrier()
         
         if self.telescope == None:
             print "Attempting to read telescope from disk..."
@@ -131,9 +94,11 @@ class BeamTransfer(object):
         return beam
         
         
-    def beam_freq(self, fi):
+    def beam_freq(self, fi, fullm = False):
+
+        mside = 2*self.telescope.lmax+1 if fullm else 2*self.telescope.mmax+1
         
-        beam = np.zeros((self.telescope.nbase, self.telescope.lmax+1, 2*self.telescope.mmax+1), dtype=np.complex128)
+        beam = np.zeros((self.telescope.nbase, self.telescope.lmax+1, mside), dtype=np.complex128)
         
         ffile = h5py.File(self._ffile % fi, 'r')
         
@@ -147,12 +112,9 @@ class BeamTransfer(object):
 
     def generate_cache(self):
 
-        # Get frequency channels this process will calculate
-        flist = partition_list_mpi(np.arange(self.telescope.nfreq))
-
         # For each frequency, create the HDF5 file, and write in each `m` as a
-        # seperate compressed dataset.
-        for fi in flist:
+        # seperate compressed dataset. Use MPI if available. 
+        for fi in mpiutil.mpirange(self.telescope.nfreq):
             print 'f index %i. Creating file: %s' % (fi, self._ffile % fi)
             
             f = h5py.File(self._ffile % fi, 'w')
@@ -176,15 +138,11 @@ class BeamTransfer(object):
             f.close()
 
         # If we're part of an MPI run, synchronise here.
-        if _comm:
-            _comm.Barrier()
-
-        # Get the set of `m`s this process will reorder.
-        mlist = partition_list_mpi(np.arange(-self.telescope.mmax, self.telescope.mmax+1))
+        mpiutil.barrier()
 
         # For each `m` collect all the `m` sections from each frequency file,
-        # and write them into a new `m` file.
-        for mi in mlist:
+        # and write them into a new `m` file. Use MPI if available. 
+        for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
 
             print 'm index %i. Creating file: %s' % (mi, self._mfile % mi)
 
@@ -213,7 +171,7 @@ class BeamTransfer(object):
             f.close()
 
         # Save pickled telescope object
-        if _rank == 0:
+        if mpiutil.rank0:
             with open(self._picklefile, 'w') as f:
                 print "=== Saving Telescope object. ==="
                 pickle.dump(self.telescope, f)

@@ -6,6 +6,20 @@ import blockla
 
 from simulations.foregroundmap import matrix_root_manynull
 
+import numpy as np
+
+def intpattern(n):
+    """Pattern that prints out a number upto `n` (integer - always shows sign)."""
+    return ("%+0" + repr(int(np.ceil(np.log10(n + 1))) + 1) + "d")
+
+
+def natpattern(n):
+    """Pattern that prints out a number upto `n` (natural number - no sign)."""
+    return ("%0" + repr(int(np.ceil(np.log10(n + 1)))) + "d")
+
+
+
+
 def mkfullsky(corr, nside):
     """Construct a set of correlated Healpix maps.
     

@@ -21,7 +21,6 @@ import healpy
 
 from cylsim import mpiutil
 
-from progressbar import ProgressBar
 
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
 parser.add_argument('rootdir', help='Root directory to create files in.')
@@ -69,8 +68,8 @@ ev_pat = args.rootdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
 nside = cyl.nfreq*cyl.nbase
 
 # Iterate list over MPI processes.
-#for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
-for mi in mpiutil.mpirange(3):
+for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
+#for mi in mpiutil.mpirange(3):
 
     beam = bt.beam_m(mi)
 
@@ -96,8 +95,7 @@ for mi in mpiutil.mpirange(3):
 
     try:
         evals, evecs = la.eigh(cvb_sr, cvb_nr, overwrite_a=True, overwrite_b=True)
-        break
-    except LinAlgError:
+    except la.LinAlgError:
         print "Matrix probabaly not positive definite due to numerical issues. Trying to a constant...."
         
         add_const = -la.eigvalsh(cvb_nr, eigvals=(0,0))[0] * 1.1

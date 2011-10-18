@@ -24,7 +24,7 @@ from cylsim import mpiutil
 
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
 parser.add_argument('rootdir', help='Root directory to create files in.')
-
+parser.add_argument('evdir', help='Directory to save evals/evecs.', default='', nargs='?')
 args = parser.parse_args()
 
 print "Reading beam matrices..."
@@ -63,7 +63,7 @@ noisepower = tsys**2 / (2 * np.pi * delnu * ndays)
 noisebase = noisepower * np.diag(1.0 / cyl.redundancy)
 print "Noise: T_sys = %f K, Bandwidth %f MHz, %i days. Total %g" % (tsys, bw / 1e6, ndays, noisepower)
 
-ev_pat = args.rootdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
+ev_pat = args.rootdir + "/" + args.evdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
 
 nside = cyl.nfreq*cyl.nbase
 

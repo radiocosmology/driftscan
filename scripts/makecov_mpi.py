@@ -55,7 +55,8 @@ cr = corr21cm.Corr21cm()
 cv_sg = cr.angular_powerspectrum_fft(np.arange(cyl.lmax+1)[:,np.newaxis,np.newaxis], za[np.newaxis,:,np.newaxis], za[np.newaxis,np.newaxis,:])
 
 ## Construct thermal noise
-tsys = 50.0
+tsys = 50.0 # K
+tsys = tsys * 1000 # conversion into mK
 bw = np.abs(cyl.frequencies[1] - cyl.frequencies[0]) * 1e6
 delnu = units.t_sidereal * bw / (2*np.pi)
 ndays = 365

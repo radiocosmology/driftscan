@@ -147,7 +147,7 @@ def _make_half_alm(alm_full):
 
     # Project such that only alms corresponding to a real field are included.
     for mi in range(1,lside):
-        alm[:,mi] = 0.5*(alm_full[:,mi] + (-1)**0.5 * alm_full[:,mi])
+        alm[:,mi] = 0.5*(alm_full[:,mi] + (-1)**mi * alm_full[:,-mi])
 
     return alm
 

@@ -73,6 +73,9 @@ class TransitTelescope(object):
     num_freq : scalar
         The number of frequency bands (only use for setting up the frequency
         binning). Generally using `nfreq` is preferred.
+    tsys_flat : scalar
+        The system temperature (in K). Override `tsys` for anything more
+        sophisticated.
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
 
@@ -344,6 +347,68 @@ class TransitTelescope(object):
 
 
 
+    #======== Noise properties of the telescope ========
+
+    tsys_flat = 50.0 # Kelvin
+    def tsys(self, f_indices = None):
+        """The system temperature.
+
+        Currenty has a flat T_sys across the whole bandwidth. Override for
+        anything more complicated.
+
+        Parameters
+        ----------
+        f_indices : array_like
+            Indices of frequencies to get T_sys at.
+
+        Returns
+        -------
+        tsys : array_like
+            System temperature at requested frequencies.
+        """
+        if f_indices == None:
+            freq = self.frequencies
+        else:
+            freq = self.frequencies[freq]
+        return np.ones_like(freq) * self.tsys_flat
+
+
+    def noisepower(self, bl_indices, f_indices, ndays):
+        """Calculate the instrumental noise power spectrum.
+
+        Assume we are still within the regime where the power spectrum is white
+        in `m` modes.
+        
+        Parameters
+        ----------
+        bl_indices : array_like
+            Indices of baselines to calculate.
+        f_indices : array_like
+            Indices of frequencies to calculate. Must be broadcastable against
+            `bl_indices`.
+        ndays : integer
+            The number of sidereal days observed.
+
+        Returns
+        -------
+        noise_ps : np.ndarray
+            The noise power spectrum.
+        """
+        # Broadcast arrays against each other
+        bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
+
+        bw = np.abs(cyl.frequencies[1] - cyl.frequencies[0]) * 1e6
+        delnu = units.t_sidereal * bw / (2*np.pi)
+        noisepower = self.tsys(f_indices)**2 / (2 * np.pi * delnu * ndays)
+        noisebase = noisepower * np.diag(1.0 / self.redundancy[bl_indices])
+
+        return noisebase
+        
+    #===================================================
+
+
+
+
     def _init_trans(self, nside):
         ## Internal function for generating some common Healpix maps (position,
         ## horizon). These should need to be generated only when nside changes.
@@ -519,8 +584,11 @@ class UnpolarisedTelescope(TransitTelescope):
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
+        # Beam solid angle (integrate over beam^2 - equal area pixels)
+        omega_A = (beami * beamj * self._horizon).sum() * (4*np.pi / beami.size)
+
         # Calculate the complex visibility
-        cvis = self._horizon * fringe * beami * beamj
+        cvis = self._horizon * fringe * beami * beamj / omega_A
 
         # Perform the harmonic transform to get the transfer matrix.
         btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside)
@@ -588,9 +656,13 @@ class PolarisedTelescope(TransitTelescope):
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        cvIQUxx = self._mIQUxx * fringe * beamix * beamjx
-        cvIQUxy = self._mIQUxy * fringe * beamix * beamjy
-        cvIQUyy = self._mIQUyy * fringe * beamiy * beamjy
+        omega_A_xx = (beamix * beamjx * self._horizon).sum() * (4*np.pi / beamix.size)
+        omega_A_xy = (beamix * beamjy * self._horizon).sum() * (4*np.pi / beamix.size)
+        omega_A_yy = (beamiy * beamjy * self._horizon).sum() * (4*np.pi / beamiy.size)
+
+        cvIQUxx = self._mIQUxx * fringe * beamix * beamjx / omega_A_xx
+        cvIQUxy = self._mIQUxy * fringe * beamix * beamjy / omega_A_xy
+        cvIQUyy = self._mIQUyy * fringe * beamiy * beamjy / omega_A_yy
 
         ### If beams ever become complex need to do yx combination.
         btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,

@@ -45,27 +45,24 @@ cv_fg = (fsyn.angular_powerspectrum(np.arange(cyl.lmax+1))[:,np.newaxis,np.newax
 cv_fg += (fps.angular_powerspectrum(np.arange(cyl.lmax+1))[:,np.newaxis,np.newaxis]
          * fps.frequency_covariance(*np.meshgrid(cyl.frequencies, cyl.frequencies))[np.newaxis,:,:])
 
-za = units.nu21 / cyl.frequencies - 1.0
+
 
 
 ## Construct signal matrix C_l(nu, nu')
 cr = corr21cm.Corr21cm()
-
+za = units.nu21 / cyl.frequencies - 1.0
 cv_sg = cr.angular_powerspectrum_fft(np.arange(cyl.lmax+1)[:,np.newaxis,np.newaxis], za[np.newaxis,:,np.newaxis], za[np.newaxis,np.newaxis,:])
 
-## Construct thermal noise
-tsys = 50.0 # K
-tsys = tsys * 1000 # conversion into mK
-bw = np.abs(cyl.frequencies[1] - cyl.frequencies[0]) * 1e6
-delnu = units.t_sidereal * bw / (2*np.pi)
-ndays = 365
-noisepower = tsys**2 / (2 * np.pi * delnu * ndays)
-noisebase = noisepower * np.diag(1.0 / cyl.redundancy)
-print "Noise: T_sys = %f K, Bandwidth %f MHz, %i days. Total %g" % (tsys, bw / 1e6, ndays, noisepower)
+
+## Scale signal/foregrounds from mK into K
+cv_fg *= 1e-6
+cv_sg *= 1e-6
+
 
 ev_pat = args.rootdir + "/" + args.evdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
 
 nside = cyl.nfreq*cyl.nbase
+
 
 # Iterate list over MPI processes.
 for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
@@ -82,6 +79,8 @@ for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
         for fj in range(cyl.nfreq):
             cvb_n[fi,:,fj,:] = np.dot((beam[fi] * cv_fg[:,fi,fj]), beam[fj].conj().T)
             cvb_s[fi,:,fj,:] = np.dot((beam[fi] * cv_sg[:,fi,fj]), beam[fj].conj().T)
+            
+        noisebase = np.diag(cyl.noisepower(np.arange(cyl.nbase), fi))
         cvb_n[fi,:,fi,:] += noisebase
     
     print "Solving for Eigenvalues...."

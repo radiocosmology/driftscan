@@ -24,7 +24,7 @@ from cylsim import mpiutil
 
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
 parser.add_argument('rootdir', help='Root directory to create files in.')
-
+parser.add_argument('evdir', help='Directory to save evals/evecs.', default='', nargs='?')
 args = parser.parse_args()
 
 print "Reading beam matrices..."
@@ -33,8 +33,8 @@ bt = beamtransfer.BeamTransfer(args.rootdir)
 
 cyl = bt.telescope
 
-ev_pat = args.rootdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
-
+#ev_pat = args.rootdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
+ev_pat = args.rootdir + "/" + args.evdir + "/ev_" + util.intpattern(cyl.mmax) + ".hdf5"
 nside = cyl.nfreq*cyl.nbase
 
 evarray = np.zeros((2*cyl.mmax+1, nside))
@@ -56,7 +56,7 @@ for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
 
 
 
-f = h5py.File(args.rootdir + '/evals.hdf5', 'w')
+f = h5py.File(args.rootdir + '/' + args.evdir + '/evals.hdf5', 'w')
 
 f.create_dataset('evals', data=evarray)
 f.create_dataset('add_const', data=acarray)

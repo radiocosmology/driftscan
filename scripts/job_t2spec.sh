@@ -10,4 +10,4 @@ source /home/jrs65/pythonsetupbatch.sh
 
 cd /home/jrs65/code/cylinder_simulation/scripts
 export OMP_NUM_THREADS=8
-mpirun -np 30 -npernode 1 python makecov_mpi.py /scratch/jrs65/cylinder/telescope2 &> /scratch/jrs65/cylinder/t2spec.out
+mpirun -np 30 -npernode 1 python makecov_mpi.py /scratch/jrs65/cylinder/telescope2 ev2 &> /scratch/jrs65/cylinder/t2spec_ev2.out

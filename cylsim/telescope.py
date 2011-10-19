@@ -369,7 +369,7 @@ class TransitTelescope(object):
         if f_indices == None:
             freq = self.frequencies
         else:
-            freq = self.frequencies[freq]
+            freq = self.frequencies[f_indices]
         return np.ones_like(freq) * self.tsys_flat
 
 
@@ -397,7 +397,7 @@ class TransitTelescope(object):
         # Broadcast arrays against each other
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
-        bw = np.abs(cyl.frequencies[1] - cyl.frequencies[0]) * 1e6
+        bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
         delnu = units.t_sidereal * bw / (2*np.pi)
         noisepower = self.tsys(f_indices)**2 / (2 * np.pi * delnu * ndays)
         noisebase = noisepower * np.diag(1.0 / self.redundancy[bl_indices])

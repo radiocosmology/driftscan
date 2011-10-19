@@ -63,10 +63,12 @@ ev_pat = args.rootdir + "/" + args.evdir + "/ev_" + util.intpattern(cyl.mmax) + 
 
 nside = cyl.nfreq*cyl.nbase
 
+ndays = 365
+
 
 # Iterate list over MPI processes.
 for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
-#for mi in mpiutil.mpirange(3):
+#for mi in [100]:
 
     beam = bt.beam_m(mi)
 
@@ -80,7 +82,7 @@ for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
             cvb_n[fi,:,fj,:] = np.dot((beam[fi] * cv_fg[:,fi,fj]), beam[fj].conj().T)
             cvb_s[fi,:,fj,:] = np.dot((beam[fi] * cv_sg[:,fi,fj]), beam[fj].conj().T)
             
-        noisebase = np.diag(cyl.noisepower(np.arange(cyl.nbase), fi))
+        noisebase = np.diag(cyl.noisepower(np.arange(cyl.nbase), fi, ndays))
         cvb_n[fi,:,fi,:] += noisebase
     
     print "Solving for Eigenvalues...."

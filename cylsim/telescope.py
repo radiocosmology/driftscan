@@ -400,7 +400,7 @@ class TransitTelescope(object):
         bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
         delnu = units.t_sidereal * bw / (2*np.pi)
         noisepower = self.tsys(f_indices)**2 / (2 * np.pi * delnu * ndays)
-        noisebase = noisepower * np.diag(1.0 / self.redundancy[bl_indices])
+        noisebase = noisepower / self.redundancy[bl_indices]
 
         return noisebase
         

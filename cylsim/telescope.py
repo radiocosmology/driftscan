@@ -585,7 +585,7 @@ class UnpolarisedTelescope(TransitTelescope):
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
         # Beam solid angle (integrate over beam^2 - equal area pixels)
-        omega_A = (beami * beamj * self._horizon).sum() * (4*np.pi / beami.size)
+        omega_A = (np.abs(beami) * np.abs(beamj) * self._horizon).sum() * (4*np.pi / beami.size)
 
         # Calculate the complex visibility
         cvis = self._horizon * fringe * beami * beamj / omega_A
@@ -656,9 +656,9 @@ class PolarisedTelescope(TransitTelescope):
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        omega_A_xx = (beamix * beamjx * self._horizon).sum() * (4*np.pi / beamix.size)
-        omega_A_xy = (beamix * beamjy * self._horizon).sum() * (4*np.pi / beamix.size)
-        omega_A_yy = (beamiy * beamjy * self._horizon).sum() * (4*np.pi / beamiy.size)
+        omega_A_xx = (np.abs(beamix) * np.abs(beamjx) * self._horizon).sum() * (4*np.pi / beamix.size)
+        omega_A_xy = (np.abs(beamix) * np.abs(beamjy) * self._horizon).sum() * (4*np.pi / beamix.size)
+        omega_A_yy = np.abs((beamiy) * np.abs(beamjy) * self._horizon).sum() * (4*np.pi / beamiy.size)
 
         cvIQUxx = self._mIQUxx * fringe * beamix * beamjx / omega_A_xx
         cvIQUxy = self._mIQUxy * fringe * beamix * beamjy / omega_A_xy

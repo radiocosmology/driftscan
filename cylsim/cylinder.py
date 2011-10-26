@@ -17,10 +17,13 @@ class CylinderTelescope(telescope.TransitTelescope):
     cylinder_width = 20.0
     feed_spacing = 0.5
 
+    in_cylinder = True
+
     ## u-width property override
     @property
     def u_width(self):
         return self.cylinder_width
+
 
     def _get_unique(self, feedpairs):
         """Calculate the unique baseline pairs.
@@ -53,6 +56,11 @@ class CylinderTelescope(telescope.TransitTelescope):
 
         # Construct array of pairs
         upairs = feedpairs[:,ind]
+
+        if not self.in_cylinder:
+            mask = np.where(bl1[ind,0] != 0.0)
+            upairs = upairs[:,mask]
+            redundancy = redundancy[mask]
         
         return upairs, redundancy
 
@@ -136,3 +144,5 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTeles
 
         return self._bc_map
             
+
+

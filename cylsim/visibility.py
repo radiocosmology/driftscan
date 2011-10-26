@@ -117,9 +117,9 @@ def pol_IQU(sph_arr, zenith, feed1, feed2):
     f2_t = np.inner(t_hat, f2c)
     f2_p = np.inner(p_hat, f2c)
 
-    pI = f1_t*f2_t + f1_p*f2_p  # I
-    pQ = f1_t*f2_t - f1_p*f2_p  # Q
-    pU = f1_t*f2_p + f1_p*f2_t  # U
+    pI = 0.5*(f1_t*f2_t + f1_p*f2_p)  # I
+    pQ = 0.5*(f1_t*f2_t - f1_p*f2_p)  # Q
+    pU = 0.5*(f1_t*f2_p + f1_p*f2_t)  # U
 
     return pI, pQ, pU
 

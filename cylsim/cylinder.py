@@ -49,7 +49,7 @@ class CylinderTelescope(telescope.TransitTelescope):
         bl1 = telescope.map_half_plane(bl1)
 
         # Turn separation into a complex number and find unique elements
-        ub, ind, inv = np.unique(bl1[...,0] + 1.0J * bl1[...,1], return_index=True, return_inverse=True)
+        ub, ind, inv = np.unique(bl1[..., 0] + 1.0J * bl1[..., 1], return_index=True, return_inverse=True)
 
         # Bin to find redundancy of each pair
         redundancy = np.bincount(inv)
@@ -58,8 +58,8 @@ class CylinderTelescope(telescope.TransitTelescope):
         upairs = feedpairs[:,ind]
 
         if not self.in_cylinder:
-            mask = np.where(bl1[ind,0] != 0.0)
-            upairs = upairs[:,mask]
+            mask = np.where(bl1[ind, 0] != 0.0)
+            upairs = upairs[:, mask][:, 0, ...]
             redundancy = redundancy[mask]
         
         return upairs, redundancy

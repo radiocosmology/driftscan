@@ -32,10 +32,10 @@ coming from various directions on the sky.
 \begin{equation}
 F_i = \int d^2\vnhat \, A_i(\vnhat) E(\vnhat) e^{i \vnhat\cdot\vu_i}\; ,
 \end{equation}
-where the function $A_i(\vnhat)$ gives the amplitude of the beam in that
-direction, and the exponential factor keeps track of the phase relative to an
+where the function $A_i(\vnhat)$ gives the amplitude of the reponse in that
+direction, the exponential factor keeps track of the phase relative to an
 arbitrary reference point, and $\vu_i$ is the displacement to that point,
-divided by the wavelength.. We assume that the radiation from the sky is
+divided by the wavelength. We assume that the radiation from the sky is
 \emph{incoherent}, that is
 \begin{equation}
 \la E(\vnhat) E^* (\vnhat') \ra = \delta(\vnhat - \vnhat') I(\vnhat) \; .
@@ -45,7 +45,7 @@ A visibility $V_{ij}$ is the correlation between two feeds $F_i$ and $F_j$ at a
 particular instant
 \begin{align}
   V_{ij} & = \la F_i F_j^* \ra \\
-  &= \int d^2\vnhat \, A_i(\vnhat) A_j(\vnhat) e^{i \vnhat \cdot \vu_{ij}}
+  &= \int d^2\vnhat \, A_i(\vnhat) A_j^*(\vnhat) e^{i \vnhat \cdot \vu_{ij}}
   I(\vnhat)
 \end{align}
 where $\vu_{ij} = \vu_i - \vu_j$. For brevity of notation, we will introduce an

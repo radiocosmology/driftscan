@@ -686,6 +686,32 @@ class PolarisedTelescope(TransitTelescope):
 
     #===================================================
 
+    def noisepower(self, bl_indices, f_indices, ndays):
+        """Calculate the instrumental noise power spectrum.
 
+        Assume we are still within the regime where the power spectrum is white
+        in `m` modes. 
+        
+        Parameters
+        ----------
+        bl_indices : array_like
+            Indices of baselines to calculate.
+        f_indices : array_like
+            Indices of frequencies to calculate. Must be broadcastable against
+            `bl_indices`.
+        ndays : integer
+            The number of sidereal days observed.
+
+        Returns
+        -------
+        noise_ps : np.ndarray
+            The noise power spectrum.
+        """
+
+        bnoise = Telescope.noisepower(self, bl_indices, f_indices, ndays)
+
+        return bnoise[..., np.newaxis] * np.array([1.0, 0.5, 1.0])
+        
+    #===================================================
 
 

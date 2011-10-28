@@ -1,5 +1,5 @@
 
-\documentclass[onecolumn]{revtex4}
+\documentclass[prd,twocolumn,nofootinbib]{revtex4}
 
 
 \input{mathdef}
@@ -16,6 +16,9 @@
 \title{Cylinder Notes}
 
 \maketitle
+
+\newcommand{\tvis}{\ensuremath{\mathcal{V}}}
+\newcommand{\vis}{\ensuremath{V}}
 
 
 
@@ -41,27 +44,53 @@ divided by the wavelength. We assume that the radiation from the sky is
 \la E(\vnhat) E^* (\vnhat') \ra = \delta(\vnhat - \vnhat') I(\vnhat) \; .
 \end{equation}
 
-A visibility $V_{ij}$ is the correlation between two feeds $F_i$ and $F_j$ at a
-particular instant
+In traditional interferometry a visibility $\tvis_{ij}$ is the correlation
+between two feeds $F_i$ and $F_j$ at a particular instant
 \begin{align}
-  V_{ij} & = \la F_i F_j^* \ra \\
+  \tvis_{ij} & = \la F_i F_j^* \ra \\
   &= \int d^2\vnhat \, A_i(\vnhat) A_j^*(\vnhat) e^{i \vnhat \cdot \vu_{ij}}
   I(\vnhat)
 \end{align}
-where $\vu_{ij} = \vu_i - \vu_j$. For brevity of notation, we will introduce an
-index $\alpha$ which represents individual visibilities, or pairs $ij$ of
-feeds. We will write the above equation can be written in terms of a transfer
-function $B_\alpha$, and will introduce Earth rotation by adding a dependence on
-the azimuthal angle $\phi$. We also introduce a term for the noise common to
-both feeds
+where $\vu_{ij} = \vu_i - \vu_j$. However, for our purposes where we are
+concerned with observing continuous fields it will be convenient to rescale this
+definition, and use a quantity
+\begin{align}
+\label{eq:nvis}
+\vis_{ij} & = \frac{\nu^2}{2 k_b c^2 \Omega_{ij}} \tvis_{ij} \\ 
+&= \frac{1}{\Omega_{ij}}\int d^2\vnhat \, A_i(\vnhat) A_j^*(\vnhat)
+  e^{i \vnhat \cdot \vu_{ij}} T(\vnhat)
+\end{align}
+where we have switched to using the brightness temperature $T$ instead of the
+intensity $I = 2 k_b \nu^2 T / c^2$. The quantity $\Omega_{ij} = \sqrt{\Omega_i
+  \Omega_j}$ is the geometric mean of the individual beam solid angles
 \begin{equation}
-  V_\alpha(\phi) = \int \! d^2\vnhat\, B_\alpha(\vnhat; \phi) I(\vnhat)
-  + n_\alpha(\phi)
+\Omega_i = \int \lv A_i(\vnhat) \rv^2 d^2\vnhat
 \end{equation}
-where
+which is also gives the effective antenna area $A_\text{eff} = \Omega
+\lambda^2$. The usefulness of this definition of $\vis_{ij}$ is that our
+visibilities are a temperature-like quantity whereas the usual quantity $\tvis$
+is a flux --- specifically for a sky with uniform brightness temperature, with
+our definition, the auto-correlation of an antenna $\vis_{ii} = T_b$.
+
+
+The visibilities are sensitive to localised regions of the sky and so as the
+Earth rotates their measured values change, we take this into account by
+explicitly including the dependence on the azimuthal angle $\phi$, assuming that
+we average over all measured sidereal days. The measured visibilities are also
+corrupted by instrumental noise, which we must explicitly take account of by
+adding a noise term $n_{ij}(\phi)$\footnote{Unlike the sky, the instrumental
+  noise is not strictly periodic in $\phi$, however, provided it is stationary
+  we can treat it as such when combining the measured sidereal days.}. For
+brevity of notation, we will introduce an index $\alpha$ which represents
+particular pairs $ij$ of feeds (a specific visibility), and will write
+\eqref{eq:nvis} in terms of a transfer function $B_\alpha$. In all this leaves
+the measured visibility as
 \begin{equation}
-  B_\alpha(\vnhat; \phi) = A_\alpha^2(\vnhat; \phi) e^{i \vnhat \cdot
-    \vu_{\alpha}(\phi)} \; .
+  V_\alpha(\phi) = \int \! d^2\vnhat\, B_\alpha(\vnhat; \phi) T(\vnhat) + n_\alpha(\phi)
+\end{equation}
+where the transfer function is
+\begin{equation}
+  B_{ij}(\vnhat; \phi) = \frac{1}{\Omega_{ij}}A_i(\vnhat; \phi) A_j^*(\vnhat; \phi) e^{i \vnhat \cdot\vu_{\alpha}(\phi)} \; .
 \end{equation}
 As expected in the rotating system the $UV$-plane changes orientation with
 respect to the celestial sphere. Given the periodicity of the system, Fourier
@@ -71,15 +100,80 @@ transforming the system is an obvious next step
   & = \sum_{l m'}\int \frac{d\phi}{2\pi} B^\alpha_{l m'}(\phi) a^{T*}_{l m'}
   e^{-i m \phi}+ n^\alpha_m
 \end{align}
-where we have to proceed to the second line we have inserted the multipole
+where to proceed to the second line we have inserted the spherical harmonic
 expansions of both the sky, and the beam transfer function. As the $\phi$
-dependence simply rotates the functions about the polar axis
-$B^\alpha_{lm}(\phi) = B^{\alpha}_{lm}(\phi=0)$. Combined with the exponential
-factor in the integral, this simply generates the Kroenecker delta
-$\delta_{mm'}$, and we find
+dependence simply rotates the functions about the polar axis the transfer
+function is trivially $B^\alpha_{lm}(\phi) = B^{\alpha}_{lm}(\phi=0)$. Combined
+with the exponential factor in the integral, this simply generates the
+Kroenecker delta $\delta_{mm'}$, and we find
 \begin{equation}
+\label{eq:vis_unpol}
 V^\alpha_m = \sum_{l} B^\alpha_{l m} a^{T*}_{l m}+ n^\alpha_m \; .
 \end{equation}
+As we can see this transformation does not mix $m$-modes on the sky, and can
+therefore be performed on an $m$-by$m$ basis. This will be important later when
+we project the correlations on the sky into visibilities.
+
+\subsection{Sensitivity in $(l,m)$ space}
+
+Much of the usefulness \eqref{eq:vis_unpol} is that it reduces the problem down
+to a finite number of modes in harmonic space. This is because the finite size
+of the optical system means that the beam is insensitive to the largest
+multipoles.
+
+Let us consider an example, a dipole pair on two different cylinder (see
+Figure~\ref{fig:cylinder}). These correspond to a position in the u-v place of
+$u = W / \lambda$ and $v = D / \lambda$ (ignoring the small cylinder separation
+$\lambda$ for now). In terms of spherical harmonics coefficients on the sky,
+points in the u-v plane map to $m \sim 2\pi u$ and $l \sim \sqrt{m^2 + (2\pi
+  v)^2}$. However because of the finite cylinder width (and separation) the
+visibilities are sensitive to a range in $m$ which is calculated from the
+convolution of the apertures in the u-v plane
+\begin{equation}
+  V_{m} \ne 0 \quad\text{for}\quad \frac{2 \pi \epsilon}{\lambda} < m < \frac{4 \pi
+    W}{\lambda}
+\end{equation}
+which corresponds to the closest, and furthest points of each cylinder. This
+means that when we are considering quantities like the beam transfer
+$B_{\alpha,l}^{m,\nu}$ we only need consider a finite range in $m$ as we can't
+possibly be sensitive to higher values.
+
+\begin{figure}
+\centering
+\begin{tikzpicture}[ scale=.8 ]
+
+\draw (0,0) -- (4,0) -- (4,6) -- (0,6) -- cycle;
+\draw (4.1,0) -- (8.1,0) -- (8.1,6) -- (4.1,6) -- cycle;
+
+\draw[fill=black] (2,3) circle(0.1);
+\draw[fill=black] (6.1,4) circle(0.1);
+
+\draw[<->] (0,-0.5) -- (4,-0.5)
+node [below,midway] {$W$};
+
+\draw[dashed] (0,3) -- (10,3);
+\draw[dashed] (0,4) -- (10,4);
+
+\draw[<->] (9.5,3) -- (9.5,4)
+node [right,midway] {$D$};
+
+\draw[dashed] (2,0) -- (2,8);
+\draw[dashed] (6.1,0) -- (6.1,8);
+
+\draw[<->] (2,7) -- (6.1,7)
+node [above,midway] {$W+\epsilon$};
+
+
+\end{tikzpicture}
+\caption{A pair of cylinders (infintely long) of width $W$ and separation
+  $\epsilon$. We consider a pair of dipoles one on each cylinder, such that they
+  are separated by $W+\epsilon$ In the E-W direction and by $D$ in the N-S
+  direction.}
+\label{fig:cylinder}
+\end{figure}
+
+
+
 
 \subsection{Polarised Case}
 
@@ -95,65 +189,65 @@ position on the telescope but the polarisation too
 \end{equation}
 In this the index summation over $a$ accounts for the relative angles of the
 polarisation and feed. In most cases it should be possible to seperate the
-function $A_i^a$ into an angular reception pattern, and a vector representing
-the alignment of the dipole for the feed
+function $A_i^a$ into an angular reception pattern $A_i$, and a vector
+$\hat{d}_i^a$, representing the alignment of the dipole for the feed
 \begin{equation}
   A_i^a(\vnhat; \phi) = A_i(\vnhat; \phi) \hat{d}^a_i \; .
 \end{equation}
 The radiation from the sky is still \emph{incoherent}, but now we must include
 its polarisation (neglecting circular polarisation)
-\begin{equation}
-  \la E_a(\vnhat) E_b^* (\vnhat') \ra = \\ \left[\calP_{ab}^I
-    I(\vnhat) + \calP_{ab}^Q Q(\vnhat) + \calP_{ab}^U U(\vnhat)\right]\delta(\vnhat - \vnhat') \; ,
-\end{equation}
-where the tensor $\calP^I_{ab} = I_{ab}$, the identity, and pulls out the total
-intensity. The $\calP^Q_{ab}$, and $\calP^U_{ab}$ pull out the standard $Q$ and
-$U$ polarisation states, and are equal to the third and first Pauli matrices
-respectively. In summary
-\begin{equation}
-\calP^I_{ab} = \begin{pmatrix} 1 & 0 \\ 0 & 1\end{pmatrix} \; ,
+\begin{multline}
+\label{eq:EEpol}
+  \la E_a(\vnhat) E_b^* (\vnhat') \ra = \frac{2 k_b \nu^2}{c^2} \delta(\vnhat - \vnhat') \\ \times \left[\calP_{ab}^T
+    T(\vnhat) + \calP_{ab}^Q Q(\vnhat) + \calP_{ab}^U U(\vnhat)\right] \; .
+\end{multline}
+As in the unpolarised case we are more interested in the brightness temperature
+on the sky, and so we have written \eqref{eq:EEpol} to make that explicit (thus
+$Q$, and $U$ are polarisation brightness temperatures). The polarisation tensors
+$\calP^X_{ab}$ are related to the Pauli matrices (in an orthonormal basis),
+specifically
+\begin{gather}
+\calP^I_{ab} = \frac{1}{2}\begin{pmatrix} 1 & 0 \\ 0 & 1\end{pmatrix},
 \qquad
-\calP^Q_{ab} = \begin{pmatrix} 1 & 0 \\ 0 & -1\end{pmatrix} \; ,
-\qquad
-\calP^U_{ab} = \begin{pmatrix} 0 & 1 \\ 1 & 0\end{pmatrix} \; ,
-\end{equation}
-in an orthonormal basis. The standard basis to use in spherical geometry are the
-polar and azimuthal directions, $\hat{\theta}$ and $\hat{\phi}$, as these allow
-spin spherical harmonics to be used straightforwardly to decompose the
-polarisation field.
+\calP^Q_{ab} = \frac{1}{2}\begin{pmatrix} 1 & 0 \\ 0 & -1\end{pmatrix},
+\\ \intertext{and}
+\calP^U_{ab} = \frac{1}{2}\begin{pmatrix} 0 & 1 \\ 1 & 0\end{pmatrix}.
+\end{gather}
+The standard basis to use in spherical geometry are the polar and azimuthal
+directions, $\hat{\theta}$ and $\hat{\phi}$, as these allow spin spherical
+harmonics to be used straightforwardly to decompose the polarisation field.
 
 A visibility has the same definition as before, but now we need to take into
 account the polarisations of the feeds, and the sky
-\begin{equation}
+\begin{multline}
 \label{eq:vispol}
-V_{ij}(\phi) = \int d^2\vnhat \, \left[ B^T_{ij}(\vnhat; \phi) I(\vnhat) +
-  B^Q_{ij}(\vnhat; \phi) Q(\vnhat + B^U_{ij}(\vnhat; \phi) U(\vnhat \right]+ n_{ij}(\phi)
-\end{equation}
+V_{ij}(\phi) = \int \, \Bigl[ B^T_{ij}(\vnhat; \phi) T(\vnhat) + B^Q_{ij}(\vnhat; \phi) Q(\vnhat)\\
+  + B^U_{ij}(\vnhat; \phi) U(\vnhat) \Bigr] d^2\vnhat + n_{ij}(\phi)
+\end{multline}
 where the beam transfer functions $B^X_{ij}$ are
 \begin{equation}
-B^X_{ij}(\vnhat; \phi) = A_i^a(\vnhat; \phi) A_j^{b *}(\vnhat; \phi)
+B^X_{ij}(\vnhat; \phi) = \frac{1}{\Omega_{ij}}A_i^a(\vnhat; \phi) A_j^{b *}(\vnhat; \phi)
 \calP^X_{ab} \:e^{i \vnhat \cdot
-  \vu_{ij}(\phi)} 
+  \vu_{ij}(\phi)} \; .
 \end{equation}
-To proceed we need to insert the spherical harmonic decompositions, however as
-polarisation is not a scalar field, we must expand in spin-2 harmonics
-$Y_{lm}^\brsc{\pm 2}(\vnhat)$
+To proceed we need to insert the spherical harmonic decompositions, however, as
+polarisation is not a scalar field we must expand $Q$ and $U$ in spin-2
+harmonics $Y_{lm}^\brsc{\pm 2}(\vnhat)$
 \begin{align}
-I(\vnhat) & = \sum_{lm} a^T_{lm} Y_{lm}(\vnhat) \; ,\\
+T(\vnhat) & = \sum_{lm} a^T_{lm} Y_{lm}(\vnhat) \; ,\\
 Q(\vnhat) + i U(\vnhat) & = \sum_{lm} a^\brsc{+2}_{lm}
 Y^\brsc{+2}_{lm}(\vnhat) \; ,\\
 Q(\vnhat) - i U(\vnhat) & = \sum_{lm} a^\brsc{-2}_{lm}
 Y^\brsc{-2}_{lm}(\vnhat) \; .
 \end{align}
 In actual fact we will insert the complex conjugate of the above expressions
-($I$, $Q$ and $U$ are real). Presuming that the polarised beam transfer matrices
-also transform as spin fields (pretty sure, should check), we decompose them in
-the same way, with
+($T$, $Q$ and $U$ are real). The polarised beam transfer matrices also transform
+as spin fields, and so we decompose them in the same way, with
 \begin{align}
-B^Q_{\alpha}(\vnhat) + i B^U_{\alpha}(\vnhat) & = \sum_{lm}
+B^Q_{\alpha}(\vnhat; \phi) + i B^U_{\alpha}(\vnhat; \phi) & = \sum_{lm}
 B^\brsc{+2}_{\alpha;lm} (\phi)
 Y^\brsc{+2}_{lm}(\vnhat) \; ,\\
-B^Q_{\alpha}(\vnhat) - i B^U_{\alpha}(\vnhat) & = \sum_{lm}
+B^Q_{\alpha}(\vnhat; \phi) - i B^U_{\alpha}(\vnhat; \phi) & = \sum_{lm}
 B^\brsc{-2}_{\alpha;lm} (\phi)
 Y^\brsc{-2}_{lm}(\vnhat) \; .
 \end{align}
@@ -161,12 +255,12 @@ where for brevity we have again switched to using $\alpha$.
 
 Combined with the orthogonality of the (spin) spherical harmonics this
 allows us to rewrite the visibility equation \eqref{eq:vispol} as
-\begin{equation}
-V_{\alpha}(\phi) = \sum_{lm} \left[B_{\alpha;lm}^T(\phi) a^{T*}_{lm} +
-\frac{1}{2} B_{\alpha;lm}^\brsc{+2}(\phi) a^{\brsc{+2}*}_{lm} +
-\frac{1}{2} B_{\alpha;lm}^\brsc{-2}(\phi) a^{\brsc{-2}*}_{lm}\right] + n_{\alpha}(\phi)
+\begin{multline}
+V_{\alpha}(\phi) = \sum_{lm} \Bigl[B_{\alpha;lm}^T(\phi) a^{T*}_{lm} +
+\frac{1}{2} B_{\alpha;lm}^\brsc{+2}(\phi) a^{\brsc{+2}*}_{lm} \\+
+\frac{1}{2} B_{\alpha;lm}^\brsc{-2}(\phi) a^{\brsc{-2}*}_{lm}\Bigr] + n_{\alpha}(\phi)
 \; .
-\end{equation}
+\end{multline}
 Though this has thoroughly transformed the problem into harmonic
 space, it will be more convenient if we further transform into the
 conventional $E$ and $B$ mode decomposition. This can be done by
@@ -179,28 +273,29 @@ as well as the corresponding changes for the beam matrices
 \begin{align}
   B^\brsc{+2}_{\alpha;lm} & = -\left(B^E_{\alpha;lm} + i B^B_{\alpha;lm}\right) \; ,\\
   B^\brsc{-2}_{\alpha;lm} & = -\left(B^E_{\alpha;lm} - i B^B_{\alpha;lm}\right)
-  \; .
+  \; ,
 \end{align}
-This leaves the visibility as
-\begin{equation}
-V_{\alpha}(\phi) = \sum_{lm} \left[B_{\alpha;lm}^T(\phi) a^{T*}_{lm} +
+leaving the visibility as
+\begin{multline}
+V_{\alpha}(\phi) = \sum_{lm} \Bigl[B_{\alpha;lm}^T(\phi) a^{T*}_{lm} \\+
 B_{\alpha;lm}^E(\phi) a^{E*}_{lm} + B_{\alpha;lm}^B(\phi)
-a^{B*}_{lm}\right] + n_{\alpha}(\phi)
+a^{B*}_{lm}\Bigr] + n_{\alpha}(\phi)
 \; .
-\end{equation}
+\end{multline}
 In the above the harmonic coefficients are now all the transforms of real scalar
 (or pseudo-scalar) fields. All that is left is to perform the Fourier transform
 in $\phi$, which proceeds as in the unpolarised case to give
-\begin{equation}
-V_{\alpha; m} = \sum_{l} \left[B_{\alpha;lm}^T a^{T*}_{lm} +
+\begin{multline}
+V_{\alpha; m} =\\ \sum_{l} \left[B_{\alpha;lm}^T a^{T*}_{lm} +
 B_{\alpha;lm}^E a^{E*}_{lm} + B_{\alpha;lm}^B
 a^{B*}_{lm}\right] + n_{\alpha; m}
 \; .
-\end{equation}
+\end{multline}
 
 
 
-\section{SVD decomposition}
+
+\section{Matrix Notation}
 
 The beam transfer matrices above can be written in an explicit matrix notation.
 \begin{equation}
@@ -209,13 +304,14 @@ The beam transfer matrices above can be written in an explicit matrix notation.
 where the row index labels all baseline+feed ($\alpha$) and frequency
 combinations ($\nu$), whereas the column index is over all multipole ($l$) and
 frequencies ($\nu'$). From here onwards we'll drop the subscript $m$, denoting
-the spherical harmonic order, all the equations below are valid for any $m$. In
-general the number of distinct baselines $\alpha_nx$ is different to the maximum
-multipole sampled $l_\tmax$ (usually $l_\tmax \ll \alpha_n$). The matrix
-$\mB_X$ is of size $m \times n$, where $m = \alpha_n \nu_n$, $n = l_\tmax
-\nu_n$ and $\nu_n$ is the number of frequency bins. The sky, which we'll write
-as a vector $\va_X$ of length $n$, is projected onto a much higher dimensional
-space of visibilities $\vv$ (vector length $m$)
+the spherical harmonic order, all the equations below are valid for any $m$.
+
+The number of distinct baselines $\alpha_n$ is different to the
+maximum multipole sampled $l_\tmax$, and usually $l_\tmax \ll \alpha_n$. The matrix
+$\mB_X$ is of size $m \times n$, where $m = \alpha_n \nu_n$, $n = l_\tmax \nu_n$
+and $\nu_n$ is the number of frequency bins. The sky, which we'll write as a
+vector $\va_X$ of length $n$, is projected onto a much higher dimensional space
+of visibilities $\vv$ (vector length $m$)
 \begin{equation}
 \vv = \left(\mB_T \va_T^* + \mB_E \va_E^* + \mB_B \va_B^* \right) + \vn
 \end{equation}
@@ -233,26 +329,39 @@ of size $m \times 3 n$ and $3 n$, such that
 \label{eq:matnot}
 \vv = \mB\, \va^* + \vn \; .
 \end{equation}
+The unpolarised calculation can be put in the same form, where $\mB = \mB_T$, an
+$m \times n$ matrix; $\va = \va_T$, a length $n$ vector; and the noise $\vn$ and
+visibility $\vv$ vectors are of length $m$.
+
+\section{SVD projection}
+
 Fundamentally we are only interested in deriving real properties of the sky,
 which is usually of much lower dimension than the space of visibilities, and so
 for computational efficiency it make sense to project out degrees of freedom
-that cannot describe a polarised sky. However as $\mB$ is not guaranteed to be
-full-rank, we cannot project \eqref{eq:matnot} with a (pseudo-)inverse
-matrix. By performing the singular value decomposition of $\mB$
+that cannot describe a polarised sky. For example for a non-commensurately
+spaced array, the number of unique visibilities $\alpha_n$ is of order the
+number of feeds squared, and thus $\alpha_n \sim 10^6$, whereas we are only
+sensitive up to about $l_\tmax \sim 1000$ --- in this case projecting onto the
+subspace saves about a factor of $10^6$ in storage and $10^9$ in computation
+time.
+
+However as $\mB$ is not guaranteed to be full-rank, we cannot project
+\eqref{eq:matnot} with a (pseudo-)inverse matrix. By performing the singular
+value decomposition of $\mB$
 \begin{equation}
 \mB = \mU \msigma \mV^\dagger
 \end{equation}
 which can be expressed in terms of the decompositions of the individual blocks
 $\mB_X = \mU_X \msigma_X \mV^{\dagger}_X$ as
-\begin{equation}
+\begin{gather}
 \mU =  \left(\begin{array}{c|c|c} & & \\ \mU_T & \mU_E & \mU_B \\ &
     &\end{array}\right) \; , \quad
 \msigma =  \left(\begin{array}{c|c|c} \msigma_T & & \\ \hline & \msigma_E & \\
     \hline & & \msigma_B \end{array}\right)
- \; , \quad
+ \; , \\
 \mV =  \left(\begin{array}{c|c|c} \mV_T & & \\ \hline & \mV_E & \\
     \hline & & \mV_B\end{array}\right) \; .
-\end{equation}
+\end{gather}
 To project down onto the subspace we can simply pre-multiply \eqref{eq:matnot}
 with the matrix of left-singular vectors $\mU^\dagger$. Defining $\vvt =
 \mU^\dagger \vv$, $\vnt = \mU^\dagger \vn$ and $\mBt = \mU^\dagger \mB = \msigma
@@ -354,7 +463,8 @@ seen with the instrumental precision. As the olny freedom we have is in the beam
 $B_\alpha$, the experiment must be designed so that this is not inevitable.
 
 \begin{figure}
-\begin{tikzpicture}
+\centering
+\begin{tikzpicture}[ scale=.8 ]
 
 \draw (0,0) -- (4,0) -- (4,6) -- (0,6) -- cycle;
 \draw (4.1,0) -- (8.1,0) -- (8.1,6) -- (4.1,6) -- cycle;

@@ -1,5 +1,6 @@
 
 import numpy as np
+import warnings
 
 _rank = 0
 _size = 1
@@ -20,10 +21,13 @@ try:
     _rank = rank if rank else 0
     _size = size if size else 1
 
+    if rank:
+        print "MPI process %i of %i." % (_rank, _size)
+
     rank0 = True if _rank == 0 else False
     
 except ImportError:
-    pass
+    warnings.warn("Warning: mpi4py not installed.")
 
 
 def partition_list_alternate(full_list, i, n):

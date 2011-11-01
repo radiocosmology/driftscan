@@ -82,9 +82,11 @@ class BeamTransfer(object):
             
     def beam_m(self, mi):
         
-        beam = np.zeros((self.telescope.nfreq, self.telescope.nbase, self.telescope.lmax+1), dtype=np.complex128)
         
         mfile = h5py.File(self._mfile % mi, 'r')
+        sh = mfile[(self._fsection % 0)].shape
+
+        beam = np.zeros((self.telescope.nfreq,) + sh, dtype=np.complex128)
         
         for fi in range(self.telescope.nfreq):
             beam[fi] = mfile[(self._fsection % fi)]
@@ -98,12 +100,13 @@ class BeamTransfer(object):
 
         mside = 2*self.telescope.lmax+1 if fullm else 2*self.telescope.mmax+1
         
-        beam = np.zeros((self.telescope.nbase, self.telescope.lmax+1, mside), dtype=np.complex128)
         
         ffile = h5py.File(self._ffile % fi, 'r')
+        sh = ffile[(self._msection % 0)].shape
+        beam = np.zeros(sh + (mside,), dtype=np.complex128)
         
         for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
-            beam[:,:,mi] = ffile[(self._msection % mi)]
+            beam[..., mi] = ffile[(self._msection % mi)]
             
         ffile.close()
         
@@ -132,7 +135,7 @@ class BeamTransfer(object):
 
             for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
                 
-                dset = f.create_dataset((self._msection % mi), data=btrans[:, :, mi], compression='gzip')
+                dset = f.create_dataset((self._msection % mi), data=btrans[..., mi], compression='gzip')
                 dset.attrs['m'] = mi
         
             f.close()

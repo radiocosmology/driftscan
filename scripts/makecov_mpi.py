@@ -67,8 +67,8 @@ ndays = 365
 
 
 # Iterate list over MPI processes.
-for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
-#for mi in [100]:
+#for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
+for mi in [503]:
 
     beam = bt.beam_m(mi)
 

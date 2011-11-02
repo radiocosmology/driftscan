@@ -708,7 +708,7 @@ class PolarisedTelescope(TransitTelescope):
             The noise power spectrum.
         """
 
-        bnoise = Telescope.noisepower(self, bl_indices, f_indices, ndays)
+        bnoise = TransitTelescope.noisepower(self, bl_indices, f_indices, ndays)
 
         return bnoise[..., np.newaxis] * np.array([1.0, 0.5, 1.0])
         

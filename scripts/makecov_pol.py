@@ -21,7 +21,6 @@ import healpy
 
 from cylsim import mpiutil
 
-import pdb
 
 
 parser = argparse.ArgumentParser(description='MPI program to generate beam matrices frequency by frequency.')
@@ -78,8 +77,8 @@ ntel = 3 * cyl.nbase
 nside = cyl.nfreq * ntel
 
 # Iterate list over MPI processes.
-#for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
-for mi in [-100]:
+for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
+#for mi in [-100]:
 
     st = time.time()
     beam = bt.beam_m(mi)

@@ -14,7 +14,7 @@ cyl.cylinder_width = 20.0
 cyl.num_feeds = 30
 cyl.feed_spacing = 0.25
 
-bt = beamtransfer.BeamTransfer('poltelescope2/', telescope=cyl)
+bt = beamtransfer.BeamTransfer('/scratch/jrs65/cylinder/poltelescope2/', telescope=cyl)
 
 bt.generate_cache()
 

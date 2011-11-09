@@ -6,6 +6,9 @@ import blockla
 
 from simulations.foregroundmap import matrix_root_manynull
 
+from simulations import pointsource
+
+
 import numpy as np
 
 def intpattern(n):
@@ -70,6 +73,27 @@ def mkfullsky(corr, nside):
         hpmaps[i] = healpy.alm2map(gaussvars[:,i].copy(), nside)
         
     return hpmaps
+
+
+def fullskyps(nside, freq):
+
+    npix = healpy.nside2npix(nside)
+
+    sky = np.zeros((npix, freq.size))
+
+    ps = pointsource.DiMatteo()
+    
+    fluxes = ps.generate_population(4*np.pi * (180 / np.pi)**2)
+
+    print ps.size
+    print ps.size * freq.size * 8.0 / (2**30.0)
+
+    #sr = ps.spectral_realisation(fluxes[:,np.newaxis], freq[np.newaxis,:])
+    #    
+    #for i in xrange(npix):
+    #    sky[npix,:] += sr[i,:]
+
+    
 
 
 

@@ -23,7 +23,7 @@ def map_half_plane(arr):
     return arr
 
 
-def max_lm(baselines, wavelengths, width):
+def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     """Get the maximum (l,m) that a baseline is sensitive to.
 
     Parameters
@@ -40,8 +40,8 @@ def max_lm(baselines, wavelengths, width):
     lmax, mmax : array_like
     """
 
-    umax = (np.abs(baselines[:,0]) + width) / wavelengths
-    vmax = np.abs(baselines[:,1])  / wavelengths
+    umax = (np.abs(baselines[:,0]) + uwidth) / wavelengths
+    vmax = (np.abs(baselines[:,1]) + vwidth)  / wavelengths
 
     mmax = np.ceil(2 * np.pi * umax).astype(np.int64)
     lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)
@@ -202,6 +202,24 @@ class TransitTelescope(object):
     #===================================================
 
 
+    #======= Properties related to polarisation ========
+    
+    @property
+    def num_pol_telescope(self):
+        """The number of polarisation combinations on the telescope. Should be
+        one of 1 (unpolarised), 3 (XX, YY, XY=YX), and (XX, YY, XY, YX)."""
+        return self._npol_tel_
+
+    @property
+    def num_pol_sky(self):
+        """The number of polarisation combinations on the sky that we are
+        considering. Should be either 1 (T=I only) or 3 (T, Q, U
+        sensitivity). Circular polarisation (stokes V) is ignored."""
+        return self._npol_sky_
+
+    #===================================================
+
+
 
 
     #===== Properties related to harmonic spread =======
@@ -209,13 +227,13 @@ class TransitTelescope(object):
     @property
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
         return lmax.max()
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_wdith)
         return mmax.max()
 
     #===================================================
@@ -283,13 +301,15 @@ class TransitTelescope(object):
 
         # Fetch the set of lmax's for the baselines (in order to reduce time
         # regenerating Healpix maps)
-        lmax, mmax = max_lm(self.baselines[bl_indices], self.wavelengths[f_indices], self.u_width)
+        lmax, mmax = max_lm(self.baselines[bl_indices], self.wavelengths[f_indices], self.u_width, self.v_width)
 
         # Set the size of the (l,m) array to write into
         lside = self.lmax if global_lmax else lmax.max()
 
         # Generate the array for the Transfer functions
-        tarray = self._make_matrix_array(bl_indices.shape, lside)
+
+        tarray = np.zeros(bl_indices.shape + (self.num_pol_telescope, self.num_pol_sky, lside+1, 2*lside+1),
+                          dtype=np.complex128)
 
         print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
 
@@ -299,9 +319,13 @@ class TransitTelescope(object):
         
         for iflat in np.argsort(lmax.flat):
             ind = np.unravel_index(iflat, lmax.shape)
-            
             trans = self._transfer_single(bl_indices[ind], f_indices[ind], lmax[ind], lside)
-            self._copy_single_into_array(tarray, trans, ind)
+
+            ## Iterate over pol combinations and copy into transfer array
+            for pi in range(self.num_pol_telescope):
+                for pj in range(self.num_pol_sky):
+                    islice = (ind + (pi,pj) + (slice(None),slice(None)))
+                    tarray[islice] = trans[pi][pj]
 
         return tarray
 
@@ -427,16 +451,24 @@ class TransitTelescope(object):
     #================ ABSTRACT METHODS =================
     #===================================================
 
+
     # Implement to specify feed positions in the telescope.
     @abc.abstractproperty
     def feedpositions(self):
         """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
         return
-
-     # Implement to specify feed positions in the telescope.
+    
+    # Implement to specify feed positions in the telescope.
     @abc.abstractproperty
     def u_width(self):
         """The approximate physical width (in the u-direction) of the dish/telescope etc, for
+        calculating the maximum (l,m)."""
+        return
+
+    # Implement to specify feed positions in the telescope.
+    @abc.abstractproperty
+    def v_width(self):
+        """The approximate physical length (in the v-direction) of the dish/telescope etc, for
         calculating the maximum (l,m)."""
         return
 
@@ -490,47 +522,7 @@ class TransitTelescope(object):
             considering the polarised case.
         """
         return
-    
-    @abc.abstractmethod
-    def _make_matrix_array(self, shape, lside):
-        """Create an array large enough to hold `shape` transfers up to size
-        `lside`.
-        
-        **Abstract method** must be implemented.
 
-        This strange abstraction is to allow subclasses to consider polarised
-        feeds.
-
-        Parameters
-        ----------
-        shape : tuple
-            Shape of requested set of transfers.
-        lside : integer
-            The size of the spherical harmonic indices.
-
-        Returns
-        -------
-        array : np.ndarray
-            An array of shape, ``shape + (pol_indices, lside, 2*lside - 1)``.
-        """
-        return
-
-    @abc.abstractmethod
-    def _copy_single_into_array(self, tarray, tsingle, ind):
-        """Copy a single transfer into a larger array at position `ind`.
-        
-        **Abstract method** must be implemented.
-        
-        Parameters
-        ----------
-        tarray : np.ndarray
-            The larger array of transfers.
-        tsingle : np.ndarray
-            The transfer function for a single baseline-frequency.
-        ind : tuple
-            The position to copy the single array into.
-        """
-        return
 
     #===================================================
     #============== END ABSTRACT METHODS ===============
@@ -549,6 +541,9 @@ class UnpolarisedTelescope(TransitTelescope):
     """
     __metaclass__ = abc.ABCMeta
 
+    _npol_tel_ = 1
+    _npol_sky_ = 1
+    
     @abc.abstractmethod
     def beam(self, feed, freq):
         """Beam for a particular feed.
@@ -593,13 +588,8 @@ class UnpolarisedTelescope(TransitTelescope):
         # Perform the harmonic transform to get the transfer matrix.
         btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside)
 
-        return btrans
+        return [ [ btrans ]]
 
-    def _make_matrix_array(self, shape, lmax):
-        return np.zeros(shape + (lmax+1, 2*lmax+1), dtype=np.complex128)
-
-    def _copy_single_into_array(self, tarray, tsingle, ind):
-        tarray[ind] = tsingle
 
     #===================================================
 
@@ -621,8 +611,10 @@ class PolarisedTelescope(TransitTelescope):
     
     feedx = np.array([1.0, 0.0])
     feedy = np.array([0.0, 1.0])
-    
-    
+
+    _npol_tel_ = 3
+    _npol_sky_ = 3
+
     
     def _init_trans(self, nside):
         ## Override _init_trans to generate the polarisation projections.
@@ -674,15 +666,6 @@ class PolarisedTelescope(TransitTelescope):
 
         return [btransxx, btransxy, btransyy]
 
-
-    def _make_matrix_array(self, shape, lmax):
-        return np.zeros(shape + (3, 3, lmax+1, 2*lmax+1), dtype=np.complex128)
-
-    def _copy_single_into_array(self, tarray, tsingle, ind):
-        for pi in range(3):
-            for pj in range(3):
-                islice = (ind + (pi,pj) + (slice(None),slice(None)))
-                tarray[islice] = tsingle[pi][pj]
 
     #===================================================
 

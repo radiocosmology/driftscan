@@ -24,6 +24,11 @@ class CylinderTelescope(telescope.TransitTelescope):
     def u_width(self):
         return self.cylinder_width
 
+    ## v-width property override
+    @property
+    def v_width(self):
+        return 0.0
+
 
     def _get_unique(self, feedpairs):
         """Calculate the unique baseline pairs.
@@ -109,11 +114,6 @@ class CylinderTelescope(telescope.TransitTelescope):
         return pos
 
 
-
-class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTelescope):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
-
     
     _bc_freq = None
     _bc_nside = None
@@ -147,41 +147,17 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTeles
 
 
 
+class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTelescope):
+    """A complete class for an Unpolarised Cylinder telescope.
+    """
+    pass
+
+
+
 
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
-
-    
-    _bc_freq = None
-    _bc_nside = None
-
-    def beam(self, feed, freq):
-        """Beam for a particular feed.
-        
-        Parameters
-        ----------
-        feed : integer
-            Index for the feed.
-        freq : integer
-            Index for the frequency.
-        
-        Returns
-        -------
-        beam : np.ndarray
-            A Healpix map (of size self._nside) of the beam. Potentially
-            complex.
-        """
-
-        if self._bc_freq != freq or self._bc_nside != self._nside:
-            self._bc_map = visibility.cylinder_beam(self._angpos, self.zenith,
-                                                    self.cylinder_width / self.wavelengths[freq])
-
-            self._bc_freq = freq
-            self._bc_nside = self._nside
-
-        return self._bc_map
-
 
     beamx = beam
     beamy = beam

@@ -17,7 +17,27 @@ from simulations import foregroundsck, corr21cm
 from utils import units
 
 def eigh_gen(A, B):
+    """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
+    \lambda \mathbf{B} \mathbf{v}`
+    
+    This routine will attempt to correct for when `B` is not positive definite
+    (usually due to numerical precision), by adding a constant diagonal to make
+    all of its eigenvalues positive.
 
+    Parameters
+    ----------
+    A, B : np.ndarray
+        Matrices to operate on.
+
+    Returns
+    -------
+    evals : np.ndarray
+        Eigenvalues of the problem.
+    evecs : np.ndarray
+        2D array of eigenvectors (packed column by column).
+    add_const : scalar
+        The constant added on the diagonal to regularise.
+    """
     add_const = 0.0
 
     try:
@@ -37,7 +57,8 @@ def eigh_gen(A, B):
 
 
 class KLTransform(object):
-
+    """Perform KL transform.
+    """
 
     subset = True
     threshold = 1.0

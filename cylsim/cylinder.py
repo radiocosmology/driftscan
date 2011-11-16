@@ -144,7 +144,8 @@ class CylinderTelescope(telescope.TransitTelescope):
 
         return self._bc_map
             
-
+    beamx = beam
+    beamy = beam
 
 
 class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTelescope):
@@ -158,8 +159,5 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTeles
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
-
-    beamx = beam
-    beamy = beam
-
+    pass
 

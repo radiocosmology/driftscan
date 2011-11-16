@@ -233,7 +233,7 @@ class TransitTelescope(object):
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_wdith)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
         return mmax.max()
 
     #===================================================
@@ -374,6 +374,8 @@ class TransitTelescope(object):
     #======== Noise properties of the telescope ========
 
     tsys_flat = 50.0 # Kelvin
+    ndays = 732.5 # 2 years in sidereal days
+    
     def tsys(self, f_indices = None):
         """The system temperature.
 
@@ -397,7 +399,7 @@ class TransitTelescope(object):
         return np.ones_like(freq) * self.tsys_flat
 
 
-    def noisepower(self, bl_indices, f_indices, ndays):
+    def noisepower(self, bl_indices, f_indices, ndays = None):
         """Calculate the instrumental noise power spectrum.
 
         Assume we are still within the regime where the power spectrum is white
@@ -418,6 +420,9 @@ class TransitTelescope(object):
         noise_ps : np.ndarray
             The noise power spectrum.
         """
+
+        ndays = self.ndays if not ndays else ndays # Set to value if not set.
+        
         # Broadcast arrays against each other
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 

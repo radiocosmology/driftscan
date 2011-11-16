@@ -2,8 +2,12 @@
 from cylsim import cmutelescope
 
 from cylsim import visibility
-
+from cylsim import beamtransfer
 
 cmut = cmutelescope.UnpolarisedCMU()
 
-tm = cmut.transfer_for_frequency(0)
+bt = beamtransfer.BeamTransfer('cmut/', telescope=cmut)
+
+bt.generate_cache()
+
+

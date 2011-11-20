@@ -179,3 +179,41 @@ class BeamTransfer(object):
                 print "=== Saving Telescope object. ==="
                 pickle.dump(self.telescope, f)
 
+
+    def project_vector_forward(self, mi, vec):
+                
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+        nfreq = self.telescope.nfreq
+
+        beam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
+        
+        vecf = np.zeros((nfreq, ntel), dtype=np.complex128)
+
+        for fi in range(nfreq):
+            vecf[fi] = np.dot(beam[fi], vec[..., fi, :].reshape(nsky))
+
+        return vecf
+    
+
+    def project_matrix_forward(self, mi, mat):
+                
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        npol = self.telescope.num_pol_sky
+        nfreq = self.telescope.nfreq
+        lside = self.telescope.lmax + 1
+
+        beam = self.beam_m(mi).reshape((nfreq, ntel, npol, lside))
+        
+        matf = np.zeros((nfreq, ntel, nfreq, ntel), dtype=np.complex128)
+
+        for fi in range(nfreq):
+            for fj in range(nfreq):
+                for pi in range(npol):
+                    for pj in range(npol):
+                        matf[fi, :, fj, :] = np.dot((beam[fi, :, pi, :] * mat[..., fi, fj]), beam[fj, :, pj, :].T.conj())
+
+        return matf
+
+            
+        

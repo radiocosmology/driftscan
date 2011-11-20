@@ -8,7 +8,6 @@ bm = bt.beam_m(100)
 
 klt = kltransform.KLTransform(bt)
 
-fg1 = klt.foreground()
-sg1 = klt.signal()
+evals, evecs = klt.transform_save(-100)
 
-cv_sg, cv_fg = klt.signal_covariance(-100)
+

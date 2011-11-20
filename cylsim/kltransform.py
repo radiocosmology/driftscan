@@ -1,4 +1,5 @@
 import time
+import os
 
 import numpy as np
 import scipy.linalg as la
@@ -64,19 +65,25 @@ class KLTransform(object):
     subset = True
     threshold = 1.0
 
-    directory = ""
+    evdir = ""
+
+    _cvfg = None
+    _cvsg = None
 
     @property
     def _evfile(self):
         # Pattern to form the `m` ordered file.
-        return self.beamtransfer.directory + "/" + self.evsubdir + "/ev_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
+        return self.evdir + "/ev_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
     
 
     def __init__(self, bt, evsubdir = "ev"):
         self.beamtransfer = bt
         self.telescope = self.beamtransfer.telescope
-
-        self.evsubdir = evsubdir
+                
+        # Create directory if required
+        self.evdir = self.beamtransfer.directory + "/" + evsubdir
+        if mpiutil.rank0 and not os.path.exists(self.evdir):
+            os.makedirs(self.evdir)
 
 
 
@@ -88,13 +95,16 @@ class KLTransform(object):
         cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
         """
 
-        npol = self.telescope.num_pol_sky
+        if self._cvfg is None:
 
-        if npol != 1 and npol != 3:
-            raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
-        
-        cv_fg = skymodel.foreground_model(self.telescope.lmax, self.telescope.frequencies, npol)
-        return cv_fg
+            npol = self.telescope.num_pol_sky
+
+            if npol != 1 and npol != 3:
+                raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
+            
+            self._cvfg = skymodel.foreground_model(self.telescope.lmax, self.telescope.frequencies, npol)
+
+        return self._cvfg
 
 
     def signal(self):
@@ -104,13 +114,16 @@ class KLTransform(object):
         -------
         cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
         """
-        npol = self.telescope.num_pol_sky
-
-        if npol != 1 and npol != 3:
-            raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
         
-        cv_sg = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies, npol)
-        return cv_sg
+        if self._cvsg is None:
+            npol = self.telescope.num_pol_sky
+
+            if npol != 1 and npol != 3:
+                raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
+        
+            self._cvsg = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies, npol)
+
+        return self._cvsg
 
 
     def signal_covariance(self, mi):
@@ -164,47 +177,114 @@ class KLTransform(object):
         return res
 
 
-    def transform_all(self):
+
+
+    def transform_save(self, mi):
+        st = time.time()
+        
+        print "Constructing signal and noise covariances for m = %i ..." % (mi)
+        evals, evecs, ac = self.transform_m(mi)
+    
+        ## Write out Eigenvals and Vectors
+        print "Creating file %s ...." % (self._evfile % mi)
+        f = h5py.File(self._evfile % mi, 'w')
+        f.attrs['m'] = mi
+        f.attrs['SUBSET'] = self.subset
+
+        f.create_dataset('evals_full', data=evals)
+
+        if self.subset:
+            i_ev = np.searchsorted(evals, self.threshold)
+            
+            evalsf = evals
+            
+            evals = evals[i_ev:]
+            evecs = evecs[:, i_ev:]
+            print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size)
+            
+        f.create_dataset('evals', data=evals)
+        f.create_dataset('evecs', data=evecs.T, compression='gzip')
+        
+        if ac != 0.0:
+            f.attrs['add_const'] = ac
+            f.attrs['FLAGS'] = 'NotPositiveDefinite'
+        else:
+            f.attrs['FLAGS'] = 'Normal'
+                
+        f.close()
+
+        return evals, evecs.T
+
+
+    def evals_all(self):
+
+        nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
+        evarray = np.zeros((2*self.telescope.mmax+1, nside))
+        
+        for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
+
+            f = h5py.File(self._evfile % mi, 'r')
+            evarray[mi] = f['evals_full']
+
+        return evarray
+
+
+    def generate(self, mlist = None):
 
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
-            #for mi in [-100]:
-            
-            st = time.time()
-            
-            print "Constructing signal and noise covariances for m = %i ..." % (mi)
-            evals, evecs, ac = self.transform_m(mi)
-            
-            ## Write out Eigenvals and Vectors
-            print "Creating file %s ...." % (self._evfile % mi)
-            f = h5py.File(self._evfile % mi, 'w')
-            f.attrs['m'] = mi
-            f.attrs['SUBSET'] = self.subset
+            self.transform_save(mi)
 
-            if self.subset:
-                i_ev = np.searchsorted(evals, self.threshold)
+        if mpiutil.rank0:
+            print "Creating eigenvalues file (process 0 only)."
+            evals = self.evals_all()
 
-                f.create_dataset('evals_full', data=evals)
-                evalsf = evals
-
-                evals = (evals[:i_ev])[::-1]
-                evecs = (evecs[:, i_ev:])[::-1]
-                print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size)
-
-
-
+            f = h5py.File(self.evdir + "/evals.hdf5", 'w')
             f.create_dataset('evals', data=evals)
-            f.create_dataset('evecs', data=evecs.T, compression='gzip')
-                
-            if ac != 0.0:
-                f.attrs['add_const'] = ac
-                f.attrs['FLAGS'] = 'NotPositiveDefinite'
-            else:
-                f.attrs['FLAGS'] = 'Normal'
-                
             f.close()
 
 
+    def modes_m(self, mi):
+        f = h5py.File(self._evfile % mi, 'r')
+
+        modes = [f['evals'], f['evecs'], f['evals_full']]
+
+        f.close()
+
+        return modes
+        
+        
 
 
+        
 
+class EVProjector(object):
+
+    def __init__(self, kltrans):
+
+        self.kltrans = kltrans
+
+
+    def project_tel_vec_m(self, vec, mi):
+
+        modes = self.kltrans.modes_m(mi)
+        evecs = modes[1]
+
+        if vec.shape[0] != evecs.shape[1]:
+            raise Exception("Vectors are incompatible.")
+
+        return np.dot(evecs, vec)
+
+
+    def project_sky_vec_m(self, vec, mi):
+
+        modes = self.kltrans.modes_m(mi)
+        evecs = modes[1]
+
+        trans = self.kltrans.beamtransfer.beam_m(mi)
+
+        
+
+        
+
+        

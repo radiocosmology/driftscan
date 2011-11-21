@@ -30,7 +30,7 @@ fgt = klt.project_sky_matrix_forward(-100, fg)
 #fgt2 = klt.project_tel_matrix_forward(-100, cn.reshape((2400, 2400)))
 
 
-bands = list(np.logspace(-3.0, 0.0, 10))
+bands = list(np.logspace(-1.3, 0.7, 7))
 
 
 def uniform_band(k, kstart, kend):
@@ -42,6 +42,7 @@ band_pk = [((lambda bs, be: (lambda k: uniform_band(k, bs, be)))(b_start, b_end)
 cr = corr21cm.Corr21cm()
 
 bpower = [quad(cr.ps_vv, bs, be, ) for pk, bs, be in band_pk]
+bpow = np.array(zip(*bpower)[0])
 
 def make_clzz(pk):
     print "Making C_l(z,z')"
@@ -60,6 +61,11 @@ def makeproj(clzz):
 
 c_alpha = [makeproj(clzz) for clzz in cl_alpha]
 
+ci = np.diag(1.0 / (evals+1))
 
+print "Making fisher."
+fab = np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c_alpha] for c_a in c_alpha ])
 
-    
+fcab = (np.linalg.inv(fab) / np.outer(bpow, bpow))
+
+stdev = fcab.diagonal()**0.5

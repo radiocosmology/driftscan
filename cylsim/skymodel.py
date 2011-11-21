@@ -35,11 +35,13 @@ def foreground_model(lmax, frequencies, npol):
 
 
 
-def im21cm_model(lmax, frequencies, npol):
+def im21cm_model(lmax, frequencies, npol, cr = None):
 
     nfreq = frequencies.size
+
+    if not cr:
+        cr = corr21cm.Corr21cm()
     
-    cr = corr21cm.Corr21cm()
     za = units.nu21 / frequencies - 1.0
 
     cv_sg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))

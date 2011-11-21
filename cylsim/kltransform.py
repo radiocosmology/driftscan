@@ -129,25 +129,12 @@ class KLTransform(object):
     def signal_covariance(self, mi):
         
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        npol = self.telescope.num_pol_sky
         nfreq = self.telescope.nfreq
-        lside = self.telescope.lmax + 1
 
-        beam = self.beamtransfer.beam_m(mi).reshape((nfreq, ntel, npol, lside))
-        
-        cvb_s = np.zeros((nfreq, ntel, nfreq, ntel), dtype=np.complex128)
-        cvb_n = np.zeros_like(cvb_s)
-
-        cv_sg = self.signal()
-        cv_fg = self.foreground()
+        cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
+        cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
 
         for fi in range(nfreq):
-            for fj in range(nfreq):
-                for pi in range(npol):
-                    for pj in range(npol):
-                        cvb_n[fi, :, fj, :] = np.dot((beam[fi, :, pi, :] * cv_fg[..., fi, fj]), beam[fj, :, pj, :].T.conj())
-                        cvb_s[fi, :, fj, :] = np.dot((beam[fi, :, pi, :] * cv_sg[..., fi, fj]), beam[fj, :, pj, :].T.conj())
-            
             noisebase = np.diag(self.telescope.noisepower(np.arange(self.telescope.nbase), fi).reshape(ntel))
             cvb_n[fi, :, fi, :] += noisebase
 
@@ -245,30 +232,58 @@ class KLTransform(object):
 
 
     def modes_m(self, mi):
-        f = h5py.File(self._evfile % mi, 'r')
 
-        modes = [f['evals'], f['evecs'], f['evals_full']]
-
-        f.close()
+        if not os.path.exists(self._evfile % mi):
+            modes = self.transform_save(mi)
+        else:
+            f = h5py.File(self._evfile % mi, 'r')
+            modes = ( f['evals'][:], f['evecs'][:] )
+            f.close()
 
         return modes
+
+    def skymodes_m(self, mi):
+
+        evals, evecs = self.modes_m(mi)
+
+        nfreq = self.telescope.nfreq
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+
+        beam = self.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
+        evecs = evecs.reshape((-1, nfreq, ntel)).conj()
+
+        evsky = np.zeros((evecs.shape[0], nfreq, nsky), dtype=np.complex128)
         
+        for fi in range(nfreq):
+            evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
+
+        return evsky
+            
         
+    def skymodes_m_c(self, mi):
 
+        evals, evecs = self.modes_m(mi)
 
+        nfreq = self.telescope.nfreq
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+
+        beam = self.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
+        evecs = evecs.reshape((-1, nfreq, ntel)).conj()
+
+        evsky = np.zeros((evecs.shape[0], nfreq, nsky), dtype=np.complex128)
         
+        for fi in range(nfreq):
+            evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
 
-class EVProjector(object):
-
-    def __init__(self, kltrans):
-
-        self.kltrans = kltrans
+        return evsky
+                    
 
 
-    def project_tel_vec_m(self, vec, mi):
+    def project_tel_vector_forward(self, mi, vec):
 
-        modes = self.kltrans.modes_m(mi)
-        evecs = modes[1]
+        evals, evecs = self.modes_m(mi)
 
         if vec.shape[0] != evecs.shape[1]:
             raise Exception("Vectors are incompatible.")
@@ -276,13 +291,57 @@ class EVProjector(object):
         return np.dot(evecs, vec)
 
 
-    def project_sky_vec_m(self, vec, mi):
+    def project_sky_vector_forward(self, mi, vec):
 
-        modes = self.kltrans.modes_m(mi)
-        evecs = modes[1]
+        tvec = self.beamtransfer.project_vector_forward(mi, vec).flat
 
-        trans = self.kltrans.beamtransfer.beam_m(mi)
+        return self.project_tel_vector_forward(mi, tvec)
 
+    def project_tel_matrix_forward(self, mi, mat):
+
+        evals, evecs = self.modes_m(mi)
+
+        if (mat.shape[0] != evecs.shape[1]) or (mat.shape[0] != mat.shape[1]):
+            raise Exception("Matrix size incompatible.")
+
+        return np.dot(np.dot(evecs.conj(), mat), evecs.T)
+
+    def project_sky_matrix_forward(self, mi, mat):
+
+        npol = self.telescope.num_pol_sky
+        lside = self.telescope.lmax + 1
+        nfreq = self.telescope.nfreq
+
+        evsky = self.skymodes_m(mi).reshape((-1, nfreq, npol, lside))
+
+        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
+        
+        for li in range(lside):
+            for pi in range(npol):
+                for pj in range(npol):
+                    matf += np.dot(np.dot(evsky[..., pi, li], mat[pi, pj, li, ...]), evsky[..., pj, li].T.conj())
+
+        return matf
+
+
+    def project_sky_matrix_forward_c(self, mi, mat):
+
+        npol = self.telescope.num_pol_sky
+        lside = self.telescope.lmax + 1
+        nfreq = self.telescope.nfreq
+
+        evsky = self.skymodes_m_c(mi).reshape((-1, nfreq, npol, lside))
+
+        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
+        
+        for li in range(lside):
+            for pi in range(npol):
+                for pj in range(npol):
+                    matf += np.dot(np.dot(evsky[..., pi, li], mat[pi, pj, li, ...]), evsky[..., pj, li].T.conj())
+
+        return matf            
+        
+        
         
 
         

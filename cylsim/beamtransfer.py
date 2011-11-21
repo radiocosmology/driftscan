@@ -211,7 +211,7 @@ class BeamTransfer(object):
             for fj in range(nfreq):
                 for pi in range(npol):
                     for pj in range(npol):
-                        matf[fi, :, fj, :] = np.dot((beam[fi, :, pi, :] * mat[..., fi, fj]), beam[fj, :, pj, :].T.conj())
+                        matf[fi, :, fj, :] = np.dot((beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]), beam[fj, :, pj, :].T.conj())
 
         return matf
 

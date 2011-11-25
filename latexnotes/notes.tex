@@ -8,6 +8,7 @@
 \usetikzlibrary{arrows,decorations.pathmorphing,backgrounds,positioning,fit,petri}
 
 
+\newcommand{\tcite}[1]{#1}
 
 \usepackage{mathpazo}
 
@@ -636,6 +637,24 @@ possibly be sensitive to higher values.
 
 \section{Noise Powerspectrum}
 
+
+\cite{corbella:2004}
+
+Adapting \cite{wrobel:1999} the time integrated power after
+correlation has a mean
+\begin{equation}
+\la \bar{P}_{ij} \ra= \eta_S g_i g_j \frac{\lambda^2}{\sqrt{\Omega_i \Omega_j}}
+\Delta\nu S_c
+\end{equation}
+where $\eta_S$ is the correlation efficiency, $g$ is the gain of each antenna,
+$\Omega$ is the beam solid angler for each antenna, $\Delta\nu$ the frequency
+channel width and $S_c$ is the correlated flux. The time integrated power has a
+variance of
+\begin{equation}
+\sigma_{\bar{P}}^2 = g_i^2 g_j^2 \Delta\nu^2 \sqrt{\frac{T_{\text{sys},i}
+    T_{\text{sys},j}}{2 \tau \Delta\nu}}
+\end{equation}
+
 Provided we are in the limit where the system temperature dominates the antenna
 temperature, $T_\text{sys} \gg T_A$, the instrumental noise is described by the
 radiometer equation
@@ -738,6 +757,9 @@ to find the solutions to the generalised eigenvalue problem
 \end{equation}
 
 %% Tidy up explanation.
+
+\bibliographystyle{plain}
+\bibliography{cyl}
 
 
 \end{document}

@@ -54,7 +54,7 @@ class CylinderTelescope(telescope.TransitTelescope):
         bl1 = telescope.map_half_plane(bl1)
 
         # Turn separation into a complex number and find unique elements
-        ub, ind, inv = np.unique(bl1[..., 0] + 1.0J * bl1[..., 1], return_index=True, return_inverse=True)
+        ub, ind, inv = np.unique(np.around(bl1[..., 0] + 1.0J * bl1[..., 1], 5), return_index=True, return_inverse=True)
 
         # Bin to find redundancy of each pair
         redundancy = np.bincount(inv)
@@ -161,3 +161,20 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
     """
     pass
 
+
+
+class CylBT(UnpolarisedCylinderTelescope):
+
+    maxlength = 20.0
+
+    def _get_unique(self, feedpairs):
+
+        upairs, redundancy = UnpolarisedCylinderTelescope._get_unique(self, feedpairs)
+
+        bl1 = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
+
+        blength = np.hypot(bl1[:,0], bl1[:,1])
+
+        mask = np.where(blength <= self.maxlength)
+
+        return upairs[:,mask][:, 0, ...], redundancy[mask]

@@ -3,6 +3,8 @@ import numpy as np
 from simulations import foregroundsck, corr21cm
 from utils import units
 
+_cr = None
+
 
 def clarray(aps, lmax, zarray):
 
@@ -40,7 +42,10 @@ def im21cm_model(lmax, frequencies, npol, cr = None):
     nfreq = frequencies.size
 
     if not cr:
-        cr = corr21cm.Corr21cm()
+        global _cr
+        if not _cr:
+            _cr = corr21cm.Corr21cm()
+        cr = _cr
     
     za = units.nu21 / frequencies - 1.0
 

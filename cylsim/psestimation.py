@@ -27,7 +27,7 @@ class PSEstimation(object):
     kltrans = None
     telescope = None
 
-    bands = np.logspace(-3.0, 0.0, 10)
+    bands = np.concatenate((np.linspace(0.0, 0.2, 24, endpoint=False), np.logspace(np.log10(0.2), np.log10(3.0), 11)))
 
     def __init__(self, kltrans, subdir = 'ps/'):
 
@@ -43,7 +43,13 @@ class PSEstimation(object):
         
 
     def genbands(self):
+            
         self.band_pk = [((lambda bs, be: (lambda k: uniform_band(k, bs, be)))(b_start, b_end), b_start, b_end) for b_start, b_end in zip(self.bands[:-1], self.bands[1:])]
+
+        if mpiutil.rank0:
+            for i, (pk, bs, be) in enumerate(self.band_pk):
+                print "Band %i: %f to %f. Centre: %g" % (i, bs, be, 0.5*(be+bs))
+
         
         cr = corr21cm.Corr21cm()
 
@@ -98,12 +104,14 @@ class PSEstimation(object):
         f_all = mpiutil.world.gather(f_m, root=0)
 
         if mpiutil.rank0:
-            nb = self.bands - 1
+            nb = self.bands.shape[0] - 1
             fisher = np.zeros((2*self.telescope.mmax+1, nb, nb), dtype=np.complex128)
-
+            print f_all
             for proc_rank in f_all:
+                print proc_rank
                 for fm in proc_rank:
-                    fisher[fm[0]] = fisher[fm[1]]
+                    print fm
+                    fisher[fm[0]] = fm[1]
 
             f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
 

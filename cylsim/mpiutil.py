@@ -5,6 +5,7 @@ import warnings
 _rank = 0
 _size = 1
 _comm = None
+world = None
 
 rank0 = True
 
@@ -14,6 +15,7 @@ try:
     from mpi4py import MPI
 
     _comm = MPI.COMM_WORLD
+    world = _comm
     
     rank = _comm.Get_rank()
     size = _comm.Get_size()

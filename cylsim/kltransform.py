@@ -85,6 +85,8 @@ class KLTransform(object):
         if mpiutil.rank0 and not os.path.exists(self.evdir):
             os.makedirs(self.evdir)
 
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
 
 
     def foreground(self):
@@ -224,6 +226,9 @@ class KLTransform(object):
         for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
             self.transform_save(mi)
 
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+        
         if mpiutil.rank0:
             print "Creating eigenvalues file (process 0 only)."
             evals = self.evals_all()
@@ -239,7 +244,10 @@ class KLTransform(object):
             modes = self.transform_save(mi)
         else:
             f = h5py.File(self._evfile % mi, 'r')
-            modes = ( f['evals'][:], f['evecs'][:] )
+            if f['evals'].size == 0:
+                modes = None, None
+            else:
+                modes = ( f['evals'][:], f['evecs'][:] )
             f.close()
 
         return modes

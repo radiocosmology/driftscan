@@ -179,6 +179,10 @@ class BeamTransfer(object):
                 print "=== Saving Telescope object. ==="
                 pickle.dump(self.telescope, f)
 
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        
 
     def project_vector_forward(self, mi, vec):
                 

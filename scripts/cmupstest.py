@@ -12,5 +12,5 @@ klt = kltransform.KLTransform(bt)
 
 pse = psestimation.PSEstimation(klt)
 
-
+pse.genbands()
 pse.fisher_mpi(range(-200, -190))

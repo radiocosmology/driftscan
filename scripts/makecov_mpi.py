@@ -63,12 +63,12 @@ ev_pat = args.rootdir + "/" + args.evdir + "/ev_" + util.intpattern(cyl.mmax) + 
 
 nside = cyl.nfreq*cyl.nbase
 
-ndays = 365
+ndays = 730
 
 
 # Iterate list over MPI processes.
-#for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
-for mi in [503]:
+for mi in mpiutil.mpirange(-cyl.mmax, cyl.mmax+1):
+#for mi in [503]:
 
     beam = bt.beam_m(mi)
 

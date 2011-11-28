@@ -191,7 +191,9 @@ class KLTransform(object):
             
         f.create_dataset('evals', data=evals)
         f.create_dataset('evecs', data=evecs.T, compression='gzip')
-        
+
+        f.attrs['num_modes'] = evals.size
+
         if ac != 0.0:
             f.attrs['add_const'] = ac
             f.attrs['FLAGS'] = 'NotPositiveDefinite'

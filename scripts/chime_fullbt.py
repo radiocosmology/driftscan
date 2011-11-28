@@ -6,11 +6,11 @@ import os
 
 cyl = cylinder.CylBT()
 
-teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/fullbt/')
+teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/fullbt_50/')
 
-cyl.num_freq = 80
-cyl.freq_lower = 640
-cyl.freq_upper = 720
+cyl.num_freq = 50
+cyl.freq_lower = 650
+cyl.freq_upper = 700
 
 cyl.cylinder_width = 20.0
 cyl.num_cylinders = 5
@@ -22,7 +22,7 @@ cyl.maxlength = 28.2
 bt = beamtransfer.BeamTransfer(teldir, telescope=cyl)
 #bt.generate_cache()
 
-klt = kltransform.KLTransform(bt)
+klt = kltransform.KLTransform(bt, evsubdir='ev2')
 
-#klt.generate()
+klt.generate()
 

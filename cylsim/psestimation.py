@@ -73,9 +73,10 @@ class PSEstimation(object):
         if evals is not None:
             c = [self.makeproj(mi, clzz) for clzz in self.clarray]
             ci = np.diag(1.0 / (evals + 1.0))
-            print "Making fisher."
+            print "Making fisher (for m=%i)." % mi
             fab = 0.5 * np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])
         else:
+            print "No evals (for m=%i), skipping." % mi
             l = self.bands.size - 1
             fab = np.zeros((l, l))
         return fab
@@ -104,7 +105,7 @@ class PSEstimation(object):
                 for fm in proc_rank:
                     fisher[fm[0]] = fisher[fm[1]]
 
-            f = h5py.File(self.psdir + 'fisher.hdf5')
+            f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
 
             f.create_dataset('fisher_m/', data=fisher)
             f.create_dataset('fisher_all/', data=np.sum(fisher, axis=0))

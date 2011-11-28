@@ -244,7 +244,7 @@ class KLTransform(object):
             modes = self.transform_save(mi)
         else:
             f = h5py.File(self._evfile % mi, 'r')
-            if f['evals'].size == 0:
+            if f['evals'].shape[0] == 0:
                 modes = None, None
             else:
                 modes = ( f['evals'][:], f['evecs'][:] )
@@ -255,6 +255,9 @@ class KLTransform(object):
     def skymodes_m(self, mi):
 
         evals, evecs = self.modes_m(mi)
+
+        if evals is None:
+            raise Exception("Don't seem to be any evals to use.")
 
         nfreq = self.telescope.nfreq
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope

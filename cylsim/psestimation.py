@@ -29,6 +29,8 @@ class PSEstimation(object):
 
     bands = np.concatenate((np.linspace(0.0, 0.2, 24, endpoint=False), np.logspace(np.log10(0.2), np.log10(3.0), 11)))
 
+    threshold = None
+
     def __init__(self, kltrans, subdir = 'ps/'):
 
         self.kltrans = kltrans
@@ -70,13 +72,13 @@ class PSEstimation(object):
 
     
     def makeproj(self, mi, clzz):
-        #print "Projecting to eigenbasis."
-        return self.kltrans.project_sky_matrix_forward(mi, clzz)
+        print "Projecting to eigenbasis."
+        return self.kltrans.project_sky_matrix_forward_old(mi, clzz, self.threshold)
 
 
     def fisher_m(self, mi):
         
-        evals, evecs = self.kltrans.modes_m(mi)
+        evals, evecs = self.kltrans.modes_m(mi, self.threshold)
 
         if evals is not None:
             print "Making fisher (for m=%i)." % mi

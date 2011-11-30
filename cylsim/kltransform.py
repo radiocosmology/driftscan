@@ -216,6 +216,7 @@ class KLTransform(object):
 
             f = h5py.File(self._evfile % mi, 'r')
             evarray[mi] = f['evals_full']
+            f.close()
 
         return evarray
 
@@ -238,7 +239,7 @@ class KLTransform(object):
             f.close()
 
 
-    def modes_m(self, mi):
+    def modes_m(self, mi, threshold=None):
 
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
@@ -247,14 +248,21 @@ class KLTransform(object):
             if f['evals'].shape[0] == 0:
                 modes = None, None
             else:
-                modes = ( f['evals'][:], f['evecs'][:] )
+                evals = f['evals'][:]
+                startind = np.searchsorted(evals, threshold) if threshold is not None else 0
+
+                if startind == evals.size:
+                    modes = None, None
+                else:
+                    modes = ( evals[startind:], f['evecs'][startind:] )
+
             f.close()
 
         return modes
 
-    def skymodes_m(self, mi):
+    def skymodes_m(self, mi, threshold=None):
 
-        evals, evecs = self.modes_m(mi)
+        evals, evecs = self.modes_m(mi, threshold=threshold)
 
         if evals is None:
             raise Exception("Don't seem to be any evals to use.")
@@ -273,25 +281,7 @@ class KLTransform(object):
 
         return evsky
             
-        
-    def skymodes_m_c(self, mi):
 
-        evals, evecs = self.modes_m(mi)
-
-        nfreq = self.telescope.nfreq
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
-
-        beam = self.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
-        evecs = evecs.reshape((-1, nfreq, ntel)).conj()
-
-        evsky = np.zeros((evecs.shape[0], nfreq, nsky), dtype=np.complex128)
-        
-        for fi in range(nfreq):
-            evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
-
-        return evsky
-                    
 
 
     def project_tel_vector_forward(self, mi, vec):
@@ -310,22 +300,33 @@ class KLTransform(object):
 
         return self.project_tel_vector_forward(mi, tvec)
 
-    def project_tel_matrix_forward(self, mi, mat):
+    def project_tel_matrix_forward(self, mi, mat, threshold=None):
 
-        evals, evecs = self.modes_m(mi)
+        evals, evecs = self.modes_m(mi, threshold)
 
         if (mat.shape[0] != evecs.shape[1]) or (mat.shape[0] != mat.shape[1]):
             raise Exception("Matrix size incompatible.")
 
         return np.dot(np.dot(evecs.conj(), mat), evecs.T)
 
-    def project_sky_matrix_forward(self, mi, mat):
+
+    def project_sky_matrix_forward(self, mi, mat, threshold=None):
+
+        npol = self.telescope.num_pol_sky
+        nbase = self.telescope.nbase
+        nfreq = self.telescope.nfreq
+        nside = npol * nbase * nfreq
+
+        return self.project_tel_matrix_forward(mi, self.beamtransfer.project_matrix_forward(mi, mat).reshape((nside, nside)), threshold)
+
+
+    def project_sky_matrix_forward_old(self, mi, mat, threshold=None):
 
         npol = self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
         nfreq = self.telescope.nfreq
 
-        evsky = self.skymodes_m(mi).reshape((-1, nfreq, npol, lside))
+        evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
 
         matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
         
@@ -336,27 +337,3 @@ class KLTransform(object):
 
         return matf
 
-
-    def project_sky_matrix_forward_c(self, mi, mat):
-
-        npol = self.telescope.num_pol_sky
-        lside = self.telescope.lmax + 1
-        nfreq = self.telescope.nfreq
-
-        evsky = self.skymodes_m_c(mi).reshape((-1, nfreq, npol, lside))
-
-        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
-        
-        for li in range(lside):
-            for pi in range(npol):
-                for pj in range(npol):
-                    matf += np.dot(np.dot(evsky[..., pi, li], mat[pi, pj, li, ...]), evsky[..., pj, li].T.conj())
-
-        return matf            
-        
-        
-        
-
-        
-
-        

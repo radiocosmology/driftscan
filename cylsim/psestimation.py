@@ -43,7 +43,9 @@ class PSEstimation(object):
         
 
     def genbands(self):
-            
+
+        print "Generating bands..."
+   
         self.band_pk = [((lambda bs, be: (lambda k: uniform_band(k, bs, be)))(b_start, b_end), b_start, b_end) for b_start, b_end in zip(self.bands[:-1], self.bands[1:])]
 
         if mpiutil.rank0:
@@ -56,10 +58,10 @@ class PSEstimation(object):
         self.bpower = np.array([quad(cr.ps_vv, bs, be)[0] for pk, bs, be in self.band_pk])
 
         self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
-
+        print "Done."
         
     def make_clzz(self, pk):
-        print "Making C_l(z,z')"
+        #print "Making C_l(z,z')"
         crt = corr21cm.Corr21cm(ps = pk)
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
@@ -68,7 +70,7 @@ class PSEstimation(object):
 
     
     def makeproj(self, mi, clzz):
-        print "Projecting to eigenbasis."
+        #print "Projecting to eigenbasis."
         return self.kltrans.project_sky_matrix_forward(mi, clzz)
 
 
@@ -77,9 +79,10 @@ class PSEstimation(object):
         evals, evecs = self.kltrans.modes_m(mi)
 
         if evals is not None:
+            print "Making fisher (for m=%i)." % mi
+
             c = [self.makeproj(mi, clzz) for clzz in self.clarray]
             ci = np.diag(1.0 / (evals + 1.0))
-            print "Making fisher (for m=%i)." % mi
             fab = 0.5 * np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])
         else:
             print "No evals (for m=%i), skipping." % mi
@@ -100,6 +103,8 @@ class PSEstimation(object):
         mpart = mpiutil.partition_list_mpi(mlist)
 
         f_m = self._fisher_section(mpart)
+
+        mpiutil.barrier()
 
         f_all = mpiutil.world.gather(f_m, root=0)
 

@@ -239,7 +239,13 @@ class KLTransform(object):
             f.close()
 
 
+    _last_mode_m = None
+    _last_mode = None
+
     def modes_m(self, mi, threshold=None):
+
+        if self._last_mode_m == mi:
+            return self._last_mode
 
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
@@ -258,9 +264,18 @@ class KLTransform(object):
 
             f.close()
 
+        self._last_mode = modes
+        self._last_mode_m = mi
         return modes
 
+
+    _last_skymode_m = None
+    _last_skymode = None
+
     def skymodes_m(self, mi, threshold=None):
+        
+        if self._last_skymode_m == mi:
+            return self._last_skymode
 
         evals, evecs = self.modes_m(mi, threshold=threshold)
 
@@ -279,6 +294,8 @@ class KLTransform(object):
         for fi in range(nfreq):
             evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
 
+        self._last_skymode = evsky
+        self._last_skymode_m = mi
         return evsky
             
 

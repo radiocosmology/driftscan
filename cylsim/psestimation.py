@@ -57,14 +57,18 @@ class PSEstimation(object):
         
         cr = corr21cm.Corr21cm()
 
-        self.bpower = np.array([quad(cr.ps_vv, bs, be)[0] for pk, bs, be in self.band_pk])
+        self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
+
+        self.bstart = self.bands[:-1]
+        self.bend = self.bands[1:]
+        self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
 
         self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
         print "Done."
         
     def make_clzz(self, pk):
         #print "Making C_l(z,z')"
-        crt = corr21cm.Corr21cm(ps = pk)
+        crt = corr21cm.Corr21cm(ps=pk, redshift=1.5)
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt)
@@ -113,11 +117,11 @@ class PSEstimation(object):
         if mpiutil.rank0:
             nb = self.bands.shape[0] - 1
             fisher = np.zeros((2*self.telescope.mmax+1, nb, nb), dtype=np.complex128)
-            print f_all
+            #print f_all
             for proc_rank in f_all:
-                print proc_rank
+                #print proc_rank
                 for fm in proc_rank:
-                    print fm
+                    #print fm
                     fisher[fm[0]] = fm[1]
 
             f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
@@ -125,7 +129,9 @@ class PSEstimation(object):
             f.create_dataset('fisher_m/', data=fisher)
             f.create_dataset('fisher_all/', data=np.sum(fisher, axis=0))
             f.create_dataset('bandpower/', data=self.bpower)
-
+            f.create_dataset('bandstart/', data=self.bstart)
+            f.create_dataset('bandend/', data=self.bend)
+            f.create_dataset('bandcenter/', data=self.bcenter)
             f.close()
             
     

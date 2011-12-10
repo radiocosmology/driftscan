@@ -118,7 +118,7 @@ class BeamTransfer(object):
         # For each frequency, create the HDF5 file, and write in each `m` as a
         # seperate compressed dataset. Use MPI if available. 
         for fi in mpiutil.mpirange(self.telescope.nfreq):
-            print 'f index %i. Creating file: %s' % (fi, self._ffile % fi)
+            print 'f index %i. Creating file: %s' % (fi, (self._ffile % fi))
             
             f = h5py.File(self._ffile % fi, 'w')
             f.create_group('m_section')

@@ -9,7 +9,7 @@ import sys
 bi = int(sys.argv[1])
 
 ### Directory to save into
-teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + ('/cylinder/chimebt50/band_%i/ % bi'))
+teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + ('/cylinder/chimebt50/band_%i/' % bi))
 
 ### Set up cylinder
 cyl = cylinder.CylBT()

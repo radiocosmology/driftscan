@@ -307,3 +307,8 @@ def sphtrans_complex_pol(hpmaps, lmax = None, centered = False, lside=None):
 
     return alms
     
+
+def coord_g2c(map):
+    angpos = ang_positions(healpy.npix2nside(map.size))
+    theta, phi =  healpy.Rotator(coord=['C', 'G'])(angpos[:,0], angpos[:,1])
+    return healpy.get_interp_val(map, theta, phi)

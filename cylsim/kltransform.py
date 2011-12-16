@@ -14,6 +14,7 @@ from cylsim import mpiutil
 from cylsim import beamtransfer
 from cylsim import util
 from cylsim import skymodel
+from cylsim import hputil
 
 from simulations import foregroundsck, corr21cm
 from utils import units
@@ -90,7 +91,7 @@ class KLTransform(object):
 
 
     def foreground(self):
-        """Compute the foreground covariance matrix.
+        """Compute the foreground covariance matrix (on the sky).
 
         Returns
         -------
@@ -110,7 +111,7 @@ class KLTransform(object):
 
 
     def signal(self):
-        """Compute the signal covariance matrix.
+        """Compute the signal covariance matrix (on the sky).
 
         Returns
         -------
@@ -128,14 +129,32 @@ class KLTransform(object):
         return self._cvsg
 
 
-    def signal_covariance(self, mi):
+    def sn_covariance(self, mi):
+        """Compute the signal and noise covariances (on the telescope).
+
+        The signal is formed from the 21cm signal, whereas the noise includes
+        both foregrounds and instrumental noise. This is for a single m-mode.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate at.
+
+        Returns
+        -------
+        s, n : np.ndarray[nfreq, npol*nbase, nfreq, npol*nbase]
+            Signal and noice covariance matrices.
+        """
+
         
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope
         nfreq = self.telescope.nfreq
 
+        # Project the signal and foregrounds from the sky onto the telescope.
         cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
         cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
 
+        # Add in the instrumental noise. Assumed to be diagonal for now.
         for fi in range(nfreq):
             noisebase = np.diag(self.telescope.noisepower(np.arange(self.telescope.nbase), fi).reshape(ntel))
             cvb_n[fi, :, fi, :] += noisebase
@@ -144,22 +163,32 @@ class KLTransform(object):
 
 
     def transform_m(self, mi):
+        """Perform the KL-transform for a single m.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate for.
+
+        Returns
+        -------
+        evals, evecs : np.ndarray
+            The KL-modes. The evals correspond to the diagonal of the
+            covariances in the new basis, and the evecs define the basis.
+        """
         
         print "Solving for Eigenvalues...."
 
+        # Fetch the covariance matrices to diagonalise
         st = time.time()
-
         nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
-        
-        cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.signal_covariance(mi)]
-        
+        cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
         print "Time =", (et-st)
 
+        # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
-
         res = eigh_gen(cvb_sr, cvb_nr)
-        
         et=time.time()
         print "Time =", (et-st)
 
@@ -169,19 +198,37 @@ class KLTransform(object):
 
 
     def transform_save(self, mi):
-        st = time.time()
+        """Save the KL-modes for a given m.
+
+        Perform the transform and cache the results for later use.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
+
+        Results
+        -------
+        evals, evecs : np.ndarray
+            See `transfom_m` for details.
+        """
         
+        # Perform the KL-transform
         print "Constructing signal and noise covariances for m = %i ..." % (mi)
         evals, evecs, ac = self.transform_m(mi)
     
         ## Write out Eigenvals and Vectors
+
+        # Create file and set some metadata
         print "Creating file %s ...." % (self._evfile % mi)
         f = h5py.File(self._evfile % mi, 'w')
         f.attrs['m'] = mi
         f.attrs['SUBSET'] = self.subset
 
+        # Write out the full spectrum of eigenvalues
         f.create_dataset('evals_full', data=evals)
 
+        # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
             i_ev = np.searchsorted(evals, self.threshold)
             
@@ -190,12 +237,15 @@ class KLTransform(object):
             evals = evals[i_ev:]
             evecs = evecs[:, i_ev:]
             print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size)
-            
+
+        # Write out potentially reduced eigen spectrum.
         f.create_dataset('evals', data=evals)
         f.create_dataset('evecs', data=evecs.T, compression='gzip')
-
         f.attrs['num_modes'] = evals.size
 
+        # If we had to regularise because the noise spectrum is numerically ill
+        # conditioned, write out the constant we added to the diagonal (see
+        # eigh_gen).
         if ac != 0.0:
             f.attrs['add_const'] = ac
             f.attrs['FLAGS'] = 'NotPositiveDefinite'
@@ -208,10 +258,20 @@ class KLTransform(object):
 
 
     def evals_all(self):
+        """Collects the full eigenvalue spectrum for all m-modes.
+
+        Reads in from files on disk.
+
+        Returns
+        -------
+        evarray : np.ndarray
+            The full set of eigenvalues across all m-modes.
+        """
 
         nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
         evarray = np.zeros((2*self.telescope.mmax+1, nside))
-        
+
+        # Iterate over all m's, reading file and extracting the eigenvalues.
         for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
 
             f = h5py.File(self._evfile % mi, 'r')
@@ -222,14 +282,24 @@ class KLTransform(object):
 
 
     def generate(self, mlist = None):
+        """Perform the KL-transform for all m-modes and save the result.
 
+        Uses MPI to distribute the work (if available).
+
+        Parameters
+        ----------
+        mlist : array_like, optional
+            Set of m's to calculate KL-modes for By default do all m-modes.
+        """
+        
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
             self.transform_save(mi)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
-        
+
+        # Create combined eigenvalue file.
         if mpiutil.rank0:
             print "Creating eigenvalues file (process 0 only)."
             evals = self.evals_all()
@@ -243,17 +313,47 @@ class KLTransform(object):
     _last_mode = None
 
     def modes_m(self, mi, threshold=None):
+        """Fetch the KL-modes for a particular m.
 
+        This attempts to read in the results from disk, if available and if not
+        will create them.
+
+        Also, it will cache the previous m-mode in memory, so as to avoid disk
+        access in many cases. However *this* is not sensitive to changes in the
+        threshold, be careful.
+
+        Parameters
+        ----------
+        mi : integer
+            m to fetch KL-modes for.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        evals, evecs : np.ndarray
+            KL-modes with S/N greater than some threshold. Both evals and evecs
+            are potentially `None`, if there are no modes either in the file, or
+            satisfying S/N > threshold.
+        """
+        
+        # See if requested m was the previous one (thus cached in memory).
         if self._last_mode_m == mi:
             return self._last_mode
 
+        # If modes not already saved to disk, create file.
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
         else:
             f = h5py.File(self._evfile % mi, 'r')
+
+            # If no modes are in the file, return None, None
             if f['evals'].shape[0] == 0:
                 modes = None, None
             else:
+                # Find modes satisfying threshold (if required).
                 evals = f['evals'][:]
                 startind = np.searchsorted(evals, threshold) if threshold is not None else 0
 
@@ -264,6 +364,7 @@ class KLTransform(object):
 
             f.close()
 
+        # Cache the results of this call to reduce disk access.
         self._last_mode = modes
         self._last_mode_m = mi
         return modes
@@ -273,15 +374,37 @@ class KLTransform(object):
     _last_skymode = None
 
     def skymodes_m(self, mi, threshold=None):
-        
+        """Find the representation of the KL-modes on the sky.
+
+        Use the beamtransfers to rotate the SN-modes onto the sky. This routine
+        is based on `modes_m`, as such the same caching and caveats apply.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        skymodes : np.ndarray
+            The modes as found in a_{lm}(\nu) space. Note this routine does not
+            return the evals.
+
+        See Also
+        --------
+        `modes_m`
+        """
         if self._last_skymode_m == mi:
             return self._last_skymode
 
+        # Fetch the modes in the telescope basis.
         evals, evecs = self.modes_m(mi, threshold=threshold)
 
         if evals is None:
             raise Exception("Don't seem to be any evals to use.")
 
+        ## Rotate onto the sky basis. Slightly complex as need to do
+        ## frequency-by-frequency
         nfreq = self.telescope.nfreq
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope
         nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
@@ -294,6 +417,7 @@ class KLTransform(object):
         for fi in range(nfreq):
             evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
 
+        # Cache results and return
         self._last_skymode = evsky
         self._last_skymode_m = mi
         return evsky
@@ -301,9 +425,9 @@ class KLTransform(object):
 
 
 
-    def project_tel_vector_forward(self, mi, vec):
+    def project_tel_vector_forward(self, mi, vec, threshold=None):
 
-        evals, evecs = self.modes_m(mi)
+        evals, evecs = self.modes_m(mi, threshold)
 
         if vec.shape[0] != evecs.shape[1]:
             raise Exception("Vectors are incompatible.")
@@ -311,11 +435,11 @@ class KLTransform(object):
         return np.dot(evecs, vec)
 
 
-    def project_sky_vector_forward(self, mi, vec):
+    def project_sky_vector_forward(self, mi, vec, threshold=None):
 
         tvec = self.beamtransfer.project_vector_forward(mi, vec).flat
 
-        return self.project_tel_vector_forward(mi, tvec)
+        return self.project_tel_vector_forward(mi, tvec, threshold)
 
     def project_tel_matrix_forward(self, mi, mat, threshold=None):
 
@@ -353,4 +477,51 @@ class KLTransform(object):
                     matf += np.dot(np.dot(evsky[..., pi, li], mat[pi, pj, li, ...]), evsky[..., pj, li].T.conj())
 
         return matf
+
+
+    def project_sky(self, sky, mlist = None, threshold=None, harmonic=False):
+
+        if mlist is None:
+            mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
+
+        
+        nmodes = self.telescope.num_pol_telescope * self.telescope.nbase * self.telescope.nfreq
+
+        if harmonic:
+            alm = sky
+        else:
+            alm = np.empty((self.telescope.nfreq, self.telescope.lmax, self.telescope.lmax))
+
+            for i in range(sky.shape[0]):
+                alm[i] = hputil.sphtrans_real(sky[i], lmax=self.telescope.lmax)
+        
+
+        mpart = mpiutil.partition_list_mpi(mlist)
+        
+        def _proj(mi):
+            p1 = self.project_sky_vector_forward(mi, alm[:, :, mi], threshold)
+
+            p2 = np.zeros(nmodes, dtype=np.complex128)
+
+            p2[-p1.size:] = p1
+
+            return p2
+
+        proj_sec = [(mi, _proj(mi)) for mi in mpart]
+
+        proj_all = mpiutil.world.gather(proj_sec, root=0)
+
+        proj_arr = None
+
+        if mpiutil.rank0:
+
+            proj_arr = np.zeros((2*self.telescope.mmax - 1, nmodes), dtype=np.complex128)
+
+            for proc_rank in proj_all:
+                for pm in proc_rank:
+                    proj_arr[pm[0]] = pm[1]
+
+        return proj_arr
+
+            
 

@@ -48,13 +48,13 @@ def mkfullsky(corr, nside):
     if corr.shape[2] != numz:
         raise Exception("Correlation matrix is incorrect shape.")
 
-    trans = np.zeros_like(corr.shape)
+    trans = np.zeros_like(corr)
 
     for i in range(maxl+1):
         trans[i] = matrix_root_manynull(corr[i], truncate=False)
 
     
-    la, ma = healpy.Alm.getlm(lmax)
+    la, ma = healpy.Alm.getlm(maxl)
 
     matshape = la.shape + (numz,)
 

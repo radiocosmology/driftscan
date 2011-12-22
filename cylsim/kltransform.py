@@ -437,7 +437,7 @@ class KLTransform(object):
 
     def project_sky_vector_forward(self, mi, vec, threshold=None):
 
-        tvec = self.beamtransfer.project_vector_forward(mi, vec).flat
+        tvec = self.beamtransfer.project_vector_forward(mi, vec).flatten()
 
         return self.project_tel_vector_forward(mi, tvec, threshold)
 
@@ -467,14 +467,27 @@ class KLTransform(object):
         lside = self.telescope.lmax + 1
         nfreq = self.telescope.nfreq
 
-        evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
+        st = time.time()
 
-        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
+        evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
+        et = time.time()
         
-        for li in range(lside):
-            for pi in range(npol):
-                for pj in range(npol):
-                    matf += np.dot(np.dot(evsky[..., pi, li], mat[pi, pj, li, ...]), evsky[..., pj, li].T.conj())
+        print "Evsky: %f" % (et-st)
+
+        st = time.time()
+        ev1n = np.transpose(evsky, (2, 3, 0, 1)).copy()
+        ev1h = np.transpose(evsky, (2, 3, 1, 0)).conj()
+        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
+
+        for pi in range(npol):
+            for pj in range(npol):
+                for li in range(lside):
+                    matf += np.dot(np.dot(ev1n[pi, li], mat[pi, pj, li]), ev1h[pj, li])
+
+        et = time.time()
+        
+        print "Rest: %f" % (et-st)
+
 
         return matf
 

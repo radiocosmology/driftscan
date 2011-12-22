@@ -281,12 +281,9 @@ class KLTransform(object):
         return evarray
 
 
-<<<<<<< HEAD
+
     def generate(self, mlist = None, regen=False):
-=======
-    def generate(self, mlist = None):
         """Perform the KL-transform for all m-modes and save the result.
->>>>>>> b749d72a923cc0a9aed0d1809b0aa3750808c07d
 
         Uses MPI to distribute the work (if available).
 

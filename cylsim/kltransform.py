@@ -221,16 +221,24 @@ class KLTransform(object):
         return evarray
 
 
-    def generate(self, mlist = None):
+    def generate(self, mlist = None, regen=False):
 
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
+            if os.path.exists(self._evfile % mi) and not regen:
+                print "m index %i. File: %s exists. Skipping..." % (mi, (self._evfile % mi))
+                continue
+
             self.transform_save(mi)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
         
         if mpiutil.rank0:
+            if os.path.exists(self.evdir + "/evals.hdf5") and not regen:
+                print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
+                return
+
             print "Creating eigenvalues file (process 0 only)."
             evals = self.evals_all()
 

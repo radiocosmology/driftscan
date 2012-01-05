@@ -96,8 +96,6 @@ def mkconstrained(corr, constraints, nside):
         The Healpix maps. hpmaps[i] is the i'th map.
     """
 
-    import pdb
-
     numz = corr.shape[1]
     maxl = corr.shape[0]-1
     
@@ -115,7 +113,6 @@ def mkconstrained(corr, constraints, nside):
     trans = np.zeros((corr.shape[0], nmodes, corr.shape[2]))
     tmat = np.zeros((corr.shape[0], nmodes, nmodes))
 
-
     cmap = np.zeros(larr.shape + (nmodes, ), dtype=np.complex128)
 
     cv = np.zeros((numz,) + larr.shape, dtype=np.complex128)
@@ -123,9 +120,6 @@ def mkconstrained(corr, constraints, nside):
     for i in range(maxl+1):
         trans[i] = la.eigh(corr[i])[1][:, -nmodes:].T
         tmat[i] = trans[i][:, f_ind]
-
-    pdb.set_trace()
-
 
     for i, cons in enumerate(constraints):
         cmap[:, i] = healpy.map2alm(cons[1], lmax=maxl)
@@ -135,8 +129,6 @@ def mkconstrained(corr, constraints, nside):
             cv[:, i] = 0.0
         else:
             cv[:, i] = np.dot(trans[l].T, la.solve(tmat[l].T, cmap[i]))
-
-    pdb.set_trace()
 
     hpmaps = np.empty((numz, healpy.nside2npix(nside)))
 

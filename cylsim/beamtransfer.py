@@ -113,13 +113,18 @@ class BeamTransfer(object):
         return beam
 
 
-    def generate_cache(self):
+    def generate_cache(self, regen = False):
 
         # For each frequency, create the HDF5 file, and write in each `m` as a
         # seperate compressed dataset. Use MPI if available. 
         for fi in mpiutil.mpirange(self.telescope.nfreq):
-            print 'f index %i. Creating file: %s' % (fi, (self._ffile % fi))
-            
+
+            if os.path.exists(self._ffile % fi) and not regen:
+                print "f index %i. File: %s exists. Skipping..." % (fi, (self._ffile % fi))
+                continue
+            else:
+                print 'f index %i. Creating file: %s' % (fi, (self._ffile % fi))
+
             f = h5py.File(self._ffile % fi, 'w')
             f.create_group('m_section')
 
@@ -147,7 +152,11 @@ class BeamTransfer(object):
         # and write them into a new `m` file. Use MPI if available. 
         for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
 
-            print 'm index %i. Creating file: %s' % (mi, self._mfile % mi)
+            if os.path.exists(self._mfile % mi) and not regen:
+                print "m index %i. File: %s exists. Skipping..." % (mi, (self._mfile % mi))
+                continue
+            else:
+                print 'm index %i. Creating file: %s' % (mi, self._mfile % mi)
 
             ## Create hdf5 file for each m-mode
             f = h5py.File(self._mfile % mi, 'w')

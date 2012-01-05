@@ -77,7 +77,7 @@ class PSEstimation(object):
     
     def makeproj(self, mi, clzz):
         print "Projecting to eigenbasis."
-        return self.kltrans.project_sky_matrix_forward_old(mi, clzz, self.threshold)
+        return self.kltrans.project_sky_matrix_forward(mi, clzz, self.threshold)
 
 
     def fisher_m(self, mi):

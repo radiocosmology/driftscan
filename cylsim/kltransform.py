@@ -281,7 +281,8 @@ class KLTransform(object):
         return evarray
 
 
-    def generate(self, mlist = None):
+
+    def generate(self, mlist = None, regen=False):
         """Perform the KL-transform for all m-modes and save the result.
 
         Uses MPI to distribute the work (if available).
@@ -294,6 +295,10 @@ class KLTransform(object):
         
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
+            if os.path.exists(self._evfile % mi) and not regen:
+                print "m index %i. File: %s exists. Skipping..." % (mi, (self._evfile % mi))
+                continue
+
             self.transform_save(mi)
 
         # If we're part of an MPI run, synchronise here.
@@ -301,6 +306,10 @@ class KLTransform(object):
 
         # Create combined eigenvalue file.
         if mpiutil.rank0:
+            if os.path.exists(self.evdir + "/evals.hdf5") and not regen:
+                print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
+                return
+
             print "Creating eigenvalues file (process 0 only)."
             evals = self.evals_all()
 
@@ -437,7 +446,7 @@ class KLTransform(object):
 
     def project_sky_vector_forward(self, mi, vec, threshold=None):
 
-        tvec = self.beamtransfer.project_vector_forward(mi, vec).flat
+        tvec = self.beamtransfer.project_vector_forward(mi, vec).flatten()
 
         return self.project_tel_vector_forward(mi, tvec, threshold)
 
@@ -467,14 +476,27 @@ class KLTransform(object):
         lside = self.telescope.lmax + 1
         nfreq = self.telescope.nfreq
 
-        evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
+        st = time.time()
 
-        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
+        evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
+        et = time.time()
         
-        for li in range(lside):
-            for pi in range(npol):
-                for pj in range(npol):
-                    matf += np.dot(np.dot(evsky[..., pi, li], mat[pi, pj, li, ...]), evsky[..., pj, li].T.conj())
+        print "Evsky: %f" % (et-st)
+
+        st = time.time()
+        ev1n = np.transpose(evsky, (2, 3, 0, 1)).copy()
+        ev1h = np.transpose(evsky, (2, 3, 1, 0)).conj()
+        matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
+
+        for pi in range(npol):
+            for pj in range(npol):
+                for li in range(lside):
+                    matf += np.dot(np.dot(ev1n[pi, li], mat[pi, pj, li]), ev1h[pj, li])
+
+        et = time.time()
+        
+        print "Rest: %f" % (et-st)
+
 
         return matf
 

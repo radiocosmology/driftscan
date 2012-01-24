@@ -572,9 +572,6 @@ class UnpolarisedTelescope(TransitTelescope):
     #===== Implementations of abstract functions =======
 
     def _transfer_single(self, bl_index, f_index, lmax, lside):
-
-        import pdb
-        pdb.set_trace()
         
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))

@@ -306,6 +306,31 @@ def sphtrans_complex_pol(hpmaps, lmax = None, centered = False, lside=None):
     alms = [rlm + 1.0J * ilm for rlm, ilm in zip(rlms, ilms)]
 
     return alms
+
+
+
+def sphtrans_inv_real(alm, nside):
+
+    if alm.shape[1] != alm.shape[0]:
+        raise Exception("a_lm array wrong shape.")
+
+    almp = pack_alm(alm)
+
+    return healpy.alm2map(almp, nside)
+
+
+
+def sphtrans_inv_complex(alm, nside):
+
+    if alm.shape[1] != (2*alm.shape[0] - 1):
+        raise Exception("a_lm array wrong shape.")
+
+    almr = _make_half_alm(alm)
+
+    almi = 1.0J*(alm[:,:almr.shape[1]] - almr)
+
+    return sphtrans_inv_real(almr, nside) + 1.0J * sphtrans_inv_real(almi, nside)
+
     
 
 def coord_g2c(map):

@@ -25,7 +25,7 @@ def natpattern(n):
 
 
 
-def mkfullsky(corr, nside):
+def mkfullsky(corr, nside, alms = False):
     """Construct a set of correlated Healpix maps.
     
     Make a set of full sky gaussian random fields, given the correlation
@@ -37,6 +37,8 @@ def mkfullsky(corr, nside):
         The correlation matrix :math:`C_l(z, z')`.
     nside : integer
         The resolution of the Healpix maps.
+    alms : boolean, optional
+        If True return the alms instead of the sky maps.
 
     Returns
     -------
@@ -67,6 +69,13 @@ def mkfullsky(corr, nside):
     # Transform variables to have correct correlation structure
     for i, l in enumerate(la):
         gaussvars[i] = np.dot(trans[l], gaussvars[i])
+
+    if alms:
+        alm_freq = np.zeros((numz, maxl+1, 2*maxl+1), dtype=np.complex128)
+        for i in range(numz):
+            alm_freq[i] = hputil.unpack_alm(gaussvars[:, i], maxl, fullm=True)
+        
+        return alm_freq
 
     hpmaps = np.empty((numz, healpy.nside2npix(nside)))
 

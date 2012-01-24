@@ -436,7 +436,7 @@ class TransitTelescope(object):
     #===================================================
 
 
-
+    _nside = None
 
     def _init_trans(self, nside):
         ## Internal function for generating some common Healpix maps (position,

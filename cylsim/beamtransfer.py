@@ -2,7 +2,7 @@ import pickle
 import os
 
 import numpy as np
-
+import scipy.linalg as la
 import h5py
 
 import mpiutil
@@ -94,6 +94,34 @@ class BeamTransfer(object):
         mfile.close()
         
         return beam
+
+
+    _ibeam = None
+    _ibeam_m = None
+    def invbeam_m(self, mi):
+
+        if self._ibeam_m == mi:
+            return self._ibeam
+
+        nfreq = self.telescope.nfreq
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+
+        beam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
+
+        ibeam = np.zeros((nfreq, nsky, ntel), dtype=np.complex128)
+        #for pi in range(npol):
+        #for pj in range(npol):
+        for fi in range(nfreq):
+            bh = beam[fi].T.conj()
+            #ibeam[fi] = np.dot(bh, la.inv(np.dot(beam[fi], bh)))
+            ibeam[fi] = la.pinv2(beam[fi])
+
+        ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.nbase, self.telescope.num_pol_telescope))
+
+        self._ibeam = ibeam
+        self._ibeam_m = mi
+        return ibeam
         
         
     def beam_freq(self, fi, fullm = False):
@@ -207,6 +235,23 @@ class BeamTransfer(object):
             vecf[fi] = np.dot(beam[fi], vec[..., fi, :].reshape(nsky))
 
         return vecf
+
+    
+    def project_vector_backward(self, mi, vec):
+                
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+        nfreq = self.telescope.nfreq
+
+        ibeam = self.invbeam_m(mi).reshape((nfreq, nsky, ntel))
+        
+        vecb = np.zeros((nfreq, nsky), dtype=np.complex128)
+        vec = vec.reshape((nfreq, ntel))
+
+        for fi in range(nfreq):
+            vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(ntel))
+
+        return vecb.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1))
     
 
     def project_matrix_forward(self, mi, mat):
@@ -220,13 +265,17 @@ class BeamTransfer(object):
         
         matf = np.zeros((nfreq, ntel, nfreq, ntel), dtype=np.complex128)
 
-        for fi in range(nfreq):
-            for fj in range(nfreq):
-                for pi in range(npol):
-                    for pj in range(npol):
-                        matf[fi, :, fj, :] = np.dot((beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]), beam[fj, :, pj, :].T.conj())
+
+        # Should it be a +=?
+        for pi in range(npol):
+            for pj in range(npol):
+                for fi in range(nfreq):
+                    for fj in range(nfreq):
+                        matf[fi, :, fj, :] += np.dot((beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]), beam[fj, :, pj, :].T.conj())
 
         return matf
+
+                    
 
             
         

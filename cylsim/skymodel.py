@@ -6,6 +6,12 @@ from utils import units
 _cr = None
 
 
+class FullskySynchrotron(foregroundsck.Synchrotron):
+    """Increase synchrotron amplitude to see it alleviates the full sky issues."""
+    A = 10000.0
+    
+
+
 def clarray(aps, lmax, zarray):
 
     clarray = aps(np.arange(lmax+1)[:, np.newaxis, np.newaxis],
@@ -17,7 +23,8 @@ def clarray(aps, lmax, zarray):
 
 def foreground_model(lmax, frequencies, npol):
 
-    fsyn = foregroundsck.Synchrotron()
+    #fsyn = foregroundsck.Synchrotron()
+    fsyn = FullskySynchrotron()
     fps = foregroundsck.PointSources()
     
     nfreq = frequencies.size

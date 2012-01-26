@@ -19,6 +19,9 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     in_cylinder = True
 
+    touching = True
+    cylspacing = None
+
     ## u-width property override
     @property
     def u_width(self):
@@ -54,7 +57,8 @@ class CylinderTelescope(telescope.TransitTelescope):
         bl1 = telescope.map_half_plane(bl1)
 
         # Turn separation into a complex number and find unique elements
-        ub, ind, inv = np.unique(np.around(bl1[..., 0] + 1.0J * bl1[..., 1], 5), return_index=True, return_inverse=True)
+        ub, ind, inv = np.unique(np.around(bl1[..., 0] + 1.0J * bl1[..., 1], 5),
+                                 return_index=True, return_inverse=True)
 
         # Bin to find redundancy of each pair
         redundancy = np.bincount(inv)
@@ -84,6 +88,16 @@ class CylinderTelescope(telescope.TransitTelescope):
         fplist = [self.feed_positions_cylinder(i) for i in range(self.num_cylinders)]
 
         return np.vstack(fplist)
+
+    @property
+    def cylinder_spacing(self):
+        if self.touching:
+            return self.cylinder_width
+        else:
+            if self.cylspacing is None:
+                raise Exception("Need to set cylinder spacing if not touching.")
+            return self.cylspacing
+            
             
 
 
@@ -108,7 +122,7 @@ class CylinderTelescope(telescope.TransitTelescope):
         
         pos = np.empty([self.num_feeds, 2], dtype=np.float64)
 
-        pos[:,0] = cylinder_index * self.cylinder_width
+        pos[:,0] = cylinder_index * self.cylinder_spacing
         pos[:,1] = np.arange(self.num_feeds) * self.feed_spacing
 
         return pos

@@ -11,6 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+.. automodule:: cylsim.hputil
+    :members:
+
 Indices and tables
 ==================
 

@@ -13,35 +13,14 @@ from simulations import foregroundsck
 
 from os.path import join, dirname
 
-#_haslam = hputil.coord_g2c(healpy.read_map("haslam.fits")) * 1e3
-#_h_nside = healpy.npix2nside(_haslam.size)
 
 _datadir = join(dirname(__file__), "data")
 
-def constrained_syn(nside, frequencies):
-
-    syn = foregroundsck.Synchrotron()
-
-    lmax = 3*nside - 1
-
-    cla = skymodel.clarray(syn.aps, lmax, np.concatenate((np.array([408.0]), frequencies)))
-
-    fg = util.mkfullsky(cla, nside)
-    
-
-    sub = healpy.ud_grade(healpy.ud_grade(fg[0], _h_nside), nside)
-
-    fg2 = (fg[1:] - sub[np.newaxis, :]) + (_haslam[np.newaxis, :] * ((frequencies / 408.0)**(-syn.alpha))[:, np.newaxis])
-
-    #return fg
-
-    return fg, fg2, sub, _haslam
 
 
 
 
-
-def c_syn(nside, frequencies, debug=False, celestial=True):
+def galactic_synchrotron(nside, frequencies, debug=False, celestial=True):
 
     haslam = healpy.ud_grade(healpy.read_map(join(_datadir, "haslam.fits")), nside) #hputil.coord_g2c()
     
@@ -87,32 +66,4 @@ def c_syn(nside, frequencies, debug=False, celestial=True):
         return fg2
 
     
-
-def sphtrans_sky(skymap, lmax=None):
-
-    nfreq = skymap.shape[0]
-
-    if lmax is None:
-        lmax = 3*healpy.npix2nside(skymap.shape[1]) - 1
-
-    alm_freq = np.empty((nfreq, lmax+1, 2*lmax + 1), dtype=np.complex128)
-
-    for i in range(nfreq):
-        alm_freq[i] = hputil.sphtrans_complex(skymap[i].astype(np.complex128), lmax)
-
-    return alm_freq
-
-def sphtrans_inv_sky(alm, nside):
-
-    nfreq = alm.shape[0]
-
-    sky_freq = np.empty((nfreq, healpy.nside2npix(nside)), dtype=np.complex128)
-
-    for i in range(nfreq):
-        sky_freq[i] = hputil.sphtrans_inv_complex(alm[i], nside)
-
-    return sky_freq
-
-    
-
-    
+c_syn = galactic_synchrotron

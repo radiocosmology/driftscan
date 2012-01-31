@@ -240,7 +240,7 @@ class KLTransform(object):
 
         # Write out potentially reduced eigen spectrum.
         f.create_dataset('evals', data=evals)
-        f.create_dataset('evecs', data=evecs.T, compression='gzip')
+        f.create_dataset('evecs', data=evecs.T.conj(), compression='gzip')
         f.attrs['num_modes'] = evals.size
 
         # If we had to regularise because the noise spectrum is numerically ill
@@ -320,6 +320,7 @@ class KLTransform(object):
 
     _last_mode_m = None
     _last_mode = None
+    olddatafile = False
 
     def modes_m(self, mi, threshold=None):
         """Fetch the KL-modes for a particular m.
@@ -370,13 +371,31 @@ class KLTransform(object):
                     modes = None, None
                 else:
                     modes = ( evals[startind:], f['evecs'][startind:] )
-
+                    
+                    # If old data file perform complex conjugate
+                    modes = modes if not self.olddatafile else ( modes[0], modes[1].conj() )
             f.close()
 
         # Cache the results of this call to reduce disk access.
         self._last_mode = modes
         self._last_mode_m = mi
         return modes
+
+
+    _last_invmode_m = None
+    _last_invmode = None
+    def invmodes_m(self, mi, threshold=None):
+        # See if requested m was the previous one (thus cached in memory).
+        if self._last_invmode_m == mi:
+            return self._last_invmode
+
+        evals, modes = self.modes_m(mi, threshold)
+
+        invmode = la.pinv2(modes)
+        self._last_invmode_m = mi
+        self._last_invmode = invmode
+
+        return invmode
 
 
     _last_skymode_m = None
@@ -392,6 +411,10 @@ class KLTransform(object):
         ----------
         mi : integer
             Mode index to fetch for.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
 
         Returns
         -------
@@ -419,7 +442,7 @@ class KLTransform(object):
         nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
 
         beam = self.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
-        evecs = evecs.reshape((-1, nfreq, ntel)).conj()
+        evecs = evecs.reshape((-1, nfreq, ntel))
 
         evsky = np.zeros((evecs.shape[0], nfreq, nsky), dtype=np.complex128)
         
@@ -435,7 +458,24 @@ class KLTransform(object):
 
 
     def project_tel_vector_forward(self, mi, vec, threshold=None):
+        """Project a telescope data vector into the eigenbasis.
 
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Telescope data vector.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        projvector : np.ndarray
+            The vector projected into the eigenbasis.
+        """
         evals, evecs = self.modes_m(mi, threshold)
 
         if vec.shape[0] != evecs.shape[1]:
@@ -444,11 +484,59 @@ class KLTransform(object):
         return np.dot(evecs, vec)
 
 
-    def project_sky_vector_forward(self, mi, vec, threshold=None):
+    def project_tel_vector_backward(self, mi, vec, threshold=None):
+        """Project a vector in the Eigenbasis back into the telescope space.
 
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Eigenbasis data vector.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        projvector : np.ndarray
+            The vector projected into the eigenbasis.
+        """
+        evals, evecs = self.modes_m(mi, threshold)
+
+        if vec.shape[0] != evecs.shape[0]:
+            raise Exception("Vectors are incompatible.")
+
+        # Construct the pseudo inverse
+        invmodes = self.invmodes_m(mi, threshold)
+
+        return np.dot(self.invmodes_m(mi, threshold), vec)
+
+
+    def project_sky_vector_forward(self, mi, vec, threshold=None):
+        """Project an m-vector from the sky into the eigenbasis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [freq, pol, l]
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        projvector : np.ndarray
+            The vector projected into the eigenbasis.
+        """
         tvec = self.beamtransfer.project_vector_forward(mi, vec).flatten()
 
         return self.project_tel_vector_forward(mi, tvec, threshold)
+
 
     def project_tel_matrix_forward(self, mi, mat, threshold=None):
 
@@ -457,7 +545,7 @@ class KLTransform(object):
         if (mat.shape[0] != evecs.shape[1]) or (mat.shape[0] != mat.shape[1]):
             raise Exception("Matrix size incompatible.")
 
-        return np.dot(np.dot(evecs.conj(), mat), evecs.T)
+        return np.dot(np.dot(evecs, mat), evecs.T.conj())
 
 
     def project_sky_matrix_forward(self, mi, mat, threshold=None):
@@ -467,7 +555,9 @@ class KLTransform(object):
         nfreq = self.telescope.nfreq
         nside = npol * nbase * nfreq
 
-        return self.project_tel_matrix_forward(mi, self.beamtransfer.project_matrix_forward(mi, mat).reshape((nside, nside)), threshold)
+        mproj = self.beamtransfer.project_matrix_forward(mi, mat)
+
+        return self.project_tel_matrix_forward(mi, mproj.reshape((nside, nside)), threshold)
 
 
     def project_sky_matrix_forward_old(self, mi, mat, threshold=None):
@@ -503,46 +593,43 @@ class KLTransform(object):
 
     def project_sky(self, sky, mlist = None, threshold=None, harmonic=False):
 
+        # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
             mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
-
-        
-        nmodes = self.telescope.num_pol_telescope * self.telescope.nbase * self.telescope.nfreq
-
-        if harmonic:
-            alm = sky
-        else:
-            alm = np.empty((self.telescope.nfreq, self.telescope.lmax, self.telescope.lmax))
-
-            for i in range(sky.shape[0]):
-                alm[i] = hputil.sphtrans_real(sky[i], lmax=self.telescope.lmax)
-        
-
         mpart = mpiutil.partition_list_mpi(mlist)
         
+        # Total number of sky modes.
+        nmodes = self.telescope.num_pol_telescope * self.telescope.nbase * self.telescope.nfreq
+
+        # If sky is alm fine, if not perform spherical harmonic transform.
+        alm = sky if harmonic else hputil.sphtrans_sky(sky, lmax=self.telescope.lmax)
+
+
+        ## Routine to project sky onto eigenmodes
         def _proj(mi):
             p1 = self.project_sky_vector_forward(mi, alm[:, :, mi], threshold)
-
             p2 = np.zeros(nmodes, dtype=np.complex128)
-
             p2[-p1.size:] = p1
-
             return p2
 
+        # Map over list of m's and project sky onto eigenbasis
         proj_sec = [(mi, _proj(mi)) for mi in mpart]
 
+        # Gather projections onto the rank=0 node.
         proj_all = mpiutil.world.gather(proj_sec, root=0)
 
         proj_arr = None
-
+        
         if mpiutil.rank0:
+            # Create array to put projections into
+            proj_arr = np.zeros((2*self.telescope.mmax + 1, nmodes), dtype=np.complex128)
 
-            proj_arr = np.zeros((2*self.telescope.mmax - 1, nmodes), dtype=np.complex128)
-
+            # Iterate over all gathered projections and insert into the array
             for proc_rank in proj_all:
                 for pm in proc_rank:
                     proj_arr[pm[0]] = pm[1]
 
+        # Return the projections (rank=0) or None elsewhere.
         return proj_arr
 
             

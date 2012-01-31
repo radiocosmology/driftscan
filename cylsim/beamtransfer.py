@@ -99,25 +99,24 @@ class BeamTransfer(object):
     _ibeam = None
     _ibeam_m = None
     def invbeam_m(self, mi):
-
+        
         if self._ibeam_m == mi:
             return self._ibeam
-
+        
         nfreq = self.telescope.nfreq
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope
         nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
-
+        
         beam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
-
+        
         ibeam = np.zeros((nfreq, nsky, ntel), dtype=np.complex128)
-        #for pi in range(npol):
-        #for pj in range(npol):
+
         for fi in range(nfreq):
             bh = beam[fi].T.conj()
-            #ibeam[fi] = np.dot(bh, la.inv(np.dot(beam[fi], bh)))
             ibeam[fi] = la.pinv2(beam[fi])
 
-        ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.nbase, self.telescope.num_pol_telescope))
+        ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
+                               self.telescope.nbase, self.telescope.num_pol_telescope))
 
         self._ibeam = ibeam
         self._ibeam_m = mi

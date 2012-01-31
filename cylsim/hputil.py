@@ -310,7 +310,19 @@ def sphtrans_complex_pol(hpmaps, lmax = None, centered = False, lside=None):
 
 
 def sphtrans_inv_real(alm, nside):
+    """Inverse spherical harmonic transform onto a real field.
 
+    Parameters
+    ----------
+    alm : np.ndarray
+        The array of alms. Only expects the real half of the array.
+    nside : integer
+        The Healpix resolution of the final map.
+
+    Returns
+    -------
+    hpmaps : np.ndarray
+    """
     if alm.shape[1] != alm.shape[0]:
         raise Exception("a_lm array wrong shape.")
 
@@ -321,7 +333,20 @@ def sphtrans_inv_real(alm, nside):
 
 
 def sphtrans_inv_complex(alm, nside):
+    """Inverse spherical harmonic transform onto a complex field.
 
+    Parameters
+    ----------
+    alm : np.ndarray
+        The array of alms. Expects both positive and negative alm.
+    nside : integer
+        The Healpix resolution of the final map.
+
+    Returns
+    -------
+    hpmaps : np.ndarray
+        Complex Healpix maps.
+    """
     if alm.shape[1] != (2*alm.shape[0] - 1):
         raise Exception("a_lm array wrong shape.")
 
@@ -331,9 +356,92 @@ def sphtrans_inv_complex(alm, nside):
 
     return sphtrans_inv_real(almr, nside) + 1.0J * sphtrans_inv_real(almi, nside)
 
+
+
+
+
+def sphtrans_sky(skymap, lmax=None):
+    """Transform a 3d skymap, slice by slice.
+
+    Parameters
+    ----------
+    skymap : np.ndarray[freq, healpix_index]
+
+    lmax : integer, optional
+        Maximum l to transform.
+
+    Returns
+    -------
+    alms : np.ndarray[frequencies, l, m]
+    """
+    nfreq = skymap.shape[0]
+
+    if lmax is None:
+        lmax = 3*healpy.npix2nside(skymap.shape[1]) - 1
+
+    alm_freq = np.empty((nfreq, lmax+1, 2*lmax + 1), dtype=np.complex128)
+
+    for i in range(nfreq):
+        alm_freq[i] = sphtrans_complex(skymap[i].astype(np.complex128), lmax)
+
+    return alm_freq
+
+
+def sphtrans_inv_sky(alm, nside):
+    """Invert a set of alms back into a 3d sky.
+
+    Parameters
+    ----------
+    alm : np.ndarray[freq, l, m]
+        Expects the full range (both positive and negative m).
+    nside : integer
+        Resolution of final Healpix maps.
+
+    Returns
+    -------
+    skymaps : np.ndarray[freq, healpix_index]
+    """
+    nfreq = alm.shape[0]
+
+    sky_freq = np.empty((nfreq, healpy.nside2npix(nside)), dtype=np.complex128)
+
+    for i in range(nfreq):
+        sky_freq[i] = sphtrans_inv_complex(alm[i], nside)
+
+    return sky_freq
+
     
 
-def coord_g2c(map):
+    
+
+    
+
+def coord_x2y(map, x, y):
+    """Rotate a map from galactic co-ordinates into celestial co-ordinates.
+
+    Parameters
+    ----------
+    map : np.ndarray
+        Healpix map.
+    x, y : {'C', 'G', 'E'}
+        Coordinate system to transform to/from. Celestial, 'C'; Galactic 'G'; or
+        Ecliptic 'E'.
+
+    Returns
+    -------
+    rotmap : np.ndarray
+        The rotated map.
+    """
+
+    if x not in ['C', 'G', 'E'] or y not in ['C', 'G', 'E']:
+        raise Exception("Co-ordinate system invalid.")
+    
     angpos = ang_positions(healpy.npix2nside(map.size))
-    theta, phi =  healpy.Rotator(coord=['C', 'G'])(angpos[:,0], angpos[:,1])
+    theta, phi =  healpy.Rotator(coord=[x, y])(angpos[:,0], angpos[:,1])
     return healpy.get_interp_val(map, theta, phi)
+
+
+# Quick functions for performing specified transforms.
+coord_g2c = lambda map: coord_x2y(map, 'G', 'C')
+coord_c2g = lambda map: coord_x2y(map, 'C', 'G')
+

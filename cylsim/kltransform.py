@@ -1,5 +1,6 @@
 import time
 import os
+import warnings
 
 import numpy as np
 import scipy.linalg as la
@@ -392,9 +393,12 @@ class KLTransform(object):
         evals, modes = self.modes_m(mi, threshold)
 
         try:
-            invmode = la.pinv2(modes)
-        except la.LinAlgError:
+            #invmode = la.pinv2(modes)
             invmode = la.pinv(modes)
+        except la.LinAlgError:
+            warnings.Warn("Pseudo-inverse by SVD failed. Trying alternative.")
+            #invmode = la.pinv(modes)
+            invmode = la.pinv2(modes)
         
         self._last_invmode_m = mi
         self._last_invmode = invmode

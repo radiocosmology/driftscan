@@ -144,7 +144,14 @@ def mkconstrained(corr, constraints, nside):
         else:
             cv[:, i] = np.dot(trans[l].T, la.solve(tmat[l].T, cmap[i]))
 
-    return hputil.sphtrans_inv_sky(cv, nside)
+    hpmaps = np.empty((numz, healpy.nside2npix(nside)))
+    
+    for i in range(numz):
+        hpmaps[i] = healpy.alm2map(cv[i], nside)
+
+    return hpmaps
+
+    #return hputil.sphtrans_inv_sky(cv, nside)
 
 
 

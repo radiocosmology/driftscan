@@ -391,7 +391,11 @@ class KLTransform(object):
 
         evals, modes = self.modes_m(mi, threshold)
 
-        invmode = la.pinv2(modes)
+        try:
+            invmode = la.pinv2(modes)
+        except la.LinAlgError:
+            invmode = la.pinv(modes)
+        
         self._last_invmode_m = mi
         self._last_invmode = invmode
 
@@ -478,6 +482,9 @@ class KLTransform(object):
         """
         evals, evecs = self.modes_m(mi, threshold)
 
+        if evals is None:
+            return None
+
         if vec.shape[0] != evecs.shape[1]:
             raise Exception("Vectors are incompatible.")
 
@@ -504,6 +511,9 @@ class KLTransform(object):
             The vector projected into the eigenbasis.
         """
         evals, evecs = self.modes_m(mi, threshold)
+
+        if evals is None:
+            return np.zeros(self.telescope.num_pol_telescope * self.telescope.nbase * self.telescope.nfreq, dtype=np.complex128)
 
         if vec.shape[0] != evecs.shape[0]:
             raise Exception("Vectors are incompatible.")

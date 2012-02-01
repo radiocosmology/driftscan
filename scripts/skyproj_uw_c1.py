@@ -6,12 +6,12 @@ import time
 
 import scipy.linalg as la
 
-from cylsim import beamtransfer, kltransform, skysim, util, skymodel, mpiutil
+from cylsim import beamtransfer, kltransform, skysim, util, skymodel, mpiutil, hputil
 
 from simulations import foregroundsck
 
 
-bt = beamtransfer.BeamTransfer("/mnt/scratch-3week/jrs65/ueli/wide/")
+bt = beamtransfer.BeamTransfer("/Users/richard/science/data/ueli/wide/")
 klt = kltransform.KLTransform(bt)
 
 cyl = bt.telescope
@@ -20,12 +20,12 @@ cut = 0.0
 
 stem = "uw_c1"
 
-if mpiutil.rank0 and False:
+if mpiutil.rank0:
     
     print "Generating foregrounds...."
     # Constrained realisation
     cs = skysim.c_syn(256, cyl.frequencies)
-    cs_alm = skysim.sphtrans_sky(cs, lmax=cyl.lmax)
+    cs_alm = hputil.sphtrans_sky(cs, lmax=cyl.lmax)
 
     # Gaussian realisation
     cla = skymodel.foreground_model(cyl.lmax, cyl.frequencies, 1)[0, 0]

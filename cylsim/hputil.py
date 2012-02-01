@@ -348,7 +348,7 @@ def sphtrans_inv_complex(alm, nside):
         Complex Healpix maps.
     """
     if alm.shape[1] != (2*alm.shape[0] - 1):
-        raise Exception("a_lm array wrong shape.")
+        raise Exception("a_lm array wrong shape: " + repr(alm.shape))
 
     almr = _make_half_alm(alm)
 

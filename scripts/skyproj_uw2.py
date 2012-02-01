@@ -14,10 +14,10 @@ from simulations import foregroundsck
 #bt = beamtransfer.BeamTransfer("/Users/richard/science/data/ueli/wide/")
 bt = beamtransfer.BeamTransfer("/mnt/raid-cita/jrs65/ueli/wide/")
 klt = kltransform.KLTransform(bt)
-
+klt.olddatafile = True
 cyl = bt.telescope
 
-cut = 3.0
+cut = -100.0
 
 stem = "uw_c_%.2f" % cut
 
@@ -41,10 +41,10 @@ ntel = cyl.nbase * cyl.nfreq * cyl.num_pol_telescope
 
 
 #mlist = range(-100, -97)
-#mlist = range(-mmax, mmax+1)
+mlist = range(-mmax, mmax+1)
 #mlist = range(-430, 210)
 
-mlist = range(-72, -65)
+#mlist = range(-72, -65)
 #mlist = range(-430, -400)
 
 mpart = mpiutil.partition_list_mpi(mlist)

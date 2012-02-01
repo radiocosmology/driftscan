@@ -11,7 +11,8 @@ from cylsim import beamtransfer, kltransform, skysim, util, skymodel, mpiutil, h
 from simulations import foregroundsck
 
 
-bt = beamtransfer.BeamTransfer("/Users/richard/science/data/ueli/wide/")
+#bt = beamtransfer.BeamTransfer("/Users/richard/science/data/ueli/wide/")
+bt = beamtransfer.BeamTransfer("/mnt/raid-cita/jrs65/ueli/wide/")
 klt = kltransform.KLTransform(bt)
 
 cyl = bt.telescope

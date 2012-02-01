@@ -396,7 +396,7 @@ class KLTransform(object):
             #invmode = la.pinv2(modes)
             invmode = la.pinv(modes)
         except la.LinAlgError:
-            warnings.Warn("Pseudo-inverse by SVD failed. Trying alternative.")
+            warnings.warn("Pseudo-inverse by SVD failed. Trying alternative.")
             #invmode = la.pinv(modes)
             invmode = la.pinv2(modes)
         
@@ -528,6 +528,25 @@ class KLTransform(object):
         return np.dot(self.invmodes_m(mi, threshold), vec)
 
 
+    def filter_modes(self, mi, vec, threshold=None):
+
+        evals, evecs = self.modes_m(mi, -1e5)
+
+        try:
+            minv = la.inv(evecs)
+        except la.LinAlgError:
+            minv = la.pinv(evecs)
+        
+        mproj = np.dot(evecs, vec)
+
+        startind = np.searchsorted(evals, threshold) if threshold is not None else 0
+
+        mproj[:startind] = 0.0
+
+        return np.dot(minv, mproj)
+
+
+
     def project_sky_vector_forward(self, mi, vec, threshold=None):
         """Project an m-vector from the sky into the eigenbasis.
 
@@ -603,6 +622,7 @@ class KLTransform(object):
 
 
         return matf
+
 
 
     def project_sky(self, sky, mlist = None, threshold=None, harmonic=False):

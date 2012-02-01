@@ -16,7 +16,7 @@ klt = kltransform.KLTransform(bt)
 
 cyl = bt.telescope
 
-cut = 3.0
+cut = 1.0
 
 stem = "uw_c_%.2f" % cut
 

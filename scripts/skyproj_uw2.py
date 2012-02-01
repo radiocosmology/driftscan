@@ -41,10 +41,10 @@ ntel = cyl.nbase * cyl.nfreq * cyl.num_pol_telescope
 
 
 #mlist = range(-100, -97)
-mlist = range(-mmax, mmax+1)
+#mlist = range(-mmax, mmax+1)
 #mlist = range(-430, 210)
 
-#mlist = range(160, 170)
+mlist = range(-72, -65)
 #mlist = range(-430, -400)
 
 mpart = mpiutil.partition_list_mpi(mlist)

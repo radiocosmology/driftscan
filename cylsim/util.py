@@ -23,6 +23,25 @@ def natpattern(n):
     return ("%0" + repr(int(np.ceil(np.log10(n + 1)))) + "d")
 
 
+def cache_last(func):
+    """A simple decorator to cache the result of the last call to a function.
+    """
+    arg_cache = [None]
+    kw_cache = [None]
+    ret_cache = [None]
+
+    def decorated(*args, **kwargs):
+
+        if args != arg_cache[0] or kwargs != kw_cache[0]:
+            # Generate cache value
+            ret_cache[0] = func(*args, **kwargs)
+            arg_cache[0] = args
+            kw_cache[0] = kwargs
+        # Fetch from cache
+        return ret_cache[0]
+
+    return decorated
+
 
 
 def mkfullsky(corr, nside, alms = False):

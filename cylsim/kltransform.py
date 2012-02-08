@@ -59,6 +59,28 @@ def eigh_gen(A, B):
     return evals, evecs, add_const
 
 
+def inv_gen(A):
+    """Find the inverse of A.
+
+    If a standard matrix inverse has issues try using the pseudo-inverse.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Matrix to invert.
+        
+    Returns
+    -------
+    inv : np.ndarray
+    """
+    try:
+        inv = la.inv(A)
+    except la.LinAlgError:
+        inv = la.pinv(A)
+
+    return inv
+
+
 
 class KLTransform(object):
     """Perform KL transform.
@@ -106,7 +128,8 @@ class KLTransform(object):
             if npol != 1 and npol != 3:
                 raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
             
-            self._cvfg = skymodel.foreground_model(self.telescope.lmax, self.telescope.frequencies, npol)
+            self._cvfg = skymodel.foreground_model(self.telescope.lmax,
+                                                   self.telescope.frequencies, npol)
 
         return self._cvfg
 
@@ -125,7 +148,8 @@ class KLTransform(object):
             if npol != 1 and npol != 3:
                 raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
         
-            self._cvsg = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies, npol)
+            self._cvsg = skymodel.im21cm_model(self.telescope.lmax,
+                                               self.telescope.frequencies, npol)
 
         return self._cvsg
 
@@ -198,7 +222,7 @@ class KLTransform(object):
 
 
 
-    def transform_save(self, mi):
+    def transform_save(self, mi, inverse=True):
         """Save the KL-modes for a given m.
 
         Perform the transform and cache the results for later use.
@@ -229,20 +253,35 @@ class KLTransform(object):
         # Write out the full spectrum of eigenvalues
         f.create_dataset('evals_full', data=evals)
 
+        # Take Hermitian conjugate of modes
+        evecs = evecs.T.conj()
+        evecsf = evecs
+        evalsf = evals
+
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
             i_ev = np.searchsorted(evals, self.threshold)
             
-            evalsf = evals
-            
             evals = evals[i_ev:]
-            evecs = evecs[:, i_ev:]
+            evecs = evecs[i_ev:]
             print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size)
 
         # Write out potentially reduced eigen spectrum.
         f.create_dataset('evals', data=evals)
-        f.create_dataset('evecs', data=evecs.T.conj(), compression='gzip')
+        f.create_dataset('evecs', data=evecs)
         f.attrs['num_modes'] = evals.size
+
+        if inverse:
+            print "Generating inverse..."
+            inv = inv_gen(evecsf)
+
+            if self.subset:
+                #i_ev = np.searchsorted(evalsf, self.threshold)
+
+                inv = inv[:, i_ev:]
+
+            f.create_dataset('evinv', data=inv.T)
+            
 
         # If we had to regularise because the noise spectrum is numerically ill
         # conditioned, write out the constant we added to the diagonal (see
@@ -272,7 +311,7 @@ class KLTransform(object):
         nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
         evarray = np.zeros((2*self.telescope.mmax+1, nside))
 
-        # Iterate over all m's, reading file and extracting the eigenvalues.
+       # Iterate over all m's, reading file and extracting the eigenvalues.
         for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
 
             f = h5py.File(self._evfile % mi, 'r')
@@ -319,10 +358,9 @@ class KLTransform(object):
             f.close()
 
 
-    _last_mode_m = None
-    _last_mode = None
     olddatafile = False
 
+    @util.cache_last
     def modes_m(self, mi, threshold=None):
         """Fetch the KL-modes for a particular m.
 
@@ -350,10 +388,6 @@ class KLTransform(object):
             satisfying S/N > threshold.
         """
         
-        # See if requested m was the previous one (thus cached in memory).
-        if self._last_mode_m == mi:
-            return self._last_mode
-
         # If modes not already saved to disk, create file.
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
@@ -377,38 +411,18 @@ class KLTransform(object):
                     modes = modes if not self.olddatafile else ( modes[0], modes[1].conj() )
             f.close()
 
-        # Cache the results of this call to reduce disk access.
-        self._last_mode = modes
-        self._last_mode_m = mi
         return modes
 
 
-    _last_invmode_m = None
-    _last_invmode = None
-    def invmodes_m(self, mi, threshold=None):
-        # See if requested m was the previous one (thus cached in memory).
-        if self._last_invmode_m == mi:
-            return self._last_invmode
+    @util.cache_last
+    def pinvmodes_m(self, mi, threshold=None):
 
         evals, modes = self.modes_m(mi, threshold)
 
-        try:
-            #invmode = la.pinv2(modes)
-            invmode = la.pinv(modes)
-        except la.LinAlgError:
-            warnings.warn("Pseudo-inverse by SVD failed. Trying alternative.")
-            #invmode = la.pinv(modes)
-            invmode = la.pinv2(modes)
-        
-        self._last_invmode_m = mi
-        self._last_invmode = invmode
-
-        return invmode
+        return la.pinv(modes)
 
 
-    _last_skymode_m = None
-    _last_skymode = None
-
+    @util.cache_last
     def skymodes_m(self, mi, threshold=None):
         """Find the representation of the KL-modes on the sky.
 
@@ -434,9 +448,7 @@ class KLTransform(object):
         --------
         `modes_m`
         """
-        if self._last_skymode_m == mi:
-            return self._last_skymode
-
+        
         # Fetch the modes in the telescope basis.
         evals, evecs = self.modes_m(mi, threshold=threshold)
 
@@ -457,9 +469,6 @@ class KLTransform(object):
         for fi in range(nfreq):
             evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
 
-        # Cache results and return
-        self._last_skymode = evsky
-        self._last_skymode_m = mi
         return evsky
             
 
@@ -517,25 +526,23 @@ class KLTransform(object):
         evals, evecs = self.modes_m(mi, threshold)
 
         if evals is None:
-            return np.zeros(self.telescope.num_pol_telescope * self.telescope.nbase * self.telescope.nfreq, dtype=np.complex128)
+            return np.zeros(self.telescope.num_pol_telescope * self.telescope.nbase *
+                            self.telescope.nfreq, dtype=np.complex128)
 
         if vec.shape[0] != evecs.shape[0]:
             raise Exception("Vectors are incompatible.")
 
         # Construct the pseudo inverse
-        invmodes = self.invmodes_m(mi, threshold)
+        invmodes = self.pinvmodes_m(mi, threshold)
 
-        return np.dot(self.invmodes_m(mi, threshold), vec)
+        return np.dot(invmodes, vec)
 
 
     def filter_modes(self, mi, vec, threshold=None):
 
         evals, evecs = self.modes_m(mi, -1e5)
 
-        try:
-            minv = la.inv(evecs)
-        except la.LinAlgError:
-            minv = la.pinv(evecs)
+        minv = inv_gen(evecs)
         
         mproj = np.dot(evecs, vec)
 

@@ -87,6 +87,8 @@ class TransitTelescope(object):
 
     _progress = lambda x: x
 
+    accuracy_boost = 1
+
 
     def __init__(self, latitude=45, longitude=0):
         """Initialise a telescope object.
@@ -573,8 +575,8 @@ class UnpolarisedTelescope(TransitTelescope):
 
     def _transfer_single(self, bl_index, f_index, lmax, lside):
         
-        if self._nside != hputil.nside_for_lmax(lmax):
-            self._init_trans(hputil.nside_for_lmax(lmax))
+        if self._nside != hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost):
+            self._init_trans(hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost))
 
         # Get beam maps for each feed.
         feedi, feedj = self.feedpairs[bl_index]

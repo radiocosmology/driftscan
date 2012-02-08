@@ -23,6 +23,25 @@ def natpattern(n):
     return ("%0" + repr(int(np.ceil(np.log10(n + 1)))) + "d")
 
 
+def cache_last(func):
+    """A simple decorator to cache the result of the last call to a function.
+    """
+    arg_cache = [None]
+    kw_cache = [None]
+    ret_cache = [None]
+
+    def decorated(*args, **kwargs):
+
+        if args != arg_cache[0] or kwargs != kw_cache[0]:
+            # Generate cache value
+            ret_cache[0] = func(*args, **kwargs)
+            arg_cache[0] = args
+            kw_cache[0] = kwargs
+        # Fetch from cache
+        return ret_cache[0]
+
+    return decorated
+
 
 
 def mkfullsky(corr, nside, alms = False):
@@ -87,15 +106,15 @@ def mkfullsky(corr, nside, alms = False):
 
 
 def mkconstrained(corr, constraints, nside):
-    """Construct a set of correlated Healpix maps.
-    
-    Make a set of full sky gaussian random fields, given the correlation
-    structure. Useful for constructing a set of different redshift slices.
+    """Construct a set of Healpix maps, satisfying given constraints
+    on specified frequency slices, by using the lowest eigenmodes.
 
     Parameters
     ----------
     corr : np.ndarray (lmax+1, numz, numz)
         The correlation matrix :math:`C_l(z, z')`.
+    constrains : list
+        A list of constraints packed as [[frequency_index, healpix map], ...]
     nside : integer
         The resolution of the Healpix maps.
 
@@ -107,32 +126,37 @@ def mkconstrained(corr, constraints, nside):
 
     numz = corr.shape[1]
     maxl = corr.shape[0]-1
-    
     larr, marr = healpy.Alm.getlm(maxl)
-
     matshape = larr.shape + (numz,)
 
+    # The number of constraints
     nmodes = len(constraints)
 
+    # The frequency slices that are constrained.
     f_ind = zip(*constraints)[0]
 
     if corr.shape[2] != numz:
         raise Exception("Correlation matrix is incorrect shape.")
 
+
     trans = np.zeros((corr.shape[0], nmodes, corr.shape[2]))
     tmat = np.zeros((corr.shape[0], nmodes, nmodes))
-
     cmap = np.zeros(larr.shape + (nmodes, ), dtype=np.complex128)
-
     cv = np.zeros((numz,) + larr.shape, dtype=np.complex128)
 
+    # Find eigenmodes, extract the largest nmodes (enough to satisfy
+    # constraints), and then pull out coefficients for eqach constrained
+    # frequency.
     for i in range(maxl+1):
         trans[i] = la.eigh(corr[i])[1][:, -nmodes:].T
         tmat[i] = trans[i][:, f_ind]
 
+    # Switch constraint maps into harmonic space
     for i, cons in enumerate(constraints):
         cmap[:, i] = healpy.map2alm(cons[1], lmax=maxl)
 
+    # Solve for the eigenmode amplitudes to satisfy constraints, and project
+    # each mode across the whole frequency range.
     for i, l in enumerate(larr):
         if l == 0:
             cv[:, i] = 0.0
@@ -140,11 +164,13 @@ def mkconstrained(corr, constraints, nside):
             cv[:, i] = np.dot(trans[l].T, la.solve(tmat[l].T, cmap[i]))
 
     hpmaps = np.empty((numz, healpy.nside2npix(nside)))
-
+    
     for i in range(numz):
         hpmaps[i] = healpy.alm2map(cv[i], nside)
 
     return hpmaps
+
+    #return hputil.sphtrans_inv_sky(cv, nside)
 
 
 

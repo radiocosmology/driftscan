@@ -152,3 +152,49 @@ def groundsph_to_cart(gsph, zenith):
                 + ((1.0 - ta**2 - pa**2)**0.5)[..., np.newaxis] * zenc)
 
     return cart_arr
+
+
+def great_circle_points(sph1, sph2, npoints):
+    """Return the intermediate points on the great circle between points `sph1`
+    and `sph2`.
+
+    Parameters
+    ----------
+    sph1, sph2 : np.ndarray
+        Points on sphere, packed as [theta, phi]
+    npoints : integer
+        Number of intermediate points
+
+    Returns
+    -------
+    intpoints : np.ndarray
+        Intermediate points, packed as [ [theta1, phi1], [theta2, phi2], ...]
+    """
+
+    # Turn points on circle into Cartesian vectors
+    c1 = sph_to_cart(sph1)
+    c1 = sph_to_cart(sph2)
+
+    # Construct the difference vector
+    dc = c2-c1
+    if np.sum(dc**2) == 4.0:
+       raise Exception("Points antipodal, path undefined.")
+
+    # Create difference unit vector
+    dcn = dc / np.dot(dc, dc)**0.5
+
+    # Calculate central angle, and angle on corner O C1 C2
+    thc = np.arccos(np.dot(c1, c2))
+    alp = np.arccos(-np.dot(c1, dcn))
+
+    # Map regular angular intervals into distance along the displacement between
+    # C1 and C2
+    f = np.linspace(0.0, 1.0, npoints)
+    x = np.sin(f * thc) / np.sin(f * thc + alp)
+
+    # Generate the Cartesian vectors for intermediate points
+    cv = x[:, np.newaxis] * dcn[np.newaxis, :] + c1[np.newaxis, :]
+
+    # Return the angular poitions of the points
+    return cart_to_sph(cv)[:, 1:]
+    

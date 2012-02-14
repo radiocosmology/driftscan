@@ -251,6 +251,23 @@ class BeamTransfer(object):
             vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(ntel))
 
         return vecb.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1))
+
+
+    def project_vector_backward_dirty(self, mi, vec):
+                
+        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
+        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+        nfreq = self.telescope.nfreq
+
+        dbeam = self.beam_m(mi).reshape((nfreq, ntel, nsky)).transpose((0, 2, 1)).conj()
+        
+        vecb = np.zeros((nfreq, nsky), dtype=np.complex128)
+        vec = vec.reshape((nfreq, ntel))
+
+        for fi in range(nfreq):
+            vecb[fi] = np.dot(dbeam[fi], vec[fi, :].reshape(ntel))
+
+        return vecb.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1))
     
 
     def project_matrix_forward(self, mi, mat):

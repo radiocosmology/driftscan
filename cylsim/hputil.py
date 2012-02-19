@@ -437,7 +437,7 @@ def coord_x2y(map, x, y):
         raise Exception("Co-ordinate system invalid.")
     
     angpos = ang_positions(healpy.npix2nside(map.size))
-    theta, phi =  healpy.Rotator(coord=[x, y])(angpos[:,0], angpos[:,1])
+    theta, phi =  healpy.Rotator(coord=[y, x])(angpos[:,0], angpos[:,1])
     return healpy.get_interp_val(map, theta, phi)
 
 

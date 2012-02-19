@@ -21,7 +21,7 @@ cyl.num_feeds = 20
 cyl.tsys_flat = 5.0
 
 bt = beamtransfer.BeamTransfer(teldir, telescope=cyl)
-#bt.generate_cache()
+bt.generate_cache()
 
 klt = kltransform.KLTransform(bt)
 

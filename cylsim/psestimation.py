@@ -5,6 +5,7 @@ from cylsim import skymodel
 
 
 from cylsim import mpiutil
+from cylsim import util
 
 from simulations import corr21cm
 
@@ -30,6 +31,13 @@ class PSEstimation(object):
     bands = np.concatenate((np.linspace(0.0, 0.25, 25, endpoint=False), np.logspace(np.log10(0.25), np.log10(3.0), 16)))
 
     threshold = None
+
+
+    @property
+    def _cfile(self):
+        # Pattern to form the `m` ordered file.
+        return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
+
 
     def __init__(self, kltrans, subdir = 'ps/'):
 
@@ -74,13 +82,44 @@ class PSEstimation(object):
                                      self.telescope.num_pol_sky, cr = crt)
         return clzz
 
+
     
     def makeproj(self, mi, clzz):
         print "Projecting to eigenbasis."
-        return self.kltrans.project_sky_matrix_forward(mi, clzz, self.threshold)
+        nevals = self.kltrans.modes_m(mi, threshold=self.threshold)[0].size
+
+        if nevals < 1000:
+            return self.kltrans.project_sky_matrix_forward_old(mi, clzz, self.threshold)
+        else:
+            return self.kltrans.project_sky_matrix_forward(mi, clzz, self.threshold)
 
 
-    def fisher_m(self, mi):
+    def cacheproj(self, mi):
+
+        for i in range(len(self.clarray)):
+            print "Creating cache file:" + self._cfile % (mi, i)
+            f = h5py.File(self._cfile % (mi, i), 'w')
+
+            projm = self.makeproj(mi, self.clarray[i])
+
+            f.create_dataset('proj', data=projm)
+            f.close()
+
+    def delproj(self, mi):
+
+        for i in range(len(self.clarray)):
+
+            print "Deleting cache file:" + self._cfile % (mi, i)
+            os.remove(self._cfile % (mi, i))
+
+    def getproj(self, mi, bi):
+        
+        f = h5py.File(self._cfile % (mi, bi), 'r')
+        proj = f['proj'][:]
+        f.close()
+        return proj
+
+    def fisher_m_old(self, mi):
         
         evals, evecs = self.kltrans.modes_m(mi, self.threshold)
 
@@ -89,11 +128,45 @@ class PSEstimation(object):
 
             c = [self.makeproj(mi, clzz) for clzz in self.clarray]
             ci = np.diag(1.0 / (evals + 1.0))
-            fab = 0.5 * np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])
+            #ci = np.outer(ci, ci)
+            fab = np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])
         else:
             print "No evals (for m=%i), skipping." % mi
             l = self.bands.size - 1
             fab = np.zeros((l, l))
+        return fab
+
+
+    def fisher_m(self, mi):
+        
+        evals, evecs = self.kltrans.modes_m(mi, self.threshold)
+
+        nbands = len(self.bands) - 1
+        fab = np.zeros((nbands, nbands), dtype=np.complex128)
+
+        if evals is not None:
+            print "Making fisher (for m=%i)." % mi
+
+            self.cacheproj(mi)
+
+            #c = [self.makeproj(mi, clzz) for clzz in self.clarray]
+            ci = 1.0 / (evals + 1.0)**0.5
+            ci = np.outer(ci, ci)
+
+            for ia in range(nbands):
+                c_a = self.getproj(mi, ia)
+                fab[ia, ia] = np.sum(c_a * c_a.T * ci**2)
+                
+                for ib in range(ia):
+                    c_b = self.getproj(mi, ib)
+                    fab[ia, ib] = np.sum(c_a * c_b.T * ci**2)
+                    fab[ib, ia] = np.conj(fab[ia, ib])
+
+            self.delproj(mi)
+            
+        else:
+            print "No evals (for m=%i), skipping." % mi
+
         return fab
 
 

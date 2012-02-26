@@ -23,6 +23,7 @@ def map_half_plane(arr):
     return arr
 
 
+_horizon_const = 0
 def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     """Get the maximum (l,m) that a baseline is sensitive to.
 
@@ -43,8 +44,8 @@ def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     umax = (np.abs(baselines[:,0]) + uwidth) / wavelengths
     vmax = (np.abs(baselines[:,1]) + vwidth)  / wavelengths
 
-    mmax = np.ceil(2 * np.pi * umax).astype(np.int64)
-    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)
+    mmax = np.ceil(2 * np.pi * umax).astype(np.int64) + _horizon_const
+    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64) + _horizon_const
 
     return lmax, mmax
 

@@ -113,7 +113,7 @@ class BeamTransfer(object):
 
         for fi in range(nfreq):
             bh = beam[fi].T.conj()
-            ibeam[fi] = la.pinv2(beam[fi])
+            ibeam[fi] = la.pinv(beam[fi])
 
         ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
                                self.telescope.nbase, self.telescope.num_pol_telescope))
@@ -265,7 +265,11 @@ class BeamTransfer(object):
         vec = vec.reshape((nfreq, ntel))
 
         for fi in range(nfreq):
-            vecb[fi] = np.dot(dbeam[fi], vec[fi, :].reshape(ntel))
+            norm = np.dot(dbeam[fi].T.conj(), dbeam[fi]).diagonal()
+            norm = np.where(norm < 1e-6, 0.0, 1.0 / norm)
+            #norm = np.dot(dbeam[fi], dbeam[fi].T.conj()).diagonal()
+            #norm = np.where(np.logical_or(np.abs(norm) < 1e-4, np.abs(norm) < np.abs(norm.max()*1e-2)), 0.0, 1.0 / norm)
+            vecb[fi] = np.dot(dbeam[fi], vec[fi, :].reshape(ntel) * norm)
 
         return vecb.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1))
     

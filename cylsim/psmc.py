@@ -5,7 +5,7 @@ from cylsim import psestimation
 from simulations.foregroundmap import matrix_root_manynull
 
 
-def sim_skyvec(trans):
+def sim_skyvec(trans, n):
     """Simulate a set of alm(\nu)'s for a given m.
 
     Generated as if m=0. For greater m, just ignore entries for l < abs(m).
@@ -24,7 +24,7 @@ def sim_skyvec(trans):
     lside = trans.shape[0]
     nfreq = trans.shape[1]
 
-    matshape = (lside, nfreq)
+    matshape = (lside, nfreq, n)
 
     gaussvars = (np.random.standard_normal(matshape)
                  + 1.0J * np.random.standard_normal(matshape)) / 2.0**0.5
@@ -76,7 +76,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
 
 
-    def get_vecs(self, mi, bi, scale=False):
+    def get_vecs_old(self, mi, bi, scale=False):
         """Get a set of random samples from the specified band `bi` for a given
         `mi`.
         """
@@ -92,6 +92,29 @@ class PSMonteCarlo(psestimation.PSEstimation):
             evsims = evsims / (1.0 + evals[np.newaxis, :])**0.5
 
         return evsims
+
+
+    def get_vecs(self, mi, bi, scale=False):
+        """Get a set of random samples from the specified band `bi` for a given
+        `mi`.
+        """
+        evals, evecs = self.kltrans.modes_m(mi, threshold=self.threshold)
+        ntel = evecs.shape[1]
+        btsims = np.zeros((ntel, self.nsamples), dtype=np.complex128)
+
+        skysim = sim_skyvec(self.transarray[bi], self.nsamples)
+
+        for i in range(self.nsamples):
+            btsims[:, i] = self.kltrans.beamtransfer.project_vector_forward(mi, skysim[i]).reshape(ntel)
+
+        evsims = np.dot(evecs, btsims)
+
+        if scale:
+            #evsims = (evsims - evsims.mean(axis=0)[np.newaxis, :]) / (1.0 + evals[np.newaxis, :])**0.5
+            #evals = self.kltrans.modes_m(mi, threshold=self.threshold)[0]
+            evsims = evsims / (1.0 + evals[:, np.newaxis])**0.5
+
+        return evsims.T.copy()
 
 
     def gen_vecs(self, mi):

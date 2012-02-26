@@ -115,7 +115,8 @@ class BeamTransfer(object):
                                self.telescope.nbase, self.telescope.num_pol_telescope))
         return ibeam
         
-        
+
+    @util.cache_last
     def beam_freq(self, fi, fullm = False):
 
         mside = 2*self.telescope.lmax+1 if fullm else 2*self.telescope.mmax+1

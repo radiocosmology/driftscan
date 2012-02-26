@@ -69,7 +69,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         """Override genbands to make it generate the transformation matrices for
         drawing random samples.
         """
-        psestimation.PSEstimation.genbands(self)
+        super(PSMonteCarlo, self).genbands()
 
         print "Generating transforms..."
         self.transarray = [block_root(clzz[0, 0]) for clzz in self.clarray]

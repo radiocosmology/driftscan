@@ -79,7 +79,7 @@ class BeamTransfer(object):
                 
 
         
-            
+    @util.cache_last
     def beam_m(self, mi):
         
         
@@ -96,12 +96,8 @@ class BeamTransfer(object):
         return beam
 
 
-    _ibeam = None
-    _ibeam_m = None
+    @util.cache_last
     def invbeam_m(self, mi):
-        
-        if self._ibeam_m == mi:
-            return self._ibeam
         
         nfreq = self.telescope.nfreq
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope
@@ -117,9 +113,6 @@ class BeamTransfer(object):
 
         ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
                                self.telescope.nbase, self.telescope.num_pol_telescope))
-
-        self._ibeam = ibeam
-        self._ibeam_m = mi
         return ibeam
         
         

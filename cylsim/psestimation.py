@@ -83,40 +83,64 @@ class PSEstimation(object):
         return clzz
 
 
+    def num_evals(self, mi):
+        evals = self.kltrans.modes_m(mi, threshold=self.threshold)[0]
+
+        return evals.size if evals is not None else 0
+
     
-    def makeproj(self, mi, clzz):
+    def makeproj(self, mi, bi):
         print "Projecting to eigenbasis."
         nevals = self.kltrans.modes_m(mi, threshold=self.threshold)[0].size
 
         if nevals < 1000:
-            return self.kltrans.project_sky_matrix_forward_old(mi, clzz, self.threshold)
+            return self.kltrans.project_sky_matrix_forward_old(mi, self.clarray[bi], self.threshold)
         else:
-            return self.kltrans.project_sky_matrix_forward(mi, clzz, self.threshold)
+            return self.kltrans.project_sky_matrix_forward(mi, self.clarray[bi], self.threshold)
 
 
     def cacheproj(self, mi):
+
+        ## Don't generate cache for small enough matrices
+        if self.num_evals(mi) < 500:
+            return
 
         for i in range(len(self.clarray)):
             print "Creating cache file:" + self._cfile % (mi, i)
             f = h5py.File(self._cfile % (mi, i), 'w')
 
-            projm = self.makeproj(mi, self.clarray[i])
+            projm = self.makeproj(mi, i)
 
             f.create_dataset('proj', data=projm)
             f.close()
 
     def delproj(self, mi):
 
-        for i in range(len(self.clarray)):
+        ## As we don't cache for small matrices, just return
+        if self.num_evals(mi) < 500:
+            return
 
-            print "Deleting cache file:" + self._cfile % (mi, i)
-            os.remove(self._cfile % (mi, i))
+        for i in range(len(self.clarray)):
+            
+            fn = self._cfile % (mi, i)
+            if os.path.exists(fn):
+                print "Deleting cache file:" + fn
+                os.remove(self._cfile % (mi, i))
+                
 
     def getproj(self, mi, bi):
-        
-        f = h5py.File(self._cfile % (mi, bi), 'r')
-        proj = f['proj'][:]
-        f.close()
+
+        fn = self._cfile % (mi, bi)
+
+        ## For small matrices or uncached files don't fetch cache, just generate
+        ## immediately
+        if self.num_evals(mi) < 500 or not os.path.exists:
+            proj = self.makeproj(mi, bi)
+        else:
+            f = h5py.File(fn, 'r')
+            proj = f['proj'][:]
+            f.close()
+            
         return proj
 
     def fisher_m_old(self, mi):
@@ -126,7 +150,7 @@ class PSEstimation(object):
         if evals is not None:
             print "Making fisher (for m=%i)." % mi
 
-            c = [self.makeproj(mi, clzz) for clzz in self.clarray]
+            c = [self.makeproj(mi, i) for i in range(len(self.clarray))]
             ci = np.diag(1.0 / (evals + 1.0))
             #ci = np.outer(ci, ci)
             fab = np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])

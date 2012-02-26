@@ -32,7 +32,7 @@ def sim_skyvec(trans, n):
     for i in range(lside):
         gaussvars[i] = np.dot(trans[i], gaussvars[i])
 
-    return gaussvars.T.copy()
+    return gaussvars   #.T.copy()
         
 
 def block_root(clzz):
@@ -98,16 +98,26 @@ class PSMonteCarlo(psestimation.PSEstimation):
         """Get a set of random samples from the specified band `bi` for a given
         `mi`.
         """
+
+        tel = self.kltrans.telescope
+        
         evals, evecs = self.kltrans.modes_m(mi, threshold=self.threshold)
-        ntel = evecs.shape[1]
-        btsims = np.zeros((ntel, self.nsamples), dtype=np.complex128)
+        ntel = tel.nbase * tel.num_pol_telescope
+        nsky = tel.num_pol_sky * ( tel.lmax + 1 )
+        nfreq = tel.nfreq
+        
+        btsims = np.zeros((nfreq, ntel, self.nsamples), dtype=np.complex128)
 
         skysim = sim_skyvec(self.transarray[bi], self.nsamples)
 
-        for i in range(self.nsamples):
-            btsims[:, i] = self.kltrans.beamtransfer.project_vector_forward(mi, skysim[i]).reshape(ntel)
+        beam = self.kltrans.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
 
-        evsims = np.dot(evecs, btsims)
+        
+        for fi in range(nfreq):
+            btsims[fi] = np.dot(beam[fi], skysim[:, fi, :])
+            #btsims[:, i] = self.kltrans.beamtransfer.project_vector_forward(mi, skysim[i]).reshape(ntel)
+
+        evsims = np.dot(evecs, btsims.reshape((nfreq*ntel, self.nsamples)))
 
         if scale:
             #evsims = (evsims - evsims.mean(axis=0)[np.newaxis, :]) / (1.0 + evals[np.newaxis, :])**0.5

@@ -1,6 +1,6 @@
+import warnings
 
 import numpy as np
-import warnings
 
 _rank = 0
 _size = 1

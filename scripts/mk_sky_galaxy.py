@@ -1,10 +1,9 @@
 import sys
 
 import numpy as np
-
 import h5py
 
-from cylsim import skysim
+from cosmoutils import skysim
 
 
 

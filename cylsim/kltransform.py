@@ -4,21 +4,16 @@ import warnings
 
 import numpy as np
 import scipy.linalg as la
-
 import h5py
 import healpy
 
-
+from cosmoutils import hputil, units
+from simulations import foregroundsck, corr21cm
 from simulations.foregroundmap import matrix_root_manynull
 
-from cylsim import mpiutil
-from cylsim import beamtransfer
-from cylsim import util
-from cylsim import skymodel
-from cylsim import hputil
+from cylsim import mpiutil, util
+from cylsim import beamtransfer, skymodel
 
-from simulations import foregroundsck, corr21cm
-from utils import units
 
 def eigh_gen(A, B):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
@@ -126,10 +121,12 @@ class KLTransform(object):
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3:
-                raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
+                raise Exception("Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3).")
             
             self._cvfg = skymodel.foreground_model(self.telescope.lmax,
-                                                   self.telescope.frequencies, npol)
+                                                   self.telescope.frequencies,
+                                                   npol)
 
         return self._cvfg
 
@@ -146,7 +143,8 @@ class KLTransform(object):
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3:
-                raise Exception("Can only handle unpolarised only (num_pol_sky = 1), or I, Q and U (num_pol_sky = 3).")
+                raise Exception("Can only handle unpolarised only (num_pol_sky \
+                                = 1), or I, Q and U (num_pol_sky = 3).")
         
             self._cvsg = skymodel.im21cm_model(self.telescope.lmax,
                                                self.telescope.frequencies, npol)

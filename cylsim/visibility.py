@@ -2,7 +2,7 @@
 
 import numpy as np
 
-import coord
+from cosmoutils import coord
 
 
 def uv_plane_cart(zenith):

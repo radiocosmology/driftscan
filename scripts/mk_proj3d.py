@@ -1,28 +1,19 @@
+from math import log10, floor
+import sys
 
+
+import h5py
+import healpy
+import numpy as np
 
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-
-
 from matplotlib import rc, colors
-
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 10.0})
 rc('text', usetex=True)
 
-
-
-import sys
-
 from cylsim import hputil, skysim
-
-import h5py
-
-import healpy
-
-import numpy as np
-
-from math import log10, floor
 
 mapfile = sys.argv[1]
 stem = sys.argv[2]

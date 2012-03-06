@@ -1,12 +1,10 @@
+import abc
 
 import numpy as np
 
-import abc
-
-import hputil
+from cosmoutils import hputil, units
 import visibility
 
-from utils import units
 
 
 def in_range(arr, min, max):

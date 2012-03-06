@@ -1,16 +1,15 @@
-from cylsim import cylinder
-from cylsim import beamtransfer
-from cylsim import kltransform
-
 import os
 import sys
 
 import numpy as np
-
 import h5py
 import healpy
 
-from cylsim import skysim, util, skymodel, mpiutil, hputil
+from cosmoutils import hputil, skysim
+from cylsim import cylinder
+from cylsim import beamtransfer
+from cylsim import kltransform
+from cylsim import skymodel, mpiutil
 
 
 teldir = sys.argv[1]

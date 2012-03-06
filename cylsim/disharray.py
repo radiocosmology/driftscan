@@ -2,8 +2,9 @@ import numpy as np
 
 from scipy.special import jn
 
+from cosmoutils import coord
 from cylsim import telescope
-from cylsim import coord
+
 
 def jinc(x):
     return 0.5 * (jn(0, x) + jn(2, x))

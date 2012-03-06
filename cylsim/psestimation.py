@@ -28,7 +28,9 @@ class PSEstimation(object):
     kltrans = None
     telescope = None
 
-    bands = np.concatenate((np.linspace(0.0, 0.25, 25, endpoint=False), np.logspace(np.log10(0.25), np.log10(3.0), 16)))
+    bands = np.concatenate((np.linspace(0.0, 0.25, 25, endpoint=False),     np.logspace(np.log10(0.25), np.log10(3.0), 16)))
+
+
 
     threshold = None
 

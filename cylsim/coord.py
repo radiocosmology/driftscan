@@ -1,4 +1,4 @@
-"""A module of useful functions when dealikng with Spherical Polar
+"""A module of useful functions when dealing with Spherical Polar
 co-ordinates.
 """
 

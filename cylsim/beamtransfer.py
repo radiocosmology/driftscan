@@ -9,14 +9,11 @@ import mpiutil
 import util
 
 
-
 class BeamTransfer(object):
     """A class for reading and writing Beam Transfer matrices from disk."""
 
-
-    
     #====== Properties giving internal filenames =======
-    
+
     @property
     def _picklefile(self):
         # The filename for the pickled telescope
@@ -25,16 +22,16 @@ class BeamTransfer(object):
     @property
     def _mfile(self):
         # Pattern to form the `m` ordered file.
-        return self.directory + "/beam_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
+        return (self.directory + "/beam_m_" +
+                util.intpattern(self.telescope.mmax) + ".hdf5")
 
     @property
     def _ffile(self):
         # Pattern to form the `freq` ordered file.
-        return self.directory + "/beam_f_" + util.natpattern(self.telescope.nfreq) + ".hdf5"
+        return (self.directory + "/beam_f_" +
+                util.natpattern(self.telescope.nfreq) + ".hdf5")
 
     #===================================================
-
-
 
     #=========== Patterns for HDF5 datasets ============
 
@@ -50,83 +47,81 @@ class BeamTransfer(object):
 
     #===================================================
 
-
     @property
     def _telescope_pickle(self):
         # The pickled telescope object
         return pickle.dumps(self.telescope)
 
+    def __init__(self, directory, telescope=None):
 
-    def __init__(self, directory, telescope = None):
-        
         self.directory = directory
         self.telescope = telescope
-        
+
         # Create directory if required
         if mpiutil.rank0 and not os.path.exists(directory):
             os.makedirs(directory)
 
         mpiutil.barrier()
-        
+
         if self.telescope == None:
             print "Attempting to read telescope from disk..."
 
             try:
-                f =  open(self._picklefile, 'r')
+                f = open(self._picklefile, 'r')
                 self.telescope = pickle.load(f)
             except IOError, UnpicklingError:
                 raise Exception("Could not load Telescope object from disk.")
-                
 
-        
+
     @util.cache_last
     def beam_m(self, mi):
-        
-        
+
         mfile = h5py.File(self._mfile % mi, 'r')
         sh = mfile[(self._fsection % 0)].shape
 
         beam = np.zeros((self.telescope.nfreq,) + sh, dtype=np.complex128)
-        
+
         for fi in range(self.telescope.nfreq):
             beam[fi] = mfile[(self._fsection % fi)]
-            
+
         mfile.close()
-        
+
         return beam
 
 
     @util.cache_last
     def invbeam_m(self, mi):
-        
+
         nfreq = self.telescope.nfreq
         ntel = self.telescope.nbase * self.telescope.num_pol_telescope
         nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
-        
+
         beam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
-        
+
         ibeam = np.zeros((nfreq, nsky, ntel), dtype=np.complex128)
 
         for fi in range(nfreq):
             bh = beam[fi].T.conj()
             ibeam[fi] = la.pinv(beam[fi])
 
-        ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
-                               self.telescope.nbase, self.telescope.num_pol_telescope))
+        ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky,
+                               self.telescope.lmax + 1, self.telescope.nbase,
+                               self.telescope.num_pol_telescope))
         return ibeam
-        
+
 
     @util.cache_last
-    def beam_freq(self, fi, fullm = False):
+    def beam_freq(self, fi, fullm=False):
 
-        mside = 2*self.telescope.lmax+1 if fullm else 2*self.telescope.mmax+1
+        tel = self.telescope
+        mside = 2 * tel.lmax + 1 if fullm else 2 * tel.mmax + 1
         
         
         ffile = h5py.File(self._ffile % fi, 'r')
         sh = ffile[(self._msection % 0)].shape
         beam = np.zeros(sh + (mside,), dtype=np.complex128)
         
-        for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
+        for mi in range(-tel.mmax, tel.mmax + 1):
             beam[..., mi] = ffile[(self._msection % mi)]
             
         ffile.close()
@@ -134,17 +129,19 @@ class BeamTransfer(object):
         return beam
 
 
-    def generate_cache(self, regen = False):
+    def generate_cache(self, regen=False):
 
         # For each frequency, create the HDF5 file, and write in each `m` as a
         # seperate compressed dataset. Use MPI if available. 
         for fi in mpiutil.mpirange(self.telescope.nfreq):
 
             if os.path.exists(self._ffile % fi) and not regen:
-                print "f index %i. File: %s exists. Skipping..." % (fi, (self._ffile % fi))
+                print ("f index %i. File: %s exists. Skipping..." %
+                       (fi, (self._ffile % fi)))
                 continue
             else:
-                print 'f index %i. Creating file: %s' % (fi, (self._ffile % fi))
+                print ('f index %i. Creating file: %s' %
+                       (fi, (self._ffile % fi)))
 
             f = h5py.File(self._ffile % fi, 'w')
             f.create_group('m_section')
@@ -159,9 +156,11 @@ class BeamTransfer(object):
             f.attrs['frequency'] = self.telescope.frequencies[fi]
             f.attrs['cylobj'] = self._telescope_pickle
 
-            for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
+            for mi in range(-self.telescope.mmax, self.telescope.mmax + 1):
                 
-                dset = f.create_dataset((self._msection % mi), data=btrans[..., mi], compression='gzip')
+                dset = f.create_dataset(self._msection % mi,
+                                        data=btrans[..., mi],
+                                        compression='gzip')
                 dset.attrs['m'] = mi
         
             f.close()
@@ -171,10 +170,12 @@ class BeamTransfer(object):
 
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file. Use MPI if available. 
-        for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
+        for mi in mpiutil.mpirange(-self.telescope.mmax,
+                                   self.telescope.mmax + 1):
 
             if os.path.exists(self._mfile % mi) and not regen:
-                print "m index %i. File: %s exists. Skipping..." % (mi, (self._mfile % mi))
+                print ("m index %i. File: %s exists. Skipping..." %
+                       (mi, (self._mfile % mi)))
                 continue
             else:
                 print 'm index %i. Creating file: %s' % (mi, self._mfile % mi)
@@ -182,7 +183,8 @@ class BeamTransfer(object):
             ## Create hdf5 file for each m-mode
             f = h5py.File(self._mfile % mi, 'w')
             f.create_group('freq_section')
-            ## For each frequency read in the current m-mode and copy into file.
+            ## For each frequency read in the current m-mode 
+            ## and copy into file.
             for fi in np.arange(self.telescope.nfreq):
 
                 ff = h5py.File(self._ffile % fi, 'r')
@@ -191,7 +193,9 @@ class BeamTransfer(object):
                 if fi != ff.attrs['frequency_index']:
                     raise Exception("Bork.")
         
-                dset = f.create_dataset(self._fsection % fi, data=ff[self._msection % mi], compression='gzip')
+                dset = f.create_dataset(self._fsection % fi,
+                                        data=ff[self._msection % mi],
+                                        compression='gzip')
                 dset.attrs['frequency_index'] = fi
                 ff.close()
                 
@@ -244,7 +248,8 @@ class BeamTransfer(object):
         for fi in range(nfreq):
             vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(ntel))
 
-        return vecb.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1))
+        return vecb.reshape((nfreq, self.telescope.num_pol_sky,
+                             self.telescope.lmax + 1))
 
 
     def project_vector_backward_dirty(self, mi, vec):
@@ -253,7 +258,8 @@ class BeamTransfer(object):
         nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
         nfreq = self.telescope.nfreq
 
-        dbeam = self.beam_m(mi).reshape((nfreq, ntel, nsky)).transpose((0, 2, 1)).conj()
+        dbeam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
+        dbeam = dbeam.transpose((0, 2, 1)).conj()
         
         vecb = np.zeros((nfreq, nsky), dtype=np.complex128)
         vec = vec.reshape((nfreq, ntel))
@@ -262,10 +268,12 @@ class BeamTransfer(object):
             norm = np.dot(dbeam[fi].T.conj(), dbeam[fi]).diagonal()
             norm = np.where(norm < 1e-6, 0.0, 1.0 / norm)
             #norm = np.dot(dbeam[fi], dbeam[fi].T.conj()).diagonal()
-            #norm = np.where(np.logical_or(np.abs(norm) < 1e-4, np.abs(norm) < np.abs(norm.max()*1e-2)), 0.0, 1.0 / norm)
+            #norm = np.where(np.logical_or(np.abs(norm) < 1e-4, 
+            #np.abs(norm) < np.abs(norm.max()*1e-2)), 0.0, 1.0 / norm)
             vecb[fi] = np.dot(dbeam[fi], vec[fi, :].reshape(ntel) * norm)
 
-        return vecb.reshape((nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1))
+        return vecb.reshape((nfreq, self.telescope.num_pol_sky,
+                             self.telescope.lmax + 1))
     
 
     def project_matrix_forward(self, mi, mat):

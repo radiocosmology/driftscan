@@ -6,7 +6,13 @@ from utils.units import mega_parsec
 
 
 class CosmologyDE(cosmology.Cosmology):
-
+	"""A cosmology class with a two parameters dark energy model.
+	
+	Attributes
+	----------
+	w_0, w_a : scalars
+		Dark energy parameters.
+	"""
     w_0 = -1.0
     w_a =  0.0
 

@@ -10,6 +10,21 @@ from utils import units
 
 
 def in_range(arr, min, max):
+	"""Check if array entries are within the given range.
+	
+	Parameters
+	----------
+	arr : np.ndarray
+		Array to check.
+	min, max : scalar or np.ndarray
+		Minimum and maximum values to test against. Values can be in arrays
+		broadcastable against `arr`.
+	
+	Returns
+	-------
+	val : boolean
+		True if all entries are within range.
+	"""
     return (arr >= min).all() and (arr < max).all()
 
 def out_of_range(arr, min, max):

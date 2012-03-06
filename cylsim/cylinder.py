@@ -10,22 +10,22 @@ import visibility
 class CylinderTelescope(telescope.TransitTelescope):
     """Common functionality for all Cylinder Telescopes.
 
-	Attributes
-	----------
-	num_cylinders : integer
-		The number of cylinders.
-	num_feeds : integer
-		Number of regularly spaced feeds along each cylinder.
-	cylinder_width : scalar
-		Width in metres.
-	feed_spacing : scalar
-		Gap between feeds in metres.
-	in_cylinder : boolean
-		Include in cylinder correlations?
-	touching : boolean
-		Are the cylinders touching (no spacing between them)?
-	cylspacing : scalar
-		If not `touching` this is the spacing in metres.
+    Attributes
+    ----------
+    num_cylinders : integer
+        The number of cylinders.
+    num_feeds : integer
+        Number of regularly spaced feeds along each cylinder.
+    cylinder_width : scalar
+        Width in metres.
+    feed_spacing : scalar
+        Gap between feeds in metres.
+    in_cylinder : boolean
+        Include in cylinder correlations?
+    touching : boolean
+        Are the cylinders touching (no spacing between them)?
+    cylspacing : scalar
+        If not `touching` this is the spacing in metres.
     """
 
     num_cylinders = 2
@@ -195,13 +195,13 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
 
 
 class CylBT(UnpolarisedCylinderTelescope):
-	"""A cylinder class which ignores large baseline correlations.
-	
-	Attributes
-	----------
-	maxlength : scalar
-		Maximum baseline length to include (in metres).
-	"""
+    """A cylinder class which ignores large baseline correlations.
+    
+    Attributes
+    ----------
+    maxlength : scalar
+        Maximum baseline length to include (in metres).
+    """
     maxlength = 20.0
 
     def _get_unique(self, feedpairs):

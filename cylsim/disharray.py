@@ -11,39 +11,39 @@ def jinc(x):
 
 
 def beam_circular(angpos, zenith, uv_diameter):
-	"""Beam pattern for a circular dish.
-	
-	Parameters
-	----------
-	angpos : np.ndarray
-	    Array of angular positions
-	zenith : np.ndarray
-		Co-ordinates of the zenith.
-	uv_diameter : scalar
-		Diameter of the dish (in units of wavelength).
-	
-	Returns
-	-------
-	beam : np.ndarray
-		Beam pattern at each position in angpos.
-	"""
-	
+    """Beam pattern for a circular dish.
+    
+    Parameters
+    ----------
+    angpos : np.ndarray
+        Array of angular positions
+    zenith : np.ndarray
+        Co-ordinates of the zenith.
+    uv_diameter : scalar
+        Diameter of the dish (in units of wavelength).
+    
+    Returns
+    -------
+    beam : np.ndarray
+        Beam pattern at each position in angpos.
+    """
+    
     x = (1.0 - coord.sph_dot(angpos, zenith)**2)**0.5 * np.pi * uv_diameter
     
     return 2*jinc(x)
 
 
 class DishArray(telescope.TransitTelescope):
-	"""A Telescope describing an interferometric array of dishes.
-	
-	Attributes
-	----------
-	gridu, gridv : integer
-	    Number of dishes in u and v directions.
-	dish_width : scalar
-	    Width of the dish in metres.
-	"""
-	
+    """A Telescope describing an interferometric array of dishes.
+    
+    Attributes
+    ----------
+    gridu, gridv : integer
+        Number of dishes in u and v directions.
+    dish_width : scalar
+        Width of the dish in metres.
+    """
+    
     dish_width = 3.5
 
     gridu = 4
@@ -153,5 +153,5 @@ class DishArray(telescope.TransitTelescope):
 
 
 class UnpolarisedDishArray(CMUTelescope, telescope.UnpolarisedTelescope):
-	"""Unpolarised dish array class."""
+    """Unpolarised dish array class."""
     pass

@@ -13,15 +13,15 @@ cyl = cylinder.UnpolarisedCylinderTelescope()
 teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/voltest/')
 
 # Set the measured frequencies of the telescope
-cyl.num_freq = 25
+cyl.num_freq = 10
 cyl.freq_lower = 400.0
 cyl.freq_upper = 450.0
 
 # Set the properties of the cylinders
-cyl.cylinder_width = 10.0
+cyl.cylinder_width = 5.0
 cyl.num_cylinders = 2
 cyl.feed_spacing = 0.5
-cyl.num_feeds = 20
+cyl.num_feeds = 10
 
 # Set the thermal noise (T_sys flat across spectrum)
 cyl.tsys_flat = 5.0
@@ -38,6 +38,6 @@ klt.generate()
 # Perform the power spectrum estimations
 ps = psmc.PSMonteCarlo(klt)
 ps.genbands()
-ps.fisher_all()
+ps.fisher_mpi()
 
 

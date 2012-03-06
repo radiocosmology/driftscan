@@ -3,21 +3,25 @@ Cylinder Radio Telescope Simulations
 ====================================
 
 This is a Python project for simulating the performance of cylinder radio
-telescopes such as CHIME.
+telescopes such as CHIME, but it is also suited to analysing other types of
+intensity mapping experiments.
+
 
 Installation
 ============
 
-This project has a few dependencies: `Numpy <http://scipy.org/>`_ (version 1.6
-or higher) and `Matplotlib <http://matplotlib.sf.net/>`_ which are usually
-either installed, or easy to install; and the python binding for Healpix,
-`healpy <http://code.google.com/p/healpy/>`_ which is marginally more involved
-(see instructions on the site).
+The primary dependency of this project is the `simulations_21cm` package. This
+can be fetched from `here <http://github.com/jrs65/simulations_21cm>`_. In
+addition to its dependencies we also require an installation of `h5py
+<http://h5py.alfven.org/>`_ for storing results in `hdf5` files.
 
 You'll need to place this directory in your python module search path, for it to
 run the scripts correctly. This can be done by::
 
-    export PYTHONPATH=$PYTHONPATH:"/<path>/<to>/cylinder_simulation"
+    > export PYTHONPATH=$PYTHONPATH:"/<path>/<to>/cylinder_simulation"
+
+As with the `simulations_21cm` package it is very highly recommended that you
+use optimized versions of `Numpy` and `Scipy`.
 
 
 

@@ -2,7 +2,7 @@ import numpy as np
 
 from cylsim import psestimation
 
-from simulations.foregroundmap import matrix_root_manynull
+from cosmoutils import nputil
 
 
 def sim_skyvec(trans, n):
@@ -42,7 +42,7 @@ def block_root(clzz):
     trans = np.zeros_like(clzz)
 
     for i in range(trans.shape[0]):
-        trans[i] = matrix_root_manynull(clzz[i], truncate=False)
+        trans[i] = nputil.matrix_root_manynull(clzz[i], truncate=False)
 
     return trans
     

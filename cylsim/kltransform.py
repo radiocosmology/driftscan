@@ -9,7 +9,6 @@ import healpy
 
 from cosmoutils import hputil, units
 from simulations import foregroundsck, corr21cm
-from simulations.foregroundmap import matrix_root_manynull
 
 from cylsim import mpiutil, util
 from cylsim import beamtransfer, skymodel
@@ -43,6 +42,7 @@ def eigh_gen(A, B):
         evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
     except la.LinAlgError:
         
+        #raise Exception("blah")
         print "Matrix probabaly not positive definite due to numerical issues. \
         Trying to a constant...."
         
@@ -152,7 +152,7 @@ class KLTransform(object):
         return self._cvsg
 
 
-    def sn_covariance(self, mi):
+    def sn_covariance(self, mi, noise=True):
         """Compute the signal and noise covariances (on the telescope).
 
         The signal is formed from the 21cm signal, whereas the noise includes
@@ -177,10 +177,11 @@ class KLTransform(object):
         cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
         cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
 
-        # Add in the instrumental noise. Assumed to be diagonal for now.
-        for fi in range(nfreq):
-            noisebase = np.diag(self.telescope.noisepower(np.arange(self.telescope.nbase), fi).reshape(ntel))
-            cvb_n[fi, :, fi, :] += noisebase
+        if noise:
+            # Add in the instrumental noise. Assumed to be diagonal for now.
+            for fi in range(nfreq):
+                noisebase = np.diag(self.telescope.noisepower(np.arange(self.telescope.nbase), fi).reshape(ntel))
+                cvb_n[fi, :, fi, :] += noisebase
 
         return cvb_s, cvb_n
 
@@ -220,7 +221,7 @@ class KLTransform(object):
 
 
 
-    def transform_save(self, mi, inverse=True):
+    def transform_save(self, mi, inverse=False):
         """Save the KL-modes for a given m.
 
         Perform the transform and cache the results for later use.
@@ -292,7 +293,7 @@ class KLTransform(object):
                 
         f.close()
 
-        return evals, evecs.T
+        return evals, evecs
 
 
     def evals_all(self):

@@ -22,14 +22,13 @@ def foreground_model(lmax, frequencies, npol):
 
     cv_fg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))
 
-    cv_fg[0, 0] = skysim.clarray(fsyn.aps, lmax, frequencies) * 1e-6
+    cv_fg[0, 0] = skysim.clarray(fsyn.angular_powerspectrum, lmax, frequencies)
 
     if npol >= 3:
         cv_fg[1, 1] = 0.3**2 * cv_fg[0, 0]
         cv_fg[2, 2] = 0.3**2 * cv_fg[0, 0]
 
-    cv_fg[0, 0] += skysim.clarray(fps.aps, lmax, frequencies) * 1e-6
-
+    cv_fg[0, 0] += skysim.clarray(fps.angular_powerspectrum, lmax, frequencies)
     return cv_fg
 
 
@@ -44,12 +43,10 @@ def im21cm_model(lmax, frequencies, npol, cr = None):
         if not _cr:
             _cr = corr21cm.Corr21cm()
         cr = _cr
-    
-    za = units.nu21 / frequencies - 1.0
 
     cv_sg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))
 
-    cv_sg[0, 0] = skysim.clarray(cr.angular_powerspectrum_fft, lmax, za) * 1e-6
+    cv_sg[0, 0] = skysim.clarray(cr.angular_powerspectrum, lmax, frequencies)
 
     return cv_sg
 

@@ -90,6 +90,25 @@ class BeamTransfer(object):
 
 
     @util.cache_last
+    def beam_comb(self, mi):
+
+        bp = self.beam_m(mi)
+        bm = (-1)**mi * self.beam_m(-mi).conj()
+
+        if mi == 0:
+            bm[:] = 0.0
+
+        bc = np.empty(bp.shape[:1] + (2,) + bp.shape[1:], dtype=bp.dtype)
+
+        bc[:, 0] = bp
+        bc[:, 1] = bm
+
+        return bc
+
+
+
+
+    @util.cache_last
     def invbeam_m(self, mi):
 
         nfreq = self.telescope.nfreq
@@ -101,7 +120,6 @@ class BeamTransfer(object):
         ibeam = np.zeros((nfreq, nsky, ntel), dtype=np.complex128)
 
         for fi in range(nfreq):
-            bh = beam[fi].T.conj()
             ibeam[fi] = la.pinv(beam[fi])
 
         ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky,
@@ -127,6 +145,25 @@ class BeamTransfer(object):
         ffile.close()
         
         return beam
+
+
+    @util.cache_last
+    def beam_freq_comb(self, fi, fullm=False):
+
+        bf = self.beam_freq(fi, fullm)
+
+        mside = (bf.shape[-1] + 1) / 2
+
+        bfc = np.zeros((mside, 2) + bf.shape[:-1], dtype=bf.dtype)
+
+        bfc[0, 0] = bf[..., 0]
+
+        for mi in range(1, mside):
+            bfc[mi, 0] = bf[..., mi]
+            bfc[mi, 1] = (-1)**mi * bf[..., -mi].conj()
+
+        return bfc
+
 
 
     def generate_cache(self, regen=False):

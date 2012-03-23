@@ -264,12 +264,13 @@ class TransitTelescope(object):
         """
 
         # Form list of all feed pairs
-        fpairs = np.indices((self.nfeed, self.nfeed))[(slice(None),) + np.triu_indices(self.nfeed, 1)]
+        fpairs = np.indices((self.nfeed, self.nfeed))[(slice(None),) + np.tril_indices(self.nfeed, -1)]
 
         # Get unique pairs
         upairs, self._redundancy = self._get_unique(fpairs)
         
-        self._baselines = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]  # Should this be the negative?
+        self._baselines = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
+                                                      # Should this be the negative?
 
         self._feedpairs = upairs.T
 
@@ -606,8 +607,8 @@ class UnpolarisedTelescope(TransitTelescope):
         # Calculate the complex visibility
         cvis = self._horizon * fringe * beami * beamj / omega_A
 
-        # Perform the harmonic transform to get the transfer matrix.
-        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside)
+        # Perform the harmonic transform to get the transfer matrix (conj is correct - see paper)
+        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside).conj()
 
         return [ [ btrans ]]
 
@@ -706,11 +707,11 @@ class PolarisedTelescope(TransitTelescope):
 
         ### If beams ever become complex need to do yx combination.
         btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,
-                                               lmax = int(lmax), lside=lside)
+                                               lmax = int(lmax), lside=lside).conj()
         btransxy = hputil.sphtrans_complex_pol(cvIQUxy, centered = False,
-                                               lmax = int(lmax), lside=lside)
+                                               lmax = int(lmax), lside=lside).conj()
         btransyy = hputil.sphtrans_complex_pol(cvIQUyy, centered = False,
-                                               lmax = int(lmax), lside=lside)
+                                               lmax = int(lmax), lside=lside).conj()
 
         return [btransxx, btransxy, btransyy]
 

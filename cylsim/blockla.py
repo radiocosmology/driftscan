@@ -81,3 +81,27 @@ def multiply_dm_v(matrix, vector, conj=False):
 
     return nvector
 
+
+def pinv_dm(matrix):
+    """Construct the pseudo-inverse of a block diagonal matrix.
+
+    Parameters
+    ----------
+    matrix : (nblocks, n, m) np.ndarray
+        An array containing `nblocks` diagonal blocks of size (`n`, `m`).
+
+    Returns
+    -------
+    pinv_matrix : (nblocks, m, n) np.ndarray
+         An array containing the pseudo-inverse.
+    """
+    
+    nblocks, n, m = matrix.shape
+
+    pinv_matrix = np.empty((nblocks, m, n), dtype=matrix.dtype)
+
+    for i in range(nblocks):
+        pinv_matrix[i] = scipy.linalg.pinv(matrix[i])
+
+    return pinv_matrix
+

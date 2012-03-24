@@ -36,7 +36,7 @@ def map_half_plane(arr):
     return arr
 
 
-_horizon_const = 0
+#_horizon_const = 0
 def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     """Get the maximum (l,m) that a baseline is sensitive to.
 
@@ -57,8 +57,8 @@ def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     umax = (np.abs(baselines[:,0]) + uwidth) / wavelengths
     vmax = (np.abs(baselines[:,1]) + vwidth)  / wavelengths
 
-    mmax = np.ceil(2 * np.pi * umax).astype(np.int64) + _horizon_const
-    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64) + _horizon_const
+    mmax = np.ceil(2 * np.pi * umax).astype(np.int64)# + _horizon_const
+    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)# + _horizon_const
 
     return lmax, mmax
 
@@ -102,6 +102,8 @@ class TransitTelescope(object):
     _progress = lambda x: x
 
     accuracy_boost = 1
+
+    l_boost = 1.0
 
 
     def __init__(self, latitude=45, longitude=0):
@@ -244,13 +246,13 @@ class TransitTelescope(object):
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
         lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
-        return lmax.max()
+        return lmax.max() * self.l_boost
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
         lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
-        return mmax.max()
+        return mmax.max() * self.l_boost
 
     #===================================================
 

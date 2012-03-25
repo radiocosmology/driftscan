@@ -246,13 +246,13 @@ class TransitTelescope(object):
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
         lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
-        return lmax.max() * self.l_boost
+        return int(lmax.max() * self.l_boost)
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
         lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
-        return mmax.max() * self.l_boost
+        return int(mmax.max() * self.l_boost)
 
     #===================================================
 

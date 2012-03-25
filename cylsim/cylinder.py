@@ -39,6 +39,8 @@ class CylinderTelescope(telescope.TransitTelescope):
     touching = True
     cylspacing = None
 
+    non_commensurate = False
+
     ## u-width property override
     @property
     def u_width(self):
@@ -136,11 +138,17 @@ class CylinderTelescope(telescope.TransitTelescope):
         if cylinder_index >= self.num_cylinders or cylinder_index < 0:
             raise Exception("Cylinder index is invalid.")
 
+        nf = self.num_feeds
+        sp = self.feed_spacing
+        if self.non_commensurate:
+            nf = self.num_feeds - cylinder_index
+            sp = self.feed_spacing / (nf - 1.0) * nf
+
         
-        pos = np.empty([self.num_feeds, 2], dtype=np.float64)
+        pos = np.empty([nf, 2], dtype=np.float64)
 
         pos[:,0] = cylinder_index * self.cylinder_spacing
-        pos[:,1] = np.arange(self.num_feeds) * self.feed_spacing
+        pos[:,1] = np.arange(nf) * sp
 
         return pos
 

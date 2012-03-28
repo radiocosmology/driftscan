@@ -169,18 +169,19 @@ class KLTransform(object):
             Signal and noice covariance matrices.
         """
 
-        
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nfreq = self.telescope.nfreq
-
         # Project the signal and foregrounds from the sky onto the telescope.
         cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
         cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
 
         if noise:
             # Add in the instrumental noise. Assumed to be diagonal for now.
-            for fi in range(nfreq):
-                noisebase = np.diag(self.telescope.noisepower(np.arange(self.telescope.nbase), fi).reshape(ntel))
+            for fi in range(self.beamtransfer.nfreq):
+                # Double up baselines to fetch (corresponds to grabbing positive and negative m)
+                bla = np.arange(self.telescope.nbase)
+                bla = np.concatenate((bla, bla))
+
+                # Fetch array of system temperatures at frequency
+                noisebase = np.diag(self.telescope.noisepower(bla, fi).reshape(self.beamtransfer.ntel))
                 cvb_n[fi, :, fi, :] += noisebase
 
         return cvb_s, cvb_n
@@ -205,7 +206,7 @@ class KLTransform(object):
 
         # Fetch the covariance matrices to diagonalise
         st = time.time()
-        nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
+        nside = 2 * self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
         cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
         print "Time =", (et-st)
@@ -310,8 +311,8 @@ class KLTransform(object):
         nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
         evarray = np.zeros((2*self.telescope.mmax+1, nside))
 
-       # Iterate over all m's, reading file and extracting the eigenvalues.
-        for mi in range(-self.telescope.mmax, self.telescope.mmax+1):
+        # Iterate over all m's, reading file and extracting the eigenvalues.
+        for mi in range(self.telescope.mmax+1):
 
             f = h5py.File(self._evfile % mi, 'r')
             evarray[mi] = f['evals_full']
@@ -333,7 +334,7 @@ class KLTransform(object):
         """
         
         # Iterate list over MPI processes.
-        for mi in mpiutil.mpirange(-self.telescope.mmax, self.telescope.mmax+1):
+        for mi in mpiutil.mpirange(self.telescope.mmax+1):
             if os.path.exists(self._evfile % mi) and not regen:
                 print "m index %i. File: %s exists. Skipping..." % (mi, (self._evfile % mi))
                 continue
@@ -454,16 +455,14 @@ class KLTransform(object):
         if evals is None:
             raise Exception("Don't seem to be any evals to use.")
 
+        bt = self.beamtransfer
+
         ## Rotate onto the sky basis. Slightly complex as need to do
         ## frequency-by-frequency
-        nfreq = self.telescope.nfreq
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+        beam = self.beamtransfer.beam_m(mi).reshape((bt.nfreq, bt.ntel, bt.nsky))
+        evecs = evecs.reshape((-1, bt.nfreq, bt.ntel))
 
-        beam = self.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
-        evecs = evecs.reshape((-1, nfreq, ntel))
-
-        evsky = np.zeros((evecs.shape[0], nfreq, nsky), dtype=np.complex128)
+        evsky = np.zeros((evecs.shape[0], bt.nfreq, bt.nsky), dtype=np.complex128)
         
         for fi in range(nfreq):
             evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])

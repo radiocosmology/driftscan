@@ -99,29 +99,19 @@ class PSMonteCarlo(psestimation.PSEstimation):
         `mi`.
         """
 
-        tel = self.kltrans.telescope
-        
+        bt = self.kltrans.beamtransfer
         evals, evecs = self.kltrans.modes_m(mi, threshold=self.threshold)
-        ntel = tel.nbase * tel.num_pol_telescope
-        nsky = tel.num_pol_sky * ( tel.lmax + 1 )
-        nfreq = tel.nfreq
-        
-        btsims = np.zeros((nfreq, ntel, self.nsamples), dtype=np.complex128)
 
+        btsims = np.zeros((bt.nfreq, bt.ntel, self.nsamples), dtype=np.complex128)
         skysim = sim_skyvec(self.transarray[bi], self.nsamples)
-
-        beam = self.kltrans.beamtransfer.beam_m(mi).reshape((nfreq, ntel, nsky))
-
+        beam = self.kltrans.beamtransfer.beam_m(mi).reshape((bt.nfreq, bt.ntel, bt.nsky))
         
         for fi in range(nfreq):
             btsims[fi] = np.dot(beam[fi], skysim[:, fi, :])
-            #btsims[:, i] = self.kltrans.beamtransfer.project_vector_forward(mi, skysim[i]).reshape(ntel)
 
-        evsims = np.dot(evecs, btsims.reshape((nfreq*ntel, self.nsamples)))
+        evsims = np.dot(evecs, btsims.reshape((bt.nfreq*bt.ntel, self.nsamples)))
 
         if scale:
-            #evsims = (evsims - evsims.mean(axis=0)[np.newaxis, :]) / (1.0 + evals[np.newaxis, :])**0.5
-            #evals = self.kltrans.modes_m(mi, threshold=self.threshold)[0]
             evsims = evsims / (1.0 + evals[:, np.newaxis])**0.5
 
         return evsims.T.copy()

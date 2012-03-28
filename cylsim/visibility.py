@@ -68,7 +68,7 @@ def cylinder_beam(sph_arr, zenith, cylwidth):
     # Construct uhat.
     uhatc, vhatc = uv_plane_cart(zenith)
     
-    #return np.exp(-1.0 * np.pi * (np.inner(coord.sph_to_cart(sph_arr), cylwidth * uhatc)**2))
+    ## Note sinc function is normalised hence lack of pi
     return np.sinc(np.inner(coord.sph_to_cart(sph_arr), cylwidth * uhatc))
 
 

@@ -7,10 +7,13 @@ import h5py
 
 import mpiutil
 import util
+import blockla
 
 
 class BeamTransfer(object):
-    """A class for reading and writing Beam Transfer matrices from disk."""
+    """A class for reading and writing Beam Transfer matrices from disk. In
+    addition this provides methods for projecting vectors and matrices between
+    the sky and the telescope basis."""
 
     #====== Properties giving internal filenames =======
 
@@ -73,9 +76,8 @@ class BeamTransfer(object):
                 raise Exception("Could not load Telescope object from disk.")
 
 
-    @util.cache_last
-    def beam_m(self, mi):
-
+    def _load_beam_m(self, mi):
+        ## Read in beam from disk
         mfile = h5py.File(self._mfile % mi, 'r')
         sh = mfile[(self._fsection % 0)].shape
 
@@ -90,11 +92,29 @@ class BeamTransfer(object):
 
 
     @util.cache_last
-    def beam_comb(self, mi):
+    def beam_m(self, mi, single=False):
+        """Fetch the beam transfer matrix for a given m.
 
-        bp = self.beam_m(mi)
-        bm = (-1)**mi * self.beam_m(-mi).conj()
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        single : boolean, optional
+            When set, fetch only the uncombined beam transfer (that is only
+            positive or negative m). Default is False.
 
+        Returns
+        -------
+        beam : np.ndarray (nfreq, 2, nbase, npol_tel, npol_sky, lmax+1)
+            If `single` is set, shape (nfreq, nbase, npol_tel, npol_sky, lmax+1)
+        """
+        if single:
+            return self._load_beam_m(mi)
+
+        bp = self._load_beam_m(mi)
+        bm = (-1)**mi * self._load_beam_m(-mi).conj()
+
+        # Zero out m=0 (for negative) to avoid double counting
         if mi == 0:
             bm[:] = 0.0
 
@@ -110,30 +130,37 @@ class BeamTransfer(object):
 
     @util.cache_last
     def invbeam_m(self, mi):
+        """Pseudo-inverse of the beam (for a given m).
 
-        nfreq = self.telescope.nfreq
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
+        Uses the Moore-Penrose Pseudo-inverse as the optimal inverse for
+        reconstructing the data. No `single` option as this only makes sense
+        when combined.
 
-        beam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
 
-        ibeam = np.zeros((nfreq, nsky, ntel), dtype=np.complex128)
+        Returns
+        -------
+        invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, nbase, npol_tel)
+        """
 
-        for fi in range(nfreq):
-            ibeam[fi] = la.pinv(beam[fi])
+        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
 
-        ibeam = ibeam.reshape((nfreq, self.telescope.num_pol_sky,
-                               self.telescope.lmax + 1, self.telescope.nbase,
+        ibeam = blockla.pinv_dm(beam)
+
+        ibeam = ibeam.reshape((self.nfreq, self.telescope.num_pol_sky,
+                               self.telescope.lmax + 1, 2, self.telescope.nbase,
                                self.telescope.num_pol_telescope))
         return ibeam
 
 
     @util.cache_last
-    def beam_freq(self, fi, fullm=False):
-
+    def _load_beam_freq(self, fi, fullm=False):
+        
         tel = self.telescope
         mside = 2 * tel.lmax + 1 if fullm else 2 * tel.mmax + 1
-        
         
         ffile = h5py.File(self._ffile % fi, 'r')
         sh = ffile[(self._msection % 0)].shape
@@ -148,9 +175,28 @@ class BeamTransfer(object):
 
 
     @util.cache_last
-    def beam_freq_comb(self, fi, fullm=False):
+    def beam_freq(self, fi, fullm=False, single=False):
+        """Fetch the beam transfer matrix for a given frequency.
 
-        bf = self.beam_freq(fi, fullm)
+        Parameters
+        ----------
+        fi : integer
+            Frequency to fetch.
+        fullm : boolean, optional
+            Pad out m-modes such that we have :math:`mmax = 2*lmax-1`. Useful
+            for projecting around a_lm's. Default is False.
+        single : boolean, optional
+            When set, fetch only the uncombined beam transfers (that is only
+            positive or negative m). Default is False.
+
+        Returns
+        -------
+        beam : np.ndarray
+        """
+        bf = self._load_beam_freq(fi, fullm)
+
+        if single:
+            return bf
 
         mside = (bf.shape[-1] + 1) / 2
 
@@ -167,10 +213,17 @@ class BeamTransfer(object):
 
 
     def generate_cache(self, regen=False):
+        """Save out all beam transfer matrices to disk.
+
+        Parameters
+        ----------
+        regen : boolean, optional
+            Force regeneration even if cache files exist (default: False).
+        """
 
         # For each frequency, create the HDF5 file, and write in each `m` as a
         # seperate compressed dataset. Use MPI if available. 
-        for fi in mpiutil.mpirange(self.telescope.nfreq):
+        for fi in mpiutil.mpirange(self.nfreq):
 
             if os.path.exists(self._ffile % fi) and not regen:
                 print ("f index %i. File: %s exists. Skipping..." %
@@ -256,83 +309,89 @@ class BeamTransfer(object):
         
 
     def project_vector_forward(self, mi, vec):
-                
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
-        nfreq = self.telescope.nfreq
 
-        beam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
+        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
         
-        vecf = np.zeros((nfreq, ntel), dtype=np.complex128)
+        vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
         for fi in range(nfreq):
-            vecf[fi] = np.dot(beam[fi], vec[..., fi, :].reshape(nsky))
+            vecf[fi] = np.dot(beam[fi], vec[..., fi, :].reshape(self.nsky))
 
         return vecf
 
     
     def project_vector_backward(self, mi, vec):
-                
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
-        nfreq = self.telescope.nfreq
 
-        ibeam = self.invbeam_m(mi).reshape((nfreq, nsky, ntel))
+        ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
         
-        vecb = np.zeros((nfreq, nsky), dtype=np.complex128)
-        vec = vec.reshape((nfreq, ntel))
+        vecb = np.zeros((self.freq, self.nsky), dtype=np.complex128)
+        vec = vec.reshape((self.nfreq, self.ntel))
 
-        for fi in range(nfreq):
-            vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(ntel))
+        for fi in range(self.nfreq):
+            vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(self.ntel))
 
-        return vecb.reshape((nfreq, self.telescope.num_pol_sky,
+        return vecb.reshape((self.nfreq, self.telescope.num_pol_sky,
                              self.telescope.lmax + 1))
 
 
     def project_vector_backward_dirty(self, mi, vec):
-                
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
-        nsky = self.telescope.num_pol_sky * (self.telescope.lmax + 1)
-        nfreq = self.telescope.nfreq
 
-        dbeam = self.beam_m(mi).reshape((nfreq, ntel, nsky))
+        dbeam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
         dbeam = dbeam.transpose((0, 2, 1)).conj()
         
-        vecb = np.zeros((nfreq, nsky), dtype=np.complex128)
-        vec = vec.reshape((nfreq, ntel))
+        vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
+        vec = vec.reshape((self.nfreq, self.ntel))
 
-        for fi in range(nfreq):
+        for fi in range(self.nfreq):
             norm = np.dot(dbeam[fi].T.conj(), dbeam[fi]).diagonal()
             norm = np.where(norm < 1e-6, 0.0, 1.0 / norm)
             #norm = np.dot(dbeam[fi], dbeam[fi].T.conj()).diagonal()
             #norm = np.where(np.logical_or(np.abs(norm) < 1e-4, 
             #np.abs(norm) < np.abs(norm.max()*1e-2)), 0.0, 1.0 / norm)
-            vecb[fi] = np.dot(dbeam[fi], vec[fi, :].reshape(ntel) * norm)
+            vecb[fi] = np.dot(dbeam[fi], vec[fi, :].reshape(self.ntel) * norm)
 
-        return vecb.reshape((nfreq, self.telescope.num_pol_sky,
+        return vecb.reshape((self.nfreq, self.telescope.num_pol_sky,
                              self.telescope.lmax + 1))
     
 
     def project_matrix_forward(self, mi, mat):
                 
-        ntel = self.telescope.nbase * self.telescope.num_pol_telescope
         npol = self.telescope.num_pol_sky
-        nfreq = self.telescope.nfreq
         lside = self.telescope.lmax + 1
 
-        beam = self.beam_m(mi).reshape((nfreq, ntel, npol, lside))
+        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, npol, lside))
         
-        matf = np.zeros((nfreq, ntel, nfreq, ntel), dtype=np.complex128)
+        matf = np.zeros((self.nfreq, self.ntel, self.nfreq, self.ntel), dtype=np.complex128)
 
 
         # Should it be a +=?
         for pi in range(npol):
             for pj in range(npol):
-                for fi in range(nfreq):
-                    for fj in range(nfreq):
+                for fi in range(self.nfreq):
+                    for fj in range(self.nfreq):
                         matf[fi, :, fj, :] += np.dot((beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]), beam[fj, :, pj, :].T.conj())
 
         return matf
+
+    @property
+    def ntel(self):
+        """Degrees of freedom measured by the telescope (per frequency)"""
+        return 2 * self.telescope.nbase * self.telescope.num_pol_telescope
+
+    @property
+    def nsky(self):
+        """Degrees of freedom on the sky at each frequency."""
+        return (self.telescope.lmax + 1) * self.telescope.num_pol_sky
+
+    @property
+    def nfreq(self):
+        """Number of frequencies measured."""
+        return self.telescope.nfreq
+
+
+
+
+
 
                     
             

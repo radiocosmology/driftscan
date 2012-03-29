@@ -1,17 +1,15 @@
 import time
 import os
-import warnings
 
 import numpy as np
 import scipy.linalg as la
 import h5py
-import healpy
 
-from cosmoutils import hputil, units
-from simulations import foregroundsck, corr21cm
+from cosmoutils import hputil
+#from simulations import foregroundsck, corr21cm
 
 from cylsim import mpiutil, util
-from cylsim import beamtransfer, skymodel
+from cylsim import skymodel
 
 
 def eigh_gen(A, B):
@@ -88,6 +86,8 @@ class KLTransform(object):
 
     _cvfg = None
     _cvsg = None
+
+    inverse = False
 
     @property
     def _evfile(self):
@@ -187,7 +187,7 @@ class KLTransform(object):
         return cvb_s, cvb_n
 
 
-    def transform_m(self, mi):
+    def _transform_m(self, mi):
         """Perform the KL-transform for a single m.
 
         Parameters
@@ -213,16 +213,23 @@ class KLTransform(object):
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
-        res = eigh_gen(cvb_sr, cvb_nr)
+        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
         et=time.time()
         print "Time =", (et-st)
 
-        return res
+        evecs = evecs.T.conj()
+
+        # Generate inverse if required
+        inv = None
+        if self.inverse:
+            inv = inv_gen(evecs).T
+
+        return evals, evecs, inv, ac
 
 
 
 
-    def transform_save(self, mi, inverse=False):
+    def transform_save(self, mi):
         """Save the KL-modes for a given m.
 
         Perform the transform and cache the results for later use.
@@ -240,7 +247,7 @@ class KLTransform(object):
         
         # Perform the KL-transform
         print "Constructing signal and noise covariances for m = %i ..." % (mi)
-        evals, evecs, ac = self.transform_m(mi)
+        evals, evecs, inv, ac = self._transform_m(mi)
     
         ## Write out Eigenvals and Vectors
 
@@ -250,13 +257,12 @@ class KLTransform(object):
         f.attrs['m'] = mi
         f.attrs['SUBSET'] = self.subset
 
-        # Write out the full spectrum of eigenvalues
-        f.create_dataset('evals_full', data=evals)
-
-        # Take Hermitian conjugate of modes
-        evecs = evecs.T.conj()
-        evecsf = evecs
-        evalsf = evals
+        ## If modes have been already truncated (e.g. DoubleKL) then pad out
+        ## with zeros at the lower end.
+        nside = self.beamtransfer.ntel * self.beamtransfer.nfreq
+        evalsf = np.zeros(nside, dtype=np.float64)
+        evalsf[(-evals.size):] = evals
+        f.create_dataset('evals_full', data=evalsf)
 
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
@@ -271,16 +277,11 @@ class KLTransform(object):
         f.create_dataset('evecs', data=evecs)
         f.attrs['num_modes'] = evals.size
 
-        if inverse:
-            print "Generating inverse..."
-            inv = inv_gen(evecsf)
-
+        if self.inverse:
             if self.subset:
-                #i_ev = np.searchsorted(evalsf, self.threshold)
+                inv = inv[i_ev:]
 
-                inv = inv[:, i_ev:]
-
-            f.create_dataset('evinv', data=inv.T)
+            f.create_dataset('evinv', data=inv)
             
 
         # If we had to regularise because the noise spectrum is numerically ill
@@ -322,7 +323,7 @@ class KLTransform(object):
 
 
 
-    def generate(self, mlist = None, regen=False):
+    def generate(self, regen=False):
         """Perform the KL-transform for all m-modes and save the result.
 
         Uses MPI to distribute the work (if available).
@@ -415,11 +416,39 @@ class KLTransform(object):
 
 
     @util.cache_last
-    def pinvmodes_m(self, mi, threshold=None):
+    def invmodes_m(self, mi, threshold=None):
+        """Get the inverse modes.
 
-        evals, modes = self.modes_m(mi, threshold)
+        If the true inverse has been cached, return the modes for the current
+        `threshold`. Otherwise generate the Moore-Penrose pseudo-inverse.
 
-        return la.pinv(modes)
+        Parameters
+        ----------
+        mi : integer
+            m-mode to generate for.
+        threshold : scalar
+            S/N threshold to use.
+
+        Returns
+        -------
+        invmodes : np.ndarray
+        """
+
+        evals, evecs = self.modes_m(mi, threshold)
+
+        f = h5py.File(self._evfile % mi, 'r')
+        if 'evinv' in f:
+            inv = f['evinv']
+
+            if self.subset:
+                nevals = evals.size
+                inv = inv[(-nevals):]
+
+            return inv.T
+
+        else:
+            print "Inverse not cached, generating pseudo-inverse."
+            return la.pinv(evecs)
 
 
     @util.cache_last
@@ -531,7 +560,7 @@ class KLTransform(object):
             raise Exception("Vectors are incompatible.")
 
         # Construct the pseudo inverse
-        invmodes = self.pinvmodes_m(mi, threshold)
+        invmodes = self.invmodes_m(mi, threshold)
 
         return np.dot(invmodes, vec)
 

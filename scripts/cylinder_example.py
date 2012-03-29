@@ -24,7 +24,7 @@ cyl.feed_spacing = 0.5
 cyl.num_feeds = 10
 
 # Set the thermal noise (T_sys flat across spectrum)
-cyl.tsys_flat = 5.0
+cyl.tsys_flat = 20.0
 
 # Generate all the beam transfer functions
 bt = beamtransfer.BeamTransfer(teldir, telescope=cyl)
@@ -36,8 +36,8 @@ klt.subset = False
 klt.generate()
 
 # Perform the power spectrum estimations
-ps = psmc.PSMonteCarlo(klt)
-ps.genbands()
-ps.fisher_mpi()
+#ps = psmc.PSMonteCarlo(klt)
+#ps.genbands()
+#ps.fisher_mpi()
 
 

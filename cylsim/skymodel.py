@@ -8,7 +8,7 @@ _cr = None
 
 class FullskySynchrotron(foregroundsck.Synchrotron):
     """Increase synchrotron amplitude to see it alleviates the full sky issues."""
-    A = 10000.0
+    A = 1.00e-2
     
 
 

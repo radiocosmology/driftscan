@@ -206,7 +206,7 @@ class KLTransform(object):
 
         # Fetch the covariance matrices to diagonalise
         st = time.time()
-        nside = 2 * self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
+        nside = self.beamtransfer.ntel * self.telescope.nfreq
         cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
         print "Time =", (et-st)
@@ -308,8 +308,8 @@ class KLTransform(object):
             The full set of eigenvalues across all m-modes.
         """
 
-        nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
-        evarray = np.zeros((2*self.telescope.mmax+1, nside))
+        nside = self.beamtransfer.ntel * self.telescope.nfreq
+        evarray = np.zeros((self.telescope.mmax+1, nside))
 
         # Iterate over all m's, reading file and extracting the eigenvalues.
         for mi in range(self.telescope.mmax+1):
@@ -464,7 +464,7 @@ class KLTransform(object):
 
         evsky = np.zeros((evecs.shape[0], bt.nfreq, bt.nsky), dtype=np.complex128)
         
-        for fi in range(nfreq):
+        for fi in range(bt.nfreq):
             evsky[:, fi, :] = np.dot(evecs[:, fi, :], beam[fi])
 
         return evsky
@@ -634,7 +634,7 @@ class KLTransform(object):
 
         # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
-            mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
+            mlist = range(self.telescope.mmax + 1)
         mpart = mpiutil.partition_list_mpi(mlist)
         
         # Total number of sky modes.

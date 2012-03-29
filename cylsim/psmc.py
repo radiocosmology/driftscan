@@ -106,7 +106,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         skysim = sim_skyvec(self.transarray[bi], self.nsamples)
         beam = self.kltrans.beamtransfer.beam_m(mi).reshape((bt.nfreq, bt.ntel, bt.nsky))
         
-        for fi in range(nfreq):
+        for fi in range(bt.nfreq):
             btsims[fi] = np.dot(beam[fi], skysim[:, fi, :])
 
         evsims = np.dot(evecs, btsims.reshape((bt.nfreq*bt.ntel, self.nsamples)))

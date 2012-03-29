@@ -203,7 +203,7 @@ class PSEstimation(object):
 
     def fisher_mpi(self, mlist = None):
         if mlist is None:
-            mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
+            mlist = range(self.telescope.mmax + 1)
 
         mpart = mpiutil.partition_list_mpi(mlist)
 
@@ -215,7 +215,7 @@ class PSEstimation(object):
 
         if mpiutil.rank0:
             nb = self.bands.shape[0] - 1
-            fisher = np.zeros((2*self.telescope.mmax+1, nb, nb), dtype=np.complex128)
+            fisher = np.zeros((self.telescope.mmax+1, nb, nb), dtype=np.complex128)
             #print f_all
             for proc_rank in f_all:
                 #print proc_rank
@@ -225,7 +225,7 @@ class PSEstimation(object):
 
             f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
 
-            f.create_dataset('fisher_m/', data=fisher)
+            #f.create_dataset('fisher_m/', data=fisher)
             f.create_dataset('fisher_all/', data=np.sum(fisher, axis=0))
             f.create_dataset('bandpower/', data=self.bpower)
             f.create_dataset('bandstart/', data=self.bstart)
@@ -237,7 +237,7 @@ class PSEstimation(object):
     def fisher_section(self, mlist = None):
 
         if mlist is None:
-            mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
+            mlist = range(self.telescope.mmax + 1)
             
         mpart = mpiutil.partition_list_mpi(mlist)
 

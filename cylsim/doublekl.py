@@ -7,11 +7,11 @@ class DoubleKL(kltransform.KLTransform):
 
     foreground_threshold = 100.0
 
-    def transform_m(self, mi):
+    def _transform_m(self, mi):
 
         inv = None
 
-        nside = self.telescope.nbase * self.telescope.num_pol_telescope * self.telescope.nfreq
+        nside = self.beamtransfer.ntel * self.telescope.nfreq
         cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi, noise=False) ]
 
         ## Solve for *** F/S *** ratio, much more numerically well behaved

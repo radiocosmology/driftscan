@@ -44,7 +44,8 @@ def eigh_gen(A, B):
         print "Matrix probabaly not positive definite due to numerical issues. \
         Trying to a constant...."
         
-        add_const = -la.eigvalsh(B, eigvals=(0, 0))[0] * 2.1
+        evb = la.eigvalsh(B)
+        add_const = 1e-15 * evb[-1] - 2.0 * evb[0]
         
         B[np.diag_indices(B.shape[0])] += add_const
         evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)

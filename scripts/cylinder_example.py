@@ -5,6 +5,7 @@ import os
 from cylsim import cylinder
 from cylsim import beamtransfer
 from cylsim import kltransform
+from cylsim import doublekl
 from cylsim import psmc
 
 cyl = cylinder.UnpolarisedCylinderTelescope()
@@ -35,6 +36,10 @@ klt = kltransform.KLTransform(bt)
 klt.subset = False
 klt.generate()
 
+# Performing DoubleKL transform
+dk = doublekl.DoubleKL(bt, evsubdir="dk1")
+dk.subset = False
+dk.generate()
 # Perform the power spectrum estimations
 #ps = psmc.PSMonteCarlo(klt)
 #ps.genbands()

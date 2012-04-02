@@ -41,7 +41,7 @@ class PSEstimation(object):
         return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
 
 
-    def __init__(self, kltrans, subdir = 'ps/'):
+    def __init__(self, kltrans, subdir='ps/'):
 
         self.kltrans = kltrans
         self.telescope = kltrans.telescope

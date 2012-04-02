@@ -12,6 +12,28 @@ from cylsim import mpiutil, util
 from cylsim import skymodel
 
 
+def collect_m_array(mlist, func, shape, dtype):
+
+    data = [ (mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist) ]
+
+    p_all = mpiutil.world.gather(data, root=0)
+
+    marray = None
+    if mpiutil.rank0:
+        marray = np.empty((len(mlist),) + shape, dtype=dtype)
+
+        for p_process in p_all:
+
+            for mi, result in p_process:
+
+                marray[mi] = result
+
+    return marray
+
+
+
+
+
 def eigh_gen(A, B):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
@@ -78,17 +100,29 @@ def inv_gen(A):
 
 class KLTransform(object):
     """Perform KL transform.
+
+    Attributes
+    ----------
+    subset : boolean
+        If True, throw away modes below a S/N `threshold`.
+    threshold : scalar
+        S/N threshold to cut modes at.
+    inverse : boolean
+        If True construct and cache inverse transformation.
     """
 
     subset = True
     threshold = 1.0
 
+    inverse = False
+    
     evdir = ""
 
     _cvfg = None
     _cvsg = None
 
-    inverse = False
+    _foreground_regulariser = 2e-15
+
 
     @property
     def _evfile(self):
@@ -96,12 +130,12 @@ class KLTransform(object):
         return self.evdir + "/ev_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
     
 
-    def __init__(self, bt, evsubdir = "ev"):
+    def __init__(self, bt, subdir="ev"):
         self.beamtransfer = bt
         self.telescope = self.beamtransfer.telescope
                 
         # Create directory if required
-        self.evdir = self.beamtransfer.directory + "/" + evsubdir
+        self.evdir = self.beamtransfer.directory + "/" + subdir
         if mpiutil.rank0 and not os.path.exists(self.evdir):
             os.makedirs(self.evdir)
 
@@ -174,6 +208,10 @@ class KLTransform(object):
         cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
         cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
 
+        # Add in a small diagonal to regularise the noise matrix.
+        cnr = cvb_n.reshape((self.beamtransfer.nfreq * self.beamtransfer.ntel, -1))
+        cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
+
         if noise:
             # Add in the instrumental noise. Assumed to be diagonal for now.
             for fi in range(self.beamtransfer.nfreq):
@@ -225,8 +263,10 @@ class KLTransform(object):
         if self.inverse:
             inv = inv_gen(evecs).T
 
-        return evals, evecs, inv, ac
+        # Construct dictionary of extra parameters to return
+        evextra = {'ac' : ac}
 
+        return evals, evecs, inv, evextra
 
 
 
@@ -248,7 +288,7 @@ class KLTransform(object):
         
         # Perform the KL-transform
         print "Constructing signal and noise covariances for m = %i ..." % (mi)
-        evals, evecs, inv, ac = self._transform_m(mi)
+        evals, evecs, inv, evextra = self._transform_m(mi)
     
         ## Write out Eigenvals and Vectors
 
@@ -262,7 +302,8 @@ class KLTransform(object):
         ## with zeros at the lower end.
         nside = self.beamtransfer.ntel * self.beamtransfer.nfreq
         evalsf = np.zeros(nside, dtype=np.float64)
-        evalsf[(-evals.size):] = evals
+        if evals.size != 0:
+            evalsf[(-evals.size):] = evals
         f.create_dataset('evals_full', data=evalsf)
 
         # Discard eigenmodes with S/N below threshold if requested.
@@ -283,7 +324,19 @@ class KLTransform(object):
                 inv = inv[i_ev:]
 
             f.create_dataset('evinv', data=inv)
-            
+        
+        # Call hook which allows derived classes to save special information
+        # into the EV file.
+        self._ev_save_hook(f, evextra)
+                
+        f.close()
+
+        return evals, evecs
+
+
+    def _ev_save_hook(self, f, evextra):
+
+        ac = evextra['ac']
 
         # If we had to regularise because the noise spectrum is numerically ill
         # conditioned, write out the constant we added to the diagonal (see
@@ -293,10 +346,6 @@ class KLTransform(object):
             f.attrs['FLAGS'] = 'NotPositiveDefinite'
         else:
             f.attrs['FLAGS'] = 'Normal'
-                
-        f.close()
-
-        return evals, evecs
 
 
     def evals_all(self):
@@ -323,6 +372,26 @@ class KLTransform(object):
         return evarray
 
 
+    def _collect(self):
+
+        evfunc = lambda mi: h5py.File(self._evfile % mi, 'r')['evals_full'][:]
+
+        if mpiutil.rank0:
+            print "Creating eigenvalues file (process 0 only)."
+        
+        mlist = range(self.telescope.mmax+1)
+        shape = (self.beamtransfer.ntel * self.telescope.nfreq, )
+        evarray = collect_m_array(mlist, evfunc, shape, np.float64)
+
+        if mpiutil.rank0:
+            if os.path.exists(self.evdir + "/evals.hdf5"):
+                print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
+                return
+
+            f = h5py.File(self.evdir + "/evals.hdf5", 'w')
+            f.create_dataset('evals', data=evarray)
+            f.close()
+
 
     def generate(self, regen=False):
         """Perform the KL-transform for all m-modes and save the result.
@@ -346,18 +415,20 @@ class KLTransform(object):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
-        # Create combined eigenvalue file.
-        if mpiutil.rank0:
-            if os.path.exists(self.evdir + "/evals.hdf5") and not regen:
-                print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
-                return
+        # # Create combined eigenvalue file.
+        # if mpiutil.rank0:
+        #     if os.path.exists(self.evdir + "/evals.hdf5") and not regen:
+        #         print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
+        #         return
 
-            print "Creating eigenvalues file (process 0 only)."
-            evals = self.evals_all()
+        #     print "Creating eigenvalues file (process 0 only)."
+        #     evals = self.evals_all()
 
-            f = h5py.File(self.evdir + "/evals.hdf5", 'w')
-            f.create_dataset('evals', data=evals)
-            f.close()
+        #     f = h5py.File(self.evdir + "/evals.hdf5", 'w')
+        #     f.create_dataset('evals', data=evals)
+        #     f.close()
+
+        self._collect()
 
 
     olddatafile = False

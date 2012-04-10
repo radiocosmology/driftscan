@@ -314,7 +314,7 @@ class BeamTransfer(object):
         
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
-        for fi in range(nfreq):
+        for fi in range(self.nfreq):
             vecf[fi] = np.dot(beam[fi], vec[..., fi, :].reshape(self.nsky))
 
         return vecf
@@ -324,7 +324,7 @@ class BeamTransfer(object):
 
         ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
         
-        vecb = np.zeros((self.freq, self.nsky), dtype=np.complex128)
+        vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
         vec = vec.reshape((self.nfreq, self.ntel))
 
         for fi in range(self.nfreq):

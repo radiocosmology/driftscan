@@ -41,11 +41,11 @@ class PSEstimation(object):
         return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
 
 
-    def __init__(self, kltrans, subdir='ps/'):
+    def __init__(self, kltrans, subdir=None):
 
         self.kltrans = kltrans
         self.telescope = kltrans.telescope
-        self.psdir = self.kltrans.evdir + '/' + subdir
+        self.psdir = self.kltrans.evdir + '/' + ("ps/" if subdir is None else subdir)
         
         if mpiutil.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)

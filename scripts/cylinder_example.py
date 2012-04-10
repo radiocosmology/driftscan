@@ -34,12 +34,13 @@ bt.generate_cache()
 # Perform the KL transform (saving all modes)
 klt = kltransform.KLTransform(bt)
 klt.subset = False
-#klt.generate()
+klt.inverse = True
+klt.generate()
 
 # Performing DoubleKL transform
 dk = doublekl.DoubleKL(bt, subdir="dk1")
 dk.subset = False
-dk.generate()
+#dk.generate()
 # Perform the power spectrum estimations
 #ps = psmc.PSMonteCarlo(klt)
 #ps.genbands()

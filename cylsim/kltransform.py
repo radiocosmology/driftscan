@@ -135,9 +135,11 @@ class KLTransform(object):
         return self.evdir + "/ev_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
     
 
-    def __init__(self, bt, subdir="ev"):
+    def __init__(self, bt, subdir=None):
         self.beamtransfer = bt
         self.telescope = self.beamtransfer.telescope
+
+        subdir = "ev" if subdir is None else subdir
                 
         # Create directory if required
         self.evdir = self.beamtransfer.directory + "/" + subdir
@@ -517,7 +519,7 @@ class KLTransform(object):
         if 'evinv' in f:
             inv = f['evinv'][:]
 
-            if self.subset:
+            if threshold != None:
                 nevals = evals.size
                 inv = inv[(-nevals):]
 

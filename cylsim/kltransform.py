@@ -57,20 +57,25 @@ def eigh_gen(A, B):
         The constant added on the diagonal to regularise.
     """
     add_const = 0.0
+
+    if (A == 0).all():
+        evals, evecs = np.zeros(A.shape[0], dtype=A.dtype), np.identity(A.shape[0], dtype=A.dtype)
+
+    else:
     
-    try:
-        evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
-    except la.LinAlgError:
+        try:
+            evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
+        except la.LinAlgError:
+            
+            #raise Exception("blah")
+            print "Matrix probabaly not positive definite due to numerical issues. \
+            Trying to a constant...."
         
-        #raise Exception("blah")
-        print "Matrix probabaly not positive definite due to numerical issues. \
-        Trying to a constant...."
-        
-        evb = la.eigvalsh(B)
-        add_const = 1e-15 * evb[-1] - 2.0 * evb[0]
-        
-        B[np.diag_indices(B.shape[0])] += add_const
-        evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
+            evb = la.eigvalsh(B)
+            add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
+            
+            B[np.diag_indices(B.shape[0])] += add_const
+            evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         
     return evals, evecs, add_const
 
@@ -510,7 +515,7 @@ class KLTransform(object):
 
         f = h5py.File(self._evfile % mi, 'r')
         if 'evinv' in f:
-            inv = f['evinv']
+            inv = f['evinv'][:]
 
             if self.subset:
                 nevals = evals.size

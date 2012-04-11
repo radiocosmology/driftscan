@@ -11,10 +11,14 @@ class FullskySynchrotron(foregroundsck.Synchrotron):
     for galactic latitudes abs(b) > 5 degrees"""
     A = 6.6e-3
     beta = 2.8
+    nu_0 = 408.0
+    l_0 = 100.0
 
 class PointSources(foregroundsck.PointSources):
     """Scale up point source amplitude to a higher S_{cut} = 0.1 Jy"""
-    A = 3.21e-4
+    A = 3.55e-5
+    nu_0 = 408.0
+    l_0 = 100.0
 
 
 def foreground_model(lmax, frequencies, npol):

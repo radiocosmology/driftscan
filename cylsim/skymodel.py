@@ -7,16 +7,20 @@ _cr = None
 
 
 class FullskySynchrotron(foregroundsck.Synchrotron):
-    """Increase synchrotron amplitude to see it alleviates the full sky issues."""
-    A = 1.00e-2
-    
+    """Match up Synchrotron amplitudes to thise found in La Porta et al. 2008,
+    for galactic latitudes abs(b) > 5 degrees"""
+    A = 6.6e-3
+    beta = 2.8
+
+class PointSources(foregroundsck.PointSources):
+    """Scale up point source amplitude to a higher S_{cut} = 0.1 Jy"""
+    A = 3.21e-4
 
 
 def foreground_model(lmax, frequencies, npol):
 
-    #fsyn = foregroundsck.Synchrotron()
     fsyn = FullskySynchrotron()
-    fps = foregroundsck.PointSources()
+    fps = PointSources()
     
     nfreq = frequencies.size
 

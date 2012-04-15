@@ -192,8 +192,8 @@ class TransitTelescope(object):
 
     def calculate_frequencies(self):
 
-        self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
-
+        #self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
+        self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * ((self.freq_upper - self.freq_lower) / self.num_freq)
 
     @property
     def wavelengths(self):

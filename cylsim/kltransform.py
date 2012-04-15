@@ -381,7 +381,11 @@ class KLTransform(object):
 
     def _collect(self):
 
-        evfunc = lambda mi: h5py.File(self._evfile % mi, 'r')['evals_full'][:]
+        def evfunc(mi):
+            f = h5py.File(self._evfile % mi, 'r')
+            ev = f['evals_full'][:]
+            f.close()
+            return ev
 
         if mpiutil.rank0:
             print "Creating eigenvalues file (process 0 only)."

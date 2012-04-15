@@ -1,18 +1,12 @@
 import numpy as np
 
-from simulations import foregroundsck, corr21cm, skysim
+from simulations import foregroundsck, corr21cm, skysim, galaxy
 from cosmoutils import units
 
 _cr = None
 
 
-class FullskySynchrotron(foregroundsck.Synchrotron):
-    """Match up Synchrotron amplitudes to thise found in La Porta et al. 2008,
-    for galactic latitudes abs(b) > 5 degrees"""
-    A = 6.6e-3
-    beta = 2.8
-    nu_0 = 408.0
-    l_0 = 100.0
+
 
 class PointSources(foregroundsck.PointSources):
     """Scale up point source amplitude to a higher S_{cut} = 0.1 Jy"""
@@ -23,7 +17,7 @@ class PointSources(foregroundsck.PointSources):
 
 def foreground_model(lmax, frequencies, npol):
 
-    fsyn = FullskySynchrotron()
+    fsyn = galaxy.FullSkySynchrotron()
     fps = PointSources()
     
     nfreq = frequencies.size

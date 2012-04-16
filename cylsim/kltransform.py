@@ -59,7 +59,7 @@ def eigh_gen(A, B):
     add_const = 0.0
 
     if (A == 0).all():
-        evals, evecs = np.zeros(A.shape[0], dtype=A.dtype), np.identity(A.shape[0], dtype=A.dtype)
+        evals, evecs = np.zeros(A.shape[0], dtype=A.real.dtype), np.identity(A.shape[0], dtype=A.dtype)
 
     else:
     

@@ -13,7 +13,8 @@ import blockla
 class BeamTransfer(object):
     """A class for reading and writing Beam Transfer matrices from disk. In
     addition this provides methods for projecting vectors and matrices between
-    the sky and the telescope basis."""
+    the sky and the telescope basis.
+    """
 
     #====== Properties giving internal filenames =======
 
@@ -108,7 +109,7 @@ class BeamTransfer(object):
         beam : np.ndarray (nfreq, 2, nbase, npol_tel, npol_sky, lmax+1)
             If `single` is set, shape (nfreq, nbase, npol_tel, npol_sky, lmax+1)
         """
-        if single:
+        if single or self.telescope.positive_m_only:
             return self._load_beam_m(mi)
 
         bp = self._load_beam_m(mi)
@@ -195,7 +196,7 @@ class BeamTransfer(object):
         """
         bf = self._load_beam_freq(fi, fullm)
 
-        if single:
+        if single or self.telescope.positive_m_only:
             return bf
 
         mside = (bf.shape[-1] + 1) / 2
@@ -376,7 +377,10 @@ class BeamTransfer(object):
     @property
     def ntel(self):
         """Degrees of freedom measured by the telescope (per frequency)"""
-        return 2 * self.telescope.nbase * self.telescope.num_pol_telescope
+        if self.telescope.positive_m_only:
+            return self.telescope.nbase * self.telescope.num_pol_telescope
+        else:
+            return 2 * self.telescope.nbase * self.telescope.num_pol_telescope
 
     @property
     def nsky(self):

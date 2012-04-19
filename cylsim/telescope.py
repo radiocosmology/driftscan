@@ -90,6 +90,12 @@ class TransitTelescope(object):
     tsys_flat : scalar
         The system temperature (in K). Override `tsys` for anything more
         sophisticated.
+    positive_m_only: boolean
+        Whether to only deal with half the `m` range. In many cases we are
+        much less sensitive to negative-m (depending on the hemisphere, and
+        baseline alignment). This does not affect the beams calculated, only
+        how they're used in further calculation. Default: False
+
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
 
@@ -104,6 +110,8 @@ class TransitTelescope(object):
     accuracy_boost = 1
 
     l_boost = 1.0
+
+    positive_m_only = False
 
 
     def __init__(self, latitude=45, longitude=0):

@@ -91,22 +91,25 @@ class DoubleKL(kltransform.KLTransform):
         kltransform.KLTransform._ev_save_hook(self, f, evextra)
 
         # Save out S/F ratios
-        f.create_dataset('f_evals1', data=evextra['f_evals'])
+        f.create_dataset('f_evals', data=evextra['f_evals'])
 
 
     def _collect(self):
         
-        evfunc = lambda mi: h5py.File(self._evfile % mi, 'r')['evals_full'][:]
-        fvfunc = lambda mi: h5py.File(self._evfile % mi, 'r')['f_evals'][:]
+        def evfunc(mi):
+            f = h5py.File(self._evfile % mi, 'r')
+            ta = np.zeros(shape, dtype=np.float64)
+            ta[0] = f['evals_full'][:]
+            ta[1] = f['f_evals'][:]
+            return ta
 
         if mpiutil.rank0:
             print "Creating eigenvalues file (process 0 only)."
         
         mlist = range(self.telescope.mmax+1)
-        shape = (self.beamtransfer.ntel * self.telescope.nfreq, )
+        shape = (2, self.beamtransfer.ntel * self.telescope.nfreq)
         
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
-        fvarray = kltransform.collect_m_array(mlist, fvfunc, shape, np.float64)
         
         if mpiutil.rank0:
             if os.path.exists(self.evdir + "/evals.hdf5"):
@@ -114,7 +117,7 @@ class DoubleKL(kltransform.KLTransform):
                 return
 
             f = h5py.File(self.evdir + "/evals.hdf5", 'w')
-            f.create_dataset('evals', data=evarray)
-            f.create_dataset('f_evals1', data=fvarray)
+            f.create_dataset('evals', data=evarray[:, 0])
+            f.create_dataset('f_evals', data=evarray[:, 1])
             f.close()
 

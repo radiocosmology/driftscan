@@ -149,7 +149,7 @@ class BeamTransfer(object):
 
         beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
 
-        ibeam = blockla.pinv_dm(beam)
+        ibeam = blockla.pinv_dm(beam, rcond=1e-8)
 
         ibeam = ibeam.reshape((self.nfreq, self.telescope.num_pol_sky,
                                self.telescope.lmax + 1, 2, self.telescope.nbase,

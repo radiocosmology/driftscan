@@ -210,6 +210,7 @@ class CylBT(UnpolarisedCylinderTelescope):
     maxlength : scalar
         Maximum baseline length to include (in metres).
     """
+    minlength = 0.0
     maxlength = 20.0
 
     def _get_unique(self, feedpairs):
@@ -220,6 +221,6 @@ class CylBT(UnpolarisedCylinderTelescope):
 
         blength = np.hypot(bl1[:,0], bl1[:,1])
 
-        mask = np.where(blength <= self.maxlength)
+        mask = np.where(np.logical_and(blength >= self.minlength, blength < self.maxlength))
 
         return upairs[:,mask][:, 0, ...], redundancy[mask]

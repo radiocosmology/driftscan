@@ -219,16 +219,23 @@ class KLTransform(object):
         cnr = cvb_n.reshape((self.beamtransfer.nfreq * self.beamtransfer.ntel, -1))
         cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
 
-        if noise:
-            # Add in the instrumental noise. Assumed to be diagonal for now.
-            for fi in range(self.beamtransfer.nfreq):
-                # Double up baselines to fetch (corresponds to grabbing positive and negative m)
-                bla = np.arange(self.telescope.nbase)
-                bla = np.concatenate((bla, bla))
+        # Even if noise=False, we still want a very small amount of
+        # noise, so we multiply by a constant to turn Tsys -> 1 mK.
+        nc = 1.0
+        if not noise:
+            nc =  (1e-3 / self.telescope.tsys_flat)**2
 
-                # Fetch array of system temperatures at frequency
-                noisebase = np.diag(self.telescope.noisepower(bla, fi).reshape(self.beamtransfer.ntel))
-                cvb_n[fi, :, fi, :] += noisebase
+        # Add in the instrumental noise. Assumed to be diagonal for now.
+        for fi in range(self.beamtransfer.nfreq):
+            bla = np.arange(self.telescope.nbase)
+
+            # Double up baselines to fetch (corresponds to grabbing positive and negative m)
+            if not self.telescope.positive_m_only:
+                bla = np.concatenate((bla, bla))
+            
+            # Fetch array of system temperatures at frequency
+            noisebase = np.diag(nc * self.telescope.noisepower(bla, fi).reshape(self.beamtransfer.ntel))
+            cvb_n[fi, :, fi, :] += noisebase
 
         return cvb_s, cvb_n
 

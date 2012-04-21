@@ -128,6 +128,9 @@ class KLTransform(object):
 
     _foreground_regulariser = 2e-15
 
+    use_thermal = True
+    use_foregrounds = True
+
 
     @property
     def _evfile(self):
@@ -194,7 +197,7 @@ class KLTransform(object):
         return self._cvsg
 
 
-    def sn_covariance(self, mi, noise=True):
+    def sn_covariance(self, mi):
         """Compute the signal and noise covariances (on the telescope).
 
         The signal is formed from the 21cm signal, whereas the noise includes
@@ -211,9 +214,16 @@ class KLTransform(object):
             Signal and noice covariance matrices.
         """
 
+        if not (self.use_foregrounds or self.use_thermal):
+            raise Exception("Either `use_thermal` or `use_foregrounds`, or both must be True.")
+
         # Project the signal and foregrounds from the sky onto the telescope.
         cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
-        cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
+
+        if self.use_foregrounds:
+            cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
+        else:
+            cvb_n = np.zeros_like(cvb_s)
 
         # Add in a small diagonal to regularise the noise matrix.
         cnr = cvb_n.reshape((self.beamtransfer.nfreq * self.beamtransfer.ntel, -1))
@@ -222,7 +232,7 @@ class KLTransform(object):
         # Even if noise=False, we still want a very small amount of
         # noise, so we multiply by a constant to turn Tsys -> 1 mK.
         nc = 1.0
-        if not noise:
+        if not self.use_thermal:
             nc =  (1e-3 / self.telescope.tsys_flat)**2
 
         # Add in the instrumental noise. Assumed to be diagonal for now.

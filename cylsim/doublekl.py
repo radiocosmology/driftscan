@@ -47,7 +47,8 @@ class DoubleKL(kltransform.KLTransform):
         nside = self.beamtransfer.ntel * self.telescope.nfreq
 
         # Construct S and F matrices and regularise foregrounds
-        cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi, noise=False) ]
+        self.use_thermal = False
+        cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi) ]
         
         # Find joint eigenbasis and transformation matrix
         evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
@@ -70,6 +71,7 @@ class DoubleKL(kltransform.KLTransform):
 
         if evals.size > 0:
             # Generate the full S and N covariances in the truncated basis
+            self.use_thermal = True
             cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi) ]
             cs = np.dot(evecs, np.dot(cs, evecs.T.conj()))
             cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))

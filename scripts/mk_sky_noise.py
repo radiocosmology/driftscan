@@ -34,7 +34,7 @@ if not cyl.positive_m_only:
 
 def noisem(mi):
 
-    print "Projecting %i" % mi
+    print "Noise vector %i" % mi
 
     vis = (np.random.standard_normal(shape + (2,)) * np.array([1.0, 1.0J])).sum(axis=-1) * noise
     sbinv = bt.project_vector_backward(mi, vis)

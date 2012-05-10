@@ -128,6 +128,7 @@ class BeamTransfer(object):
 
 
 
+    noise_weight = True
 
     @util.cache_last
     def invbeam_m(self, mi):
@@ -147,9 +148,20 @@ class BeamTransfer(object):
         invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, nbase, npol_tel)
         """
 
-        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
+        beam = self.beam_m(mi)
+
+        if self.noise_weight:
+            noisew = self.telescope.noisepower(np.arange(self.telescope.nbase), 0).flatten()**(-0.5)
+            beam = beam * noisew[:, np.newaxis, np.newaxis, np.newaxis]
+
+        beam = beam.reshape((self.nfreq, self.ntel, self.nsky))
 
         ibeam = blockla.pinv_dm(beam, rcond=1e-9)
+
+        if self.noise_weight:
+            # Reshape to make it easy to multiply baselines by noise level
+            ibeam = ibeam.reshape((-1, self.telescope.nbase, self.telescope.num_pol_telescope))
+            ibeam = ibeam * noisew[:, np.newaxis]
 
         shape = (self.nfreq, self.telescope.num_pol_sky,
                  self.telescope.lmax + 1, self.ntel,
@@ -311,6 +323,20 @@ class BeamTransfer(object):
         
 
     def project_vector_forward(self, mi, vec):
+        """Project a vector from the sky into the visibility basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [freq, pol, l]
+
+        Returns
+        -------
+        tvec : np.ndarray
+            Telescope vector to return.
+        """
 
         beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
         
@@ -323,6 +349,21 @@ class BeamTransfer(object):
 
     
     def project_vector_backward(self, mi, vec):
+        """Invert a vector from the telescope space onto the sky. This is the
+        map-making process.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [freq, pol, l]
+
+        Returns
+        -------
+        tvec : np.ndarray
+            Sky vector to return.
+        """
 
         ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
         
@@ -334,6 +375,7 @@ class BeamTransfer(object):
 
         return vecb.reshape((self.nfreq, self.telescope.num_pol_sky,
                              self.telescope.lmax + 1))
+
 
 
     def project_vector_backward_dirty(self, mi, vec):
@@ -357,7 +399,20 @@ class BeamTransfer(object):
     
 
     def project_matrix_forward(self, mi, mat):
-                
+        """Project a covariance matrix from the sky into the visibility basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq]
+
+        Returns
+        -------
+        tmat : np.ndarray
+            Covariance in telescope basis.
+        """       
         npol = self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
 

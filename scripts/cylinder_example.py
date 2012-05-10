@@ -25,9 +25,11 @@ cyl.feed_spacing = 0.5
 cyl.num_feeds = 10
 
 # Set the thermal noise (T_sys flat across spectrum)
-cyl.tsys_flat = 1e-3
+cyl.tsys_flat = 10.0
 #cyl.tsys_flat = 0.0
 cyl.l_boost = 2.0
+
+cyl.positive_m_only = True
 #cyl.in_cylinder = False
 
 # Generate all the beam transfer functions
@@ -36,9 +38,9 @@ bt.generate_cache()
 
 # Perform the KL transform (saving all modes)
 klt = kltransform.KLTransform(bt)
-klt._foreground_regulariser = 1e-14
 klt.subset = False
 klt.inverse = True
+klt.use_foregrounds = False
 klt.generate()
 
 # Performing DoubleKL transform

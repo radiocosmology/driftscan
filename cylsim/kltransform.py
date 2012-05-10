@@ -12,7 +12,7 @@ from cylsim import mpiutil, util
 from cylsim import skymodel
 
 
-def collect_m_array(mlist, func, shape, dtype):
+def collect_m_arrays(mlist, func, shapes, dtype):
 
     data = [ (mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist) ]
 
@@ -20,16 +20,21 @@ def collect_m_array(mlist, func, shape, dtype):
 
     marray = None
     if mpiutil.rank0:
-        marray = np.empty((len(mlist),) + shape, dtype=dtype)
+        marrays = [np.zeros((len(mlist),) + shape, dtype=dtype) for shape in shapes]
 
         for p_process in p_all:
 
             for mi, result in p_process:
 
-                marray[mi] = result
+                for si in range(len(shapes)):
+                    if result[si] is not None:
+                        marrays[si][mi] = result[si]
 
-    return marray
+    return marrays
 
+def collect_m_array(mlist, func, shape, dtype):
+
+    return collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)[0]
 
 
 
@@ -663,22 +668,7 @@ class KLTransform(object):
         invmodes = self.invmodes_m(mi, threshold)
 
         return np.dot(invmodes, vec)
-
-
-    def filter_modes(self, mi, vec, threshold=None):
-
-        evals, evecs = self.modes_m(mi, -1e5)
-
-        minv = inv_gen(evecs)
-        
-        mproj = np.dot(evecs, vec)
-
-        startind = np.searchsorted(evals, threshold) if threshold is not None else 0
-
-        mproj[:startind] = 0.0
-
-        return np.dot(minv, mproj)
-
+ 
 
 
     def project_sky_vector_forward(self, mi, vec, threshold=None):
@@ -706,7 +696,24 @@ class KLTransform(object):
 
 
     def project_tel_matrix_forward(self, mi, mat, threshold=None):
+        """Project a matrix from the telescope basis into the eigenbasis.
 
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Telescope matrix to project.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        projmatrix : np.ndarray
+            The matrix projected into the eigenbasis.
+        """
         evals, evecs = self.modes_m(mi, threshold)
 
         if (mat.shape[0] != evecs.shape[1]) or (mat.shape[0] != mat.shape[1]):
@@ -716,7 +723,24 @@ class KLTransform(object):
 
 
     def project_sky_matrix_forward(self, mi, mat, threshold=None):
+        """Project a covariance matrix from the sky into the eigenbasis.
 
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix to project.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        projmatrix : np.ndarray
+            The matrix projected into the eigenbasis.
+        """
         npol = self.telescope.num_pol_sky
         nbase = self.telescope.nbase
         nfreq = self.telescope.nfreq

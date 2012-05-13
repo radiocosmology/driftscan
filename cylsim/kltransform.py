@@ -34,7 +34,7 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
 def collect_m_array(mlist, func, shape, dtype):
 
-    return collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)[0]
+    return collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)[0] if mpiutil.rank0 else None
 
 
 

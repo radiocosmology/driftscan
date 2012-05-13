@@ -18,7 +18,7 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
     p_all = mpiutil.world.gather(data, root=0)
 
-    marray = None
+    marrays = None
     if mpiutil.rank0:
         marrays = [np.zeros((len(mlist),) + shape, dtype=dtype) for shape in shapes]
 

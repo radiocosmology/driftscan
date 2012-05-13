@@ -50,6 +50,8 @@ class Projector(util.ConfigReader):
             if mpiutil.rank0 and not os.path.exists(os.path.dirname(stem)):
                 os.makedirs(os.path.dirname(stem))
 
+            mpiutil.barrier()
+
             if self.copy_orig:
                 shutil.copy(mfile, stem + 'orig.hdf5')
 
@@ -84,6 +86,8 @@ class Projector(util.ConfigReader):
                     f.create_dataset('/map', data=pmap)
                     f.close()
 
+            mpiutil.barrier()
+
             ## Broadcast set of alms to the world
             alm = mpiutil.world.bcast(alm, root=0)
             mlist = range(self.kltransform.telescope.mmax+1)
@@ -102,6 +106,7 @@ class Projector(util.ConfigReader):
                 almp = kltransform.collect_m_array(mlist, proj_beam, shape, np.complex128)
                 _write_map_from_almarray(almp, stem + "beam.hdf5")
 
+            mpiutil.barrier()
 
             ## Construct EV projection of map
             if self.evec_proj:
@@ -119,9 +124,12 @@ class Projector(util.ConfigReader):
                 shape = (nevals,)
                 evp = kltransform.collect_m_array(mlist, proj_evec, shape, np.complex128)
 
-                f = h5py.File(stem + "ev.hdf5", 'w')
-                f.create_dataset("/evec_proj", data=evp)
-                f.close()
+                if mpiutil.rank0:
+                    f = h5py.File(stem + "ev.hdf5", 'w')
+                    f.create_dataset("/evec_proj", data=evp)
+                    f.close()
+
+            mpiutil.barrier()
 
             ## Iterate over noise cuts and filter out noise.
             for cut in self.thresholds:
@@ -146,7 +154,7 @@ class Projector(util.ConfigReader):
                 almp = kltransform.collect_m_array(mlist, filt_kl, shape, np.complex128)
                 _write_map_from_almarray(almp, stem + ("kl_%g.hdf5" % cut), {'threshold' : cut})
 
-
+                mpiutil.barrier()
 
 
 

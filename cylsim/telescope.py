@@ -4,6 +4,7 @@ import numpy as np
 
 from cosmoutils import hputil, units
 import visibility
+import util
 
 
 
@@ -64,7 +65,7 @@ def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
 
 
 
-class TransitTelescope(object):
+class TransitTelescope(util.ConfigReader):
     """Base class for simulating any transit interferometer.
     
     This is an abstract class, and several methods must be implemented before it
@@ -102,16 +103,29 @@ class TransitTelescope(object):
     
     freq_lower = 400.0
     freq_upper = 800.0
-
     num_freq = 50
+
+
+    tsys_flat = 50.0 # Kelvin
+    ndays = 733 # ~2 years in sidereal days
+
+
+    accuracy_boost = 1
+    l_boost = 1.0
+    positive_m_only = False
+
 
     _progress = lambda x: x
 
-    accuracy_boost = 1
-
-    l_boost = 1.0
-
-    positive_m_only = False
+    __config_table_ =   {   'freq_lower'    : [float,   'freq_lower'], 
+                            'freq_upper'    : [float,   'freq_upper'],
+                            'num_freq'      : [int,     'num_freq'],
+                            'tsys'          : [float,   'tsys_flat'],
+                            'ndays'         : [int,     'ndays'],
+                            'accuracy'      : [float,   'accuracy_boost'],
+                            'l_boost'       : [float,   'l_boost'],
+                            'positive_m_only' : [bool,  'positive_m_only']
+                        }
 
 
     def __init__(self, latitude=45, longitude=0):
@@ -127,6 +141,9 @@ class TransitTelescope(object):
                                 np.remainder(np.radians(longitude), 2*np.pi)])
 
         self._init_trans(2)
+
+        self.add_config(self.__config_table_)
+
 
     def __getstate__(self):
 
@@ -400,8 +417,6 @@ class TransitTelescope(object):
 
     #======== Noise properties of the telescope ========
 
-    tsys_flat = 50.0 # Kelvin
-    ndays = 732.5 # 2 years in sidereal days
     
     def tsys(self, f_indices = None):
         """The system temperature.
@@ -559,7 +574,6 @@ class TransitTelescope(object):
     #===================================================
     #============== END ABSTRACT METHODS ===============
     #===================================================
-    
 
 
 
@@ -660,35 +674,90 @@ class PolarisedTelescope(TransitTelescope):
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
     
-    Properties
-    ----------
-    feedx, feedy : np.ndarray
-        Two element vectors giving the orientation of the x, y polarisations in
-        the UV plane. The directions are assumed to be the same over all feeds.
+    Abstract Methods
+    ----------------
+    beamx, beamy : methods
+        Routines giving the field pattern for the x and y feeds.
     """
     __metaclass__ = abc.ABCMeta
     
-    feedx = np.array([1.0, 0.0])
-    feedy = np.array([0.0, 1.0])
-
     _npol_tel_ = 3
     _npol_sky_ = 3
 
-    
-    def _init_trans(self, nside):
-        ## Override _init_trans to generate the polarisation projections.
+
+    @abc.abstractmethod
+    def beamx(self, feed, freq):
+        """Beam for the x polarisation feed.
         
-        TransitTelescope._init_trans(self, nside)
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
 
-        # Polarisation projections of feed pairs
-        self._pIQUxx = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedx)
-        self._pIQUxy = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedy)
-        self._pIQUyy = visibility.pol_IQU(self._angpos, self.zenith, self.feedy, self.feedy)
+        Returns
+        -------
+        beam : np.ndarray
+            Healpix maps (of size [self._nside, 2]) of the field pattern in the
+            theta and phi directions.         
+        """
 
-        # Multiplied pairs
-        self._mIQUxx = self._horizon * self._pIQUxx
-        self._mIQUxy = self._horizon * self._pIQUxy
-        self._mIQUyy = self._horizon * self._pIQUyy
+    @abc.abstractmethod
+    def beamy(self, feed, freq):
+        """Beam for the x polarisation feed.
+        
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
+
+        Returns
+        -------
+        beam : np.ndarray
+            Healpix maps (of size [self._nside, 2]) of the field pattern in the
+            theta and phi directions.         
+        """
+    
+
+
+    def _beam_map_single(self, bl_index, f_index):
+
+        pIQU = [0.5 * np.array([[1.0, 0.0], [0.0, 1.0]]),
+                0.5 * np.array([[1.0, 0.0], [0.0, -1.0]]),
+                0.5 * np.array([[0.0, 1.0], [1.0, 0.0]]) ]
+
+        # Get beam maps for each feed.
+        feedi, feedj = self.feedpairs[bl_index]
+        beamix, beamiy = self.beamx(feedi, f_index), self.beamy(feedi, f_index)
+        beamjx, beamjy = self.beamx(feedj, f_index), self.beamy(feedj, f_index)
+        
+        # Get baseline separation and fringe map.
+        uv = self.baselines[bl_index] / self.wavelengths[f_index]
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        powIQU_xx = [ np.sum(beamix * np.dot(beamjx, polproj), axis=1) * self._horizon for polproj in pIQU]
+        powIQU_xy = [ np.sum(beamix * np.dot(beamjy, polproj), axis=1) * self._horizon for polproj in pIQU]
+        powIQU_yy = [ np.sum(beamiy * np.dot(beamjy, polproj), axis=1) * self._horizon for polproj in pIQU]
+        
+        pxarea = (4*np.pi / beamix.shape[0])
+
+        om_ix = np.sum(np.abs(beamix)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_iy = np.sum(np.abs(beamiy)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_jx = np.sum(np.abs(beamjx)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_jy = np.sum(np.abs(beamjy)**2 * self._horizon[:, np.newaxis]) * pxarea
+
+        omega_A_xx = (om_ix * om_jx)**0.5
+        omega_A_xy = (om_ix * om_jy)**0.5
+        omega_A_yy = (om_iy * om_jy)**0.5
+        
+        cvIQUxx = [ p * (2 * fringe / omega_A_xx) for p in powIQU_xx ]
+        cvIQUxy = [ p * (2 * fringe / omega_A_xy) for p in powIQU_xy ]
+        cvIQUyy = [ p * (2 * fringe / omega_A_yy) for p in powIQU_yy ]
+
+        return cvIQUxx, cvIQUxy, cvIQUyy
 
 
     #===== Implementations of abstract functions =======
@@ -698,32 +767,12 @@ class PolarisedTelescope(TransitTelescope):
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))
 
-        # Get beam maps for each feed.
-        feedi, feedj = self.feedpairs[bl_index]
-        beamix, beamjx = self.beamx(feedi, f_index), self.beamx(feedj, f_index)
-        beamiy, beamjy = self.beamy(feedi, f_index), self.beamy(feedj, f_index)
+        bmaps = self._beam_map_single(bl_index, f_index)
 
-        # Get baseline separation and fringe map.
-        uv = self.baselines[bl_index] / self.wavelengths[f_index]
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+        btrans = [hputil.sphtrans_complex_pol(bmap, centered = False,
+                                              lmax = int(lmax), lside=lside).conj() for bmap in bmaps]
 
-        omega_A_xx = (np.abs(beamix) * np.abs(beamjx) * self._horizon).sum() * (4*np.pi / beamix.size)
-        omega_A_xy = (np.abs(beamix) * np.abs(beamjy) * self._horizon).sum() * (4*np.pi / beamix.size)
-        omega_A_yy = np.abs((beamiy) * np.abs(beamjy) * self._horizon).sum() * (4*np.pi / beamiy.size)
-
-        cvIQUxx = self._mIQUxx * fringe * beamix * beamjx / omega_A_xx
-        cvIQUxy = self._mIQUxy * fringe * beamix * beamjy / omega_A_xy
-        cvIQUyy = self._mIQUyy * fringe * beamiy * beamjy / omega_A_yy
-
-        ### If beams ever become complex need to do yx combination.
-        btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,
-                                               lmax = int(lmax), lside=lside).conj()
-        btransxy = hputil.sphtrans_complex_pol(cvIQUxy, centered = False,
-                                               lmax = int(lmax), lside=lside).conj()
-        btransyy = hputil.sphtrans_complex_pol(cvIQUyy, centered = False,
-                                               lmax = int(lmax), lside=lside).conj()
-
-        return [btransxx, btransxy, btransyy]
+        return btrans
 
 
     #===================================================

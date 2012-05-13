@@ -39,6 +39,16 @@ class DoubleKL(kltransform.KLTransform):
     """
 
     foreground_threshold = 100.0
+
+    __config_table_ =   {   'foreground_threshold'  :   [ float,    'foreground_threshold'] }
+
+    def __init__(self, *args, **kwargs):
+
+        super(DoubleKL, self).__init__(*args, **kwargs)
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
+
     
     def _transform_m(self, mi):
 

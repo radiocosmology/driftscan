@@ -108,7 +108,7 @@ def inv_gen(A):
 
 
 
-class KLTransform(object):
+class KLTransform(util.ConfigReader):
     """Perform KL transform.
 
     Attributes
@@ -119,10 +119,15 @@ class KLTransform(object):
         S/N threshold to cut modes at.
     inverse : boolean
         If True construct and cache inverse transformation.
+    use_thermal, use_foregrounds : boolean
+        Whether to use instrumental noise/foregrounds (default: both True)
+    _foreground_regulariser : scalar
+        The regularisation constant for the foregrounds. Adds in a diagonal of
+        size reg * cf.max(). Default is 2e-15
     """
 
     subset = True
-    threshold = 1.0
+    threshold = 0.1
 
     inverse = False
     
@@ -137,6 +142,14 @@ class KLTransform(object):
     use_foregrounds = True
 
 
+    __config_table_ =   {   'subset'            : [bool,    'subset'],
+                            'threshold'         : [float,   'threshold'],
+                            'inverse'           : [bool,    'inverse'],
+                            'use_thermal'       : [bool,    'use_thermal'],
+                            'use_foregrounds'   : [bool,    'use_foregrounds'],
+                            'regulariser'       : [float,   '_foreground_regulariser']
+                        }
+
     @property
     def _evfile(self):
         # Pattern to form the `m` ordered file.
@@ -148,7 +161,7 @@ class KLTransform(object):
         self.telescope = self.beamtransfer.telescope
 
         subdir = "ev" if subdir is None else subdir
-                
+
         # Create directory if required
         self.evdir = self.beamtransfer.directory + "/" + subdir
         if mpiutil.rank0 and not os.path.exists(self.evdir):
@@ -156,6 +169,10 @@ class KLTransform(object):
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
+
 
 
     def foreground(self):

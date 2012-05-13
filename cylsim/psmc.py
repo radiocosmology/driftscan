@@ -65,6 +65,19 @@ class PSMonteCarlo(psestimation.PSEstimation):
     nsamples = 100
     nswitch = 200
 
+    __config_table_ =   {   'nsamples'  : [ int,    'nsamples'],
+                            'nswitch'   : [ int,    'nswitch']
+                        }
+
+
+    def __init__(self, *args, **kwargs):
+
+        super(PSMonteCarlo, self).__init__(*args, **kwargs)
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
+
+
     def genbands(self):
         """Override genbands to make it generate the transformation matrices for
         drawing random samples.

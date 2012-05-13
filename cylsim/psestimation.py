@@ -22,18 +22,36 @@ def uniform_band(k, kstart, kend):
     return np.where(np.logical_and(k > kstart, k < kend), np.ones_like(k), np.zeros_like(k))
 
 
+def range_config(lst):
 
-class PSEstimation(object):
+    lst2 = []
 
-    kltrans = None
-    telescope = None
+    for item in lst:
+        if isinstance(item, dict):
+            
+            if item['spacing'] == 'log':
+                item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num'], endpoint=False)
+            elif item['spacing'] == 'linear':
+                item = np.linspace(item['start'], item['stop'], item['num'], endpoint=False)
+
+        item = np.atleast_1d(item)
+
+        lst2.append(item)
+
+    return np.concatenate(lst2)
+
+
+class PSEstimation(util.ConfigReader):
+
+
 
     bands = np.concatenate((np.linspace(0.0, 0.25, 25, endpoint=False),     np.logspace(np.log10(0.25), np.log10(3.0), 16)))
+    threshold = 0.0
 
 
-
-    threshold = None
-
+    __config_table_ =   {   'bands'     : [range_config,    'bands'],
+                            'threshold' : [float,           'threshold']
+                        }
 
     @property
     def _cfile(self):
@@ -52,6 +70,9 @@ class PSEstimation(object):
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
         
 
     def genbands(self):

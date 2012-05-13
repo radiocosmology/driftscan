@@ -226,7 +226,7 @@ class BeamTransfer(object):
 
 
 
-    def generate_cache(self, regen=False):
+    def generate(self, regen=False):
         """Save out all beam transfer matrices to disk.
 
         Parameters
@@ -320,6 +320,7 @@ class BeamTransfer(object):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
+    generate_cache = generate # For compatibility with old code
         
 
     def project_vector_forward(self, mi, vec):

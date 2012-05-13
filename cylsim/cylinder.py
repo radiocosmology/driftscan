@@ -41,6 +41,24 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     non_commensurate = False
 
+
+    __config_table_ = { 'num_cylinders' : [int, 'num_cylinders'],
+                        'num_feeds'     : [int, 'num_feeds'],
+                        'cylinder_width': [float,'cylinder_width'],
+                        'feed_spacing'  : [float, 'feed_spacing'],
+                        'in_cylinder'   : [bool, 'in_cylinder'],
+                        'touching'      : [bool, 'touching'],
+                        'cylspacing'    : [float, 'cylspacing'],
+                        'non_commensurate' : [bool, 'non_commensurate'],
+                        }
+
+
+    def __init__(self, *args, **kwargs):
+        super(CylinderTelescope, self).__init__(*args, **kwargs)
+
+        self.add_config(self.__config_table_)
+
+
     ## u-width property override
     @property
     def u_width(self):
@@ -194,11 +212,19 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTeles
 
 
 
-
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
-    pass
+    
+    def beamx(self, feed, freq):
+        bm = np.zeros_like(self._angpos)
+        bm[:, 0] = self.beam(feed, freq)
+        return bm
+
+    def beamy(self, feed, freq):
+        bm = np.zeros_like(self._angpos)
+        bm[:, 1] = self.beam(feed, freq)
+        return bm
 
 
 

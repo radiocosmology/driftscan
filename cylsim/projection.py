@@ -1,3 +1,5 @@
+import os.path
+import shutil
 
 import numpy as np
 import h5py
@@ -6,20 +8,28 @@ import healpy
 from cosmoutils import hputil
 
 from cylsim import kltransform
-from cylsim import mpiutil
+from cylsim import mpiutil, util
 
 
-class Projector(object):
+class Projector(util.ConfigReader):
 
-    mapfiles = []
+    maps = []
     thresholds = None
-
-    stems = []
-
+    
     evec_proj = True
     beam_proj = True
 
-    nside_out = 256
+    copy_orig = False
+
+    nside = 256
+
+    __config_table_ =   {   'maps'      : [list,  'maps'],
+                            'thresholds': [lambda x: [float(item) for item in list(x)], 'thresholds'],
+                            'evec_proj' : [bool,    'evec_proj'],
+                            'beam_proj' : [bool,    'beam_proj'],
+                            'copy_orig' : [bool,    'copy_orig'],
+                            'nside'     : [int,     'nside']
+                        }
 
     def __init__(self, klt):
 
@@ -27,12 +37,21 @@ class Projector(object):
         self.beamtransfer = klt.beamtransfer
         self.telescope = klt.beamtransfer.telescope
 
+        self.add_config(self.__config_table_)
+
 
     def generate(self):
 
-        for ind, mfile in enumerate(self.mapfiles):
+        for mentry in self.maps:
 
-            stem = self.stems[ind]
+            mfile = mentry['file']
+            stem = mentry['stem']
+
+            if mpiutil.rank0 and not os.path.exists(os.path.dirname(stem)):
+                os.makedirs(os.path.dirname(stem))
+
+            if self.copy_orig:
+                shutil.copy(mfile, stem + 'orig.hdf5')
 
             print "============\nProjecting file %s\n============\n" % mfile
 
@@ -56,7 +75,7 @@ class Projector(object):
                     almf = np.zeros((almp.shape[0], almp.shape[1], almp.shape[1]), dtype=np.complex128)
                     almf[:, :, :almp.shape[2]] = almp
 
-                    pmap = hputil.sphtrans_inv_sky(almf, self.nside_out)
+                    pmap = hputil.sphtrans_inv_sky(almf, self.nside)
 
                     f = h5py.File(filename, 'w')
                     if attrs is not None:
@@ -81,7 +100,7 @@ class Projector(object):
 
                 shape = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1)
                 almp = kltransform.collect_m_array(mlist, proj_beam, shape, np.complex128)
-                _write_map_from_almarray(almp, stem + "_beam.hdf5")
+                _write_map_from_almarray(almp, stem + "beam.hdf5")
 
 
             ## Construct EV projection of map
@@ -100,7 +119,7 @@ class Projector(object):
                 shape = (nevals,)
                 evp = kltransform.collect_m_array(mlist, proj_evec, shape, np.complex128)
 
-                f = h5py.File(stem + "_ev.hdf5", 'w')
+                f = h5py.File(stem + "ev.hdf5", 'w')
                 f.create_dataset("/evec_proj", data=evp)
                 f.close()
 
@@ -125,7 +144,7 @@ class Projector(object):
 
                 shape = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1)
                 almp = kltransform.collect_m_array(mlist, filt_kl, shape, np.complex128)
-                _write_map_from_almarray(almp, stem + ("_kl_%f.hdf5" % cut), {'threshold' : cut})
+                _write_map_from_almarray(almp, stem + ("kl_%g.hdf5" % cut), {'threshold' : cut})
 
 
 

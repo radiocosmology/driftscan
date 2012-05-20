@@ -5,6 +5,7 @@ from cosmoutils import units
 
 _cr = None
 
+_reionisation = False
 
 
 
@@ -49,6 +50,9 @@ def im21cm_model(lmax, frequencies, npol, cr = None):
     cv_sg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))
 
     cv_sg[0, 0] = skysim.clarray(cr.angular_powerspectrum, lmax, frequencies)
+
+    if _reionisation:
+        cv_sg[0, 0] = 1e5 * cv_sg[0, 0]
 
     return cv_sg
 

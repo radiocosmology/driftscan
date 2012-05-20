@@ -247,12 +247,11 @@ class BeamTransfer(object):
                 print ('f index %i. Creating file: %s' %
                        (fi, (self._ffile % fi)))
 
-            f = h5py.File(self._ffile % fi, 'w')
-            f.create_group('m_section')
-
             # Calculate transfer matrices for each frequency
             btrans = self.telescope.transfer_for_frequency(fi)
-
+            
+            f = h5py.File(self._ffile % fi, 'w')
+            f.create_group('m_section')
             # Set a few useful attributes.
             f.attrs['baselines'] = self.telescope.baselines
             f.attrs['baseline_indices'] = np.arange(self.telescope.nbase)

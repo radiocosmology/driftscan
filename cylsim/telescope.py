@@ -1,4 +1,5 @@
 import abc
+import pdb
 
 import numpy as np
 
@@ -96,6 +97,8 @@ class TransitTelescope(util.ConfigReader):
         much less sensitive to negative-m (depending on the hemisphere, and
         baseline alignment). This does not affect the beams calculated, only
         how they're used in further calculation. Default: False
+    minlength, maxlength : scalar
+        Minimum and maximum baseline lengths to include (in metres).
 
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
@@ -109,22 +112,28 @@ class TransitTelescope(util.ConfigReader):
     tsys_flat = 50.0 # Kelvin
     ndays = 733 # ~2 years in sidereal days
 
-
     accuracy_boost = 1
     l_boost = 1.0
     positive_m_only = False
 
+    minlength = 0.0
+    maxlength = 1000000.0
 
     _progress = lambda x: x
 
     __config_table_ =   {   'freq_lower'    : [float,   'freq_lower'], 
                             'freq_upper'    : [float,   'freq_upper'],
                             'num_freq'      : [int,     'num_freq'],
+
                             'tsys'          : [float,   'tsys_flat'],
                             'ndays'         : [int,     'ndays'],
+
                             'accuracy'      : [float,   'accuracy_boost'],
                             'l_boost'       : [float,   'l_boost'],
-                            'positive_m_only' : [bool,  'positive_m_only']
+
+                            'positive_m_only' : [bool,  'positive_m_only'],
+                            'minlength'     : [float,   'minlength'],
+                            'maxlength'     : [float,   'maxlength']
                         }
 
 
@@ -284,6 +293,8 @@ class TransitTelescope(util.ConfigReader):
     
 
     #== Methods for calculating the unique baselines ===
+
+
     
     def calculate_baselines(self):
         """Calculate all the unique baselines and their redundancies, and set
@@ -300,6 +311,62 @@ class TransitTelescope(util.ConfigReader):
                                                       # Should this be the negative?
 
         self._feedpairs = upairs.T
+
+
+
+    def _get_unique(self, feedpairs):
+        """Calculate the unique baseline pairs.
+        
+        All feeds are assumed to be identical. Baselines are identified if
+        they have the same length, and are selected such that they point East
+        (to ensure that the sensitivity ends up in positive-m modes).
+
+        It is also possible to select only baselines within a particular
+        length range by setting the `minlength` and `maxlength` properties.
+
+        Parameters
+        ----------
+        fpairs : np.ndarray
+            An array of all the feed pairs, packed as [[i1, i2, ...], [j1, j2, ...] ].
+
+        Returns
+        -------
+        baselines : np.ndarray
+            An array of all the unique pairs. Packed as [ [i1, i2, ...], [j1, j2, ...]].
+        redundancy : np.ndarray
+            For each unique pair, give the number of equivalent pairs.
+        """
+        # Calculate separation of all pairs, and map into a half plane (so
+        # baselines and their negative are identical).
+        bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
+        bl1 = map_half_plane(bl1)
+
+        # Turn separation into a complex number and find unique elements
+        ub, ind, inv = np.unique(bl1[..., 0] + 1.0J * bl1[..., 1], return_index=True, return_inverse=True)
+
+        # Bin to find redundancy of each pair
+        redundancy = np.bincount(inv)
+
+        # Construct array of pairs
+        upairs = feedpairs[:,ind]
+
+        # Trim baselines pairs that are too short or too long.        
+        bl1 = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
+        blength = np.hypot(bl1[:,0], bl1[:,1])
+        mask = np.where(np.logical_and(blength >= self.minlength, blength < self.maxlength))
+        upairs, redundancy = upairs[:,mask][:, 0, ...], redundancy[mask]
+
+        # Reorder the pairs to ensure that the separation vector always points East.
+        # Ensures that the dominant sensitivity is in the positive-m modes.
+        for i in range(upairs.shape[1]):
+            ewsep = self.feedpositions[upairs[0, i], 0] - self.feedpositions[upairs[1, i], 0]
+
+            if ewsep < 0.0:
+                upairs[1, i], upairs[0, i] = upairs[0, i], upairs[1, i]
+
+
+        return upairs, redundancy
+
 
     #===================================================
 
@@ -352,10 +419,9 @@ class TransitTelescope(util.ConfigReader):
 
         # Generate the array for the Transfer functions
 
-        tarray = np.zeros(bl_indices.shape + (self.num_pol_telescope, self.num_pol_sky, lside+1, 2*lside+1),
-                          dtype=np.complex128)
-
-        print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
+        tshape = bl_indices.shape + (self.num_pol_telescope, self.num_pol_sky, lside+1, 2*lside+1)
+        print "Size: %i elements. Memory %f GB." % (np.prod(tshape), 2*np.prod(tshape) * 8.0 / 2**30)
+        tarray = np.zeros(tshape, dtype=np.complex128)
 
         # Sort the baselines by ascending lmax and iterate through in that
         # order, calculating the transfer matrices
@@ -520,27 +586,6 @@ class TransitTelescope(util.ConfigReader):
         return
 
 
-    # Implement to determine which baselines are unique
-    @abc.abstractmethod
-    def _get_unique(self, fpairs):
-        """Calculate the unique baseline pairs.
-
-        **Abstract method** must be implemented.
-        
-        Parameters
-        ----------
-        fpairs : np.ndarray
-            An array of all the feed pairs, packed as [[i1, i2, ...], [j1, j2, ...] ].
-
-        Returns
-        -------
-        baselines : np.ndarray
-            An array of all the unique pairs. Packed as [ [i1, i2, ...], [j1, j2, ...]].
-        redundancy : np.ndarray
-            For each unique pair, give the number of equivalent pairs.
-        """
-        return
-
 
     # The work method which does the bulk of calculating all the transfer matrices.
     @abc.abstractmethod
@@ -612,11 +657,8 @@ class UnpolarisedTelescope(TransitTelescope):
 
     #===== Implementations of abstract functions =======
 
-    def _transfer_single(self, bl_index, f_index, lmax, lside):
+    def _beam_map_single(self, bl_index, f_index):
         
-        if self._nside != hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost):
-            self._init_trans(hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost))
-
         # Get beam maps for each feed.
         feedi, feedj = self.feedpairs[bl_index]
         beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
@@ -630,6 +672,16 @@ class UnpolarisedTelescope(TransitTelescope):
 
         # Calculate the complex visibility
         cvis = self._horizon * fringe * beami * beamj / omega_A
+
+        return cvis
+
+
+    def _transfer_single(self, bl_index, f_index, lmax, lside):
+        
+        if self._nside != hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost):
+            self._init_trans(hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost))
+
+        cvis = self._beam_map_single(bl_index, f_index)
 
         # Perform the harmonic transform to get the transfer matrix (conj is correct - see paper)
         btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside).conj()

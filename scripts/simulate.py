@@ -6,11 +6,12 @@ import yaml
 
 from cylsim import mpiutil
 
-from cylsim import cylinder
+from cylsim import cylinder, gmrt
 from cylsim import beamtransfer
 
 from cylsim import kltransform, doublekl
 from cylsim import psestimation, psmc
+from cylsim import skymodel
 
 from cylsim import projection
 
@@ -44,7 +45,8 @@ if 'telescope' not in yconf:
 teltype = yconf['telescope']['type']
 
 teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelescope,
-                    'PolarisedCylinder'     : cylinder.PolarisedCylinderTelescope
+                    'PolarisedCylinder'     : cylinder.PolarisedCylinderTelescope,
+                    'GMRT'                  : gmrt.GmrtUnpolarised
                 }
 
 if teltype not in teltype_dict:
@@ -53,7 +55,9 @@ if teltype not in teltype_dict:
 telescope = teltype_dict[teltype].from_config(yconf['telescope'])
 
 
-
+if 'reionisation' in yconf['config']:
+    if yconf['config']['reionisation']:
+        skymodel._reionisation = True
 
 ## Beam transfer generation
 if yconf['config']['beamtransfers']:

@@ -88,23 +88,13 @@ class CylinderTelescope(telescope.TransitTelescope):
         redundancy : np.ndarray
             For each unique pair, give the number of equivalent pairs.
         """
-        # Calculate separation of all pairs, and map into a half plane (so
-        # baselines and their negative are identical).
-        bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
-        bl1 = telescope.map_half_plane(bl1)
+        
+        upairs, redundancy = super(CylinderTelescope, self)._get_unique(feedpairs)
 
-        # Turn separation into a complex number and find unique elements
-        ub, ind, inv = np.unique(np.around(bl1[..., 0] + 1.0J * bl1[..., 1], 5),
-                                 return_index=True, return_inverse=True)
-
-        # Bin to find redundancy of each pair
-        redundancy = np.bincount(inv)
-
-        # Construct array of pairs
-        upairs = feedpairs[:,ind]
+        bl1 = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
 
         if not self.in_cylinder:
-            mask = np.where(bl1[ind, 0] != 0.0)
+            mask = np.where(bl1[:, 0] != 0.0)
             upairs = upairs[:, mask][:, 0, ...]
             redundancy = redundancy[mask]
         
@@ -229,24 +219,6 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
 
 
 class CylBT(UnpolarisedCylinderTelescope):
-    """A cylinder class which ignores large baseline correlations.
-    
-    Attributes
-    ----------
-    maxlength : scalar
-        Maximum baseline length to include (in metres).
-    """
-    minlength = 0.0
-    maxlength = 20.0
+    """A cylinder class which ignores large baseline correlations."""
 
-    def _get_unique(self, feedpairs):
-
-        upairs, redundancy = UnpolarisedCylinderTelescope._get_unique(self, feedpairs)
-
-        bl1 = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
-
-        blength = np.hypot(bl1[:,0], bl1[:,1])
-
-        mask = np.where(np.logical_and(blength >= self.minlength, blength < self.maxlength))
-
-        return upairs[:,mask][:, 0, ...], redundancy[mask]
+    pass

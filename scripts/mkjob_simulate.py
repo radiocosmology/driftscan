@@ -33,7 +33,13 @@ pbsdir = os.path.normpath(outdir + '/pbs/')
 if not os.path.exists(pbsdir):
     os.makedirs(pbsdir)
 
-shutil.copy(args.configfile.name, pbsdir + '/config.yaml')
+# Copy config file into output directory (check it's not already there first)
+sfile = os.path.realpath(os.path.abspath(args.configfile.name))
+dfile = os.path.realpath(os.path.abspath(pbsdir + '/config.yaml'))
+
+if sfile != dfile:
+    shutil.copy(sfile, dfile)
+
 
 conf['mpiproc'] = conf['nodes'] * conf['pernode']
 conf['pbsdir'] = pbsdir
@@ -62,3 +68,4 @@ with open(scriptname, 'w') as f:
     f.write(script)
 
 os.system('cd %s; qsub jobscript.sh' % pbsdir)
+

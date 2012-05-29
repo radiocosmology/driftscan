@@ -62,7 +62,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         The number of samples to draw from each band.
     """
     
-    nsamples = 100
+    nsamples = 200
     nswitch = 200
 
     __config_table_ =   {   'nsamples'  : [ int,    'nsamples'],

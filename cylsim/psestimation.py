@@ -64,7 +64,7 @@ class PSEstimation(util.ConfigReader):
 
         self.kltrans = kltrans
         self.telescope = kltrans.telescope
-        self.psdir = self.kltrans.evdir + '/' + ("ps/" if subdir is None else subdir)
+        self.psdir = self.kltrans.evdir + '/' + ("ps" if subdir is None else subdir) + '/'
         
         if mpiutil.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)

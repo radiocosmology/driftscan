@@ -45,7 +45,8 @@ class PSEstimation(util.ConfigReader):
 
 
 
-    bands = np.concatenate((np.linspace(0.0, 0.25, 25, endpoint=False),     np.logspace(np.log10(0.25), np.log10(3.0), 16)))
+    bands = np.concatenate((np.linspace(0.0, 0.13, 13, endpoint=False),
+                            0.13*np.exp(np.arange(29)*np.log(1+1/13.0))))
     threshold = 0.0
 
 

@@ -65,8 +65,8 @@ if 'reionisation' in yconf['config']:
         skymodel._reionisation = True
 
 ## Beam transfer generation
+bt = beamtransfer.BeamTransfer(outdir + '/bt/', telescope=telescope)
 if yconf['config']['beamtransfers']:
-    bt = beamtransfer.BeamTransfer(outdir + '/bt/', telescope=telescope)
     bt.generate()
 
 
@@ -78,9 +78,8 @@ kltype_dict =   {   'KLTransform'   : kltransform.KLTransform,
                 }
 klobj_dict  = {}
 
-if yconf['config']['kltransform']:
-    if 'kltransform' not in yconf:
-        raise Exception('Require a kltransform section if config: kltransform is Yes.')
+
+if 'kltransform' in yconf:
 
     for klentry in yconf['kltransform']:
         kltype = klentry['type']
@@ -92,7 +91,8 @@ if yconf['config']['kltransform']:
         kl = kltype_dict[kltype].from_config(klentry, bt, subdir=klname)
         klobj_dict[klname] = kl
 
-        kl.generate()
+        if yconf['config']['kltransform']:
+            kl.generate()
 
 
 

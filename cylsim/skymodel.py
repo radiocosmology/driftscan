@@ -43,7 +43,7 @@ class PointSources(foregroundsck.PointSources):
     l_0 = 100.0
 
 
-def foreground_model(lmax, frequencies, npol):
+def foreground_model(lmax, frequencies, npol, polfrac=0.5):
 
     fsyn = galaxy.FullSkySynchrotron()
     fps = PointSources()
@@ -55,8 +55,8 @@ def foreground_model(lmax, frequencies, npol):
     cv_fg[0, 0] = skysim.clarray(fsyn.angular_powerspectrum, lmax, frequencies)
 
     if npol >= 3:
-        cv_fg[1, 1] = 0.3**2 * cv_fg[0, 0]
-        cv_fg[2, 2] = 0.3**2 * cv_fg[0, 0]
+        cv_fg[1, 1] = polfrac**2 * cv_fg[0, 0]
+        cv_fg[2, 2] = polfrac**2 * cv_fg[0, 0]
 
     cv_fg[0, 0] += clarray(fps.angular_powerspectrum, lmax, frequencies)
     return cv_fg

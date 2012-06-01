@@ -142,6 +142,7 @@ class KLTransform(util.ConfigReader):
 
     use_thermal = True
     use_foregrounds = True
+    use_polarised = True
 
 
     __config_table_ =   {   'subset'            : [bool,    'subset'],
@@ -149,6 +150,7 @@ class KLTransform(util.ConfigReader):
                             'inverse'           : [bool,    'inverse'],
                             'use_thermal'       : [bool,    'use_thermal'],
                             'use_foregrounds'   : [bool,    'use_foregrounds'],
+                            'use_polarised'     : [bool,    'use_polarised'],
                             'regulariser'       : [float,   '_foreground_regulariser']
                         }
 
@@ -192,11 +194,17 @@ class KLTransform(util.ConfigReader):
             if npol != 1 and npol != 3:
                 raise Exception("Can only handle unpolarised only (num_pol_sky \
                                  = 1), or I, Q and U (num_pol_sky = 3).")
-            
-            self._cvfg = skymodel.foreground_model(self.telescope.lmax,
-                                                   self.telescope.frequencies,
-                                                   npol)
 
+            # If not polarised then zero out the polarised components of the array
+            if self.use_polarised:
+                self._cvfg = skymodel.foreground_model(self.telescope.lmax,
+                                                       self.telescope.frequencies,
+                                                       npol)
+            else:
+                self._cvfg = skymodel.foreground_model(self.telescope.lmax,
+                                                       self.telescope.frequencies,
+                                                       npol, polfrac=0.0)
+                
         return self._cvfg
 
 

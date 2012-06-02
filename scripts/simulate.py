@@ -141,7 +141,7 @@ if yconf['config']['projections']:
             if 'stem' not in mentry:
                 raise Exception('No stem in mapentry %s' % mentry['file'])
 
-            mentry['stem'] = outdir + '/projections/' + mentry['stem'] + '/'
+            mentry['stem'] = outdir + '/projections/' + klname + '/' + mentry['stem'] + '/'
         
         if klname not in klobj_dict:
             raise Exception('Desired KL object does not exist.')

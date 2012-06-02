@@ -1,8 +1,12 @@
 
 import numpy as np
 
+from cosmoutils import coord
+
 import telescope
 import visibility
+
+import util
 
 
 
@@ -162,9 +166,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 
 
     
-    _bc_freq = None
-    _bc_nside = None
-
+    @util.cache_last
     def beam(self, feed, freq):
         """Beam for a particular feed.
         
@@ -182,14 +184,8 @@ class CylinderTelescope(telescope.TransitTelescope):
             complex.
         """
 
-        if self._bc_freq != freq or self._bc_nside != self._nside:
-            self._bc_map = visibility.cylinder_beam(self._angpos, self.zenith,
-                                                    self.cylinder_width / self.wavelengths[freq])
-
-            self._bc_freq = freq
-            self._bc_nside = self._nside
-
-        return self._bc_map
+        return visibility.cylinder_beam(self._angpos, self.zenith,
+                                        self.cylinder_width / self.wavelengths[freq])
             
     beamx = beam
     beamy = beam
@@ -206,16 +202,56 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
     """A complete class for an Unpolarised Cylinder telescope.
     """
     
+    # Change the illuminated width in X and Y
+    illumination_x = 1.0
+    illumination_y = 1.0
+
+    ortho_pol = True
+
+    __config_table_ = { 'illumination_x' : [float, 'illumination_x'],
+                        'illumination_y' : [float, 'illumination_y'],
+                        'ortho_pol'      : [bool,  'ortho_pol'] }
+                        
+    def __init__(self, *args, **kwargs):
+        super(PolarisedCylinderTelescope, self).__init__(*args, **kwargs)
+
+        self.add_config(self.__config_table_)
+
+    @util.cache_last
     def beamx(self, feed, freq):
+        
+        bpat = visibility.cylinder_beam(self._angpos, self.zenith,
+                                        self.illumination_x * self.cylinder_width / self.wavelengths[freq])
+
         bm = np.zeros_like(self._angpos)
-        bm[:, 0] = self.beam(feed, freq)
+        if self.ortho_pol:
+            bm[:, 1] = bpat
+        else:
+            thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
+            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            bm[:, 0] = np.dot(thatp, phatz) * bpat
+            bm[:, 1] = np.dot(phatp, phatz) * bpat
+            
         return bm
 
+    @util.cache_last
     def beamy(self, feed, freq):
-        bm = np.zeros_like(self._angpos)
-        bm[:, 1] = self.beam(feed, freq)
-        return bm
 
+        bpat = visibility.cylinder_beam(self._angpos, self.zenith,
+                                        self.illumination_y * self.cylinder_width / self.wavelengths[freq])
+
+        bm = np.zeros_like(self._angpos)
+        if self.ortho_pol:
+            bm[:, 0] = bpat
+        else:
+            thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
+            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            bm[:, 0] = np.dot(thatp, thatz) * bpat
+            bm[:, 1] = np.dot(phatp, thatz) * bpat
+        
+        return bm
+        
+        
 
 
 class CylBT(UnpolarisedCylinderTelescope):

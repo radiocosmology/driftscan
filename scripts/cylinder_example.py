@@ -11,7 +11,7 @@ from cylsim import psmc
 cyl = cylinder.UnpolarisedCylinderTelescope()
 
 # Check to see if there is a SCRATCH directory and use it if possible.
-teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/voltest/')
+teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/fishertest')
 
 # Set the measured frequencies of the telescope
 cyl.num_freq = 10
@@ -27,7 +27,7 @@ cyl.num_feeds = 10
 # Set the thermal noise (T_sys flat across spectrum)
 cyl.tsys_flat = 10.0
 #cyl.tsys_flat = 0.0
-cyl.l_boost = 2.0
+cyl.l_boost = 1.2
 
 cyl.positive_m_only = True
 #cyl.in_cylinder = False
@@ -39,8 +39,8 @@ bt.generate_cache()
 # Perform the KL transform (saving all modes)
 klt = kltransform.KLTransform(bt)
 klt.subset = False
-klt.inverse = True
-klt.use_foregrounds = False
+klt.inverse = False
+klt.use_foregrounds = True
 klt.generate()
 
 # Performing DoubleKL transform

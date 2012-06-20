@@ -64,6 +64,13 @@ def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
 
     return lmax, mmax
 
+def latlon_to_sphpol(latlon):
+
+    zenith = np.array([np.pi / 2.0 - np.radians(latlon[0]),
+                       np.remainder(np.radians(latlon[1]), 2*np.pi)])
+
+    return zenith
+
 
 
 class TransitTelescope(util.ConfigReader):
@@ -121,7 +128,8 @@ class TransitTelescope(util.ConfigReader):
 
     _progress = lambda x: x
 
-    __config_table_ =   {   'freq_lower'    : [float,   'freq_lower'], 
+    __config_table_ =   {   'zenith'        : [latlon_to_sphpol, 'zenith'],
+                            'freq_lower'    : [float,   'freq_lower'], 
                             'freq_upper'    : [float,   'freq_upper'],
                             'num_freq'      : [int,     'num_freq'],
 
@@ -146,8 +154,7 @@ class TransitTelescope(util.ConfigReader):
             Position on the Earths surface of the telescope (in degrees).
         """
 
-        self.zenith = np.array([np.pi / 2.0 - np.radians(latitude),
-                                np.remainder(np.radians(longitude), 2*np.pi)])
+        self.zenith = latlon_to_sphpol([latitude, longitude])
 
         self._init_trans(2)
 

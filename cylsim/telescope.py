@@ -33,7 +33,7 @@ def out_of_range(arr, min, max):
 
 def map_half_plane(arr):
     arr = np.where((arr[:,0] < 0.0)[:,np.newaxis], -arr, arr)
-    arr = np.where(np.logical_and(arr[:,0] == 0.0, arr[:,1] < 1)[:,np.newaxis], -arr, arr)
+    arr = np.where(np.logical_and(arr[:,0] == 0.0, arr[:,1] < 0.0)[:,np.newaxis], -arr, arr)
     
     return arr
 
@@ -343,10 +343,15 @@ class TransitTelescope(util.ConfigReader):
         redundancy : np.ndarray
             For each unique pair, give the number of equivalent pairs.
         """
+        
         # Calculate separation of all pairs, and map into a half plane (so
         # baselines and their negative are identical).
         bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
         bl1 = map_half_plane(bl1)
+
+        # Round all numbers to a precision of 10^{-4}.
+        # Avoid strange issues with roundoff errors making baselines not equivalent.
+        bl1 = np.around(bl1, 4)
 
         # Turn separation into a complex number and find unique elements
         ub, ind, inv = np.unique(bl1[..., 0] + 1.0J * bl1[..., 1], return_index=True, return_inverse=True)

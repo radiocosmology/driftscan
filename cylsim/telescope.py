@@ -156,8 +156,6 @@ class TransitTelescope(util.ConfigReader):
 
         self.zenith = latlon_to_sphpol([latitude, longitude])
 
-        self._init_trans(2)
-
         self.add_config(self.__config_table_)
 
 

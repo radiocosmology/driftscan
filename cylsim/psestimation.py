@@ -49,9 +49,12 @@ class PSEstimation(util.ConfigReader):
                             0.13*np.exp(np.arange(29)*np.log(1+1/13.0))))
     threshold = 0.0
 
+    unit_bands = True
 
-    __config_table_ =   {   'bands'     : [range_config,    'bands'],
-                            'threshold' : [float,           'threshold']
+
+    __config_table_ =   {   'bands'       : [range_config,    'bands'],
+                            'threshold'   : [float,           'threshold'],
+                            'units_bands' : [bool,            'units_bands']
                         }
 
     @property
@@ -80,17 +83,28 @@ class PSEstimation(util.ConfigReader):
 
         print "Generating bands..."
    
-        self.band_pk = [((lambda bs, be: (lambda k: uniform_band(k, bs, be)))(b_start, b_end), b_start, b_end) for b_start, b_end in zip(self.bands[:-1], self.bands[1:])]
+        cr = corr21cm.Corr21cm()
+
+        bandlims = zip(self.bands[:-1], self.bands[1:])
+
+        # Create band functions and set nominal value of band.
+        if self.units_bands:
+            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
+            self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
+
+            self.bpower = np.ones(len(self.band_pk))
+        else:
+            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be) * cr.ps_vv(k))
+            self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
+            
+            self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
 
         if mpiutil.rank0:
             for i, (pk, bs, be) in enumerate(self.band_pk):
                 print "Band %i: %f to %f. Centre: %g" % (i, bs, be, 0.5*(be+bs))
 
         
-        cr = corr21cm.Corr21cm()
-
-        self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
-
+        # Create array of band limits
         self.bstart = self.bands[:-1]
         self.bend = self.bands[1:]
         self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])

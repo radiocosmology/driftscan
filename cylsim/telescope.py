@@ -694,7 +694,7 @@ class UnpolarisedTelescope(TransitTelescope):
         cvis = self._beam_map_single(bl_index, f_index)
 
         # Perform the harmonic transform to get the transfer matrix (conj is correct - see paper)
-        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside).conj()
+        btrans = hputil.sphtrans_complex(cvis.conj(), centered = False, lmax = lmax, lside=lside).conj()
 
         return [ [ btrans ]]
 
@@ -831,7 +831,7 @@ class PolarisedTelescope(TransitTelescope):
 
         bmaps = self._beam_map_single(bl_index, f_index)
 
-        btrans = [ [ pb.conj() for pb in hputil.sphtrans_complex_pol(bmap, centered = False,
+        btrans = [ [ pb.conj() for pb in hputil.sphtrans_complex_pol(bmap.conj(), centered = False,
                                                                      lmax = int(lmax), lside=lside) ] for bmap in bmaps]
 
         return btrans

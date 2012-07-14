@@ -371,7 +371,7 @@ class TransitTelescope(util.ConfigReader):
         for i in range(upairs.shape[1]):
             ewsep = self.feedpositions[upairs[0, i], 0] - self.feedpositions[upairs[1, i], 0]
 
-            if ewsep < 0.0:
+            if ewsep > 0.0:
                 upairs[1, i], upairs[0, i] = upairs[0, i], upairs[1, i]
 
 

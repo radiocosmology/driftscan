@@ -319,7 +319,15 @@ class TransitTelescope(util.ConfigReader):
 
 
 
-    def _get_unique(self, feedpairs):
+    def _remap_feed_array(self, keyarray):
+
+        un, inv = np.unique(keyarray, return_inverse=True)
+        return np.arange(un.size)[inv].reshape(keyarray.shape)
+
+
+
+
+    def _get_unique(self, feedarray):
         """Calculate the unique baseline pairs.
         
         All feeds are assumed to be identical. Baselines are identified if
@@ -344,7 +352,13 @@ class TransitTelescope(util.ConfigReader):
         
         # Calculate separation of all pairs, and map into a half plane (so
         # baselines and their negative are identical).
+
+        
+        f_ind = 
         bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
+
+        bl2 = telescope.map_half_plane(bl1.reshape(-1, 2)).reshape(bl1.shape)
+
         bl1 = map_half_plane(bl1)
 
         # Round all numbers to a precision of 10^{-4}.

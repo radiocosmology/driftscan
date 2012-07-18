@@ -1,0 +1,92 @@
+config:
+    ## Actions to perform
+    beamtransfers:      Yes                     # Calculate beamtransfers?
+    kltransform:        Yes                     # Find KL-modes of telescope?
+    psfisher:           No                      # Estimate power spectrum errors
+    projections:        Yes                     # Project through sky maps
+
+    ## Directory to store output in/
+    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/simulations/"
+
+    ## Cluster configuration (ignored unless on a cluster)
+    name:               kljob1                  # PBS jobname
+    nodes:              20                      # Number of nodes to run on
+    pernode:            1                       # Processes per node
+    time:               8:00:00                 # Time to run for (in HH:MM:SS)
+    ompnum:             8                       # Number of OpenMP threads
+    ppn:                8                       # Processors to require per node
+    queue:              batch                   # If set, submit to an alternative queue (e.g debug)
+
+
+## Configure telescope object
+telescope:
+    # Type of telescope to use
+    type:               UnpolarisedCylinder
+    
+    # Frequency channels
+    num_freq:           5
+    freq_lower:         400.0
+    freq_upper:         450.0
+
+    # Setup cylinder parameters (depends on type)
+    num_cylinders:      2
+    cylinder_width:     3.0
+    num_feeds:          5
+    feed_spacing:       0.5
+
+
+## KL transform configuration
+kltransform:
+    # List of each transform to perform
+    -   type:           KLTransform             # Type of KL transform
+        name:           kl                      # Name of KL transform object (used for later referencing)
+
+    -   type:           DoubleKL
+        name:           dk
+
+
+psfisher:
+    -   type:           MonteCarlo
+        name:           ps1
+        klname:         kl
+        bands:
+        -   spacing:    linear
+            start:      0.0
+            stop:       0.25
+            num:        5
+
+        -   spacing:    log
+            start:      0.25
+            stop:       5.0
+            num:        5
+
+    -   type:           Full
+        name:           ps2
+        klname:         dk
+        bands:
+        -   spacing:    linear
+            start:      0.0
+            stop:       0.25
+            num:        4
+
+        -   spacing:    log
+            start:      0.25
+            stop:       5.0
+            num:        4
+
+projections:
+    -   klname:         kl
+        thresholds:     [0.1, 1.0]
+        nside:          256
+
+        ev_proj:        Yes
+        beam_proj:      Yes
+        filter:         Yes
+
+        maps:
+            -   file:   ../../cylscripts/test_gal.hdf5
+                stem:   testgal
+
+            -   file:   ../../cylscripts/test_21.hdf5
+                stem:   test21
+

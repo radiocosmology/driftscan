@@ -1,9 +1,11 @@
 import abc
+import pdb
 
 import numpy as np
 
 from cosmoutils import hputil, units
 import visibility
+import util
 
 
 
@@ -31,12 +33,60 @@ def out_of_range(arr, min, max):
 
 def map_half_plane(arr):
     arr = np.where((arr[:,0] < 0.0)[:,np.newaxis], -arr, arr)
-    arr = np.where(np.logical_and(arr[:,0] == 0.0, arr[:,1] < 1)[:,np.newaxis], -arr, arr)
+    arr = np.where(np.logical_and(arr[:,0] == 0.0, arr[:,1] < 0.0)[:,np.newaxis], -arr, arr)
     
     return arr
 
 
-_horizon_const = 0
+
+
+def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
+
+    mask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=np.bool)
+    mask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=np.bool)
+
+    # Merge two groups of feed arrays
+    cmask = np.logical_and(mask1, mask2)
+    ckeys = _remap_keyarray(keys1 + 1.0J * keys2, mask=cmask)
+
+    if mask1 is None and mask2 is None:
+        return ckeys
+    else:
+        return ckeys, cmask
+
+
+def _remap_keyarray(keyarray, mask=None):
+    # Look through an array of keys and attach integer labels to each
+    # equivalent classes of keys (also take into account masking).
+    if mask == None:
+        mask = np.ones(keyarray.shape, np.bool)
+
+    ind = np.where(mask)
+
+    un, inv = np.unique(keyarray[ind], return_inverse=True)
+
+    fmap = -1*np.ones(keyarray.shape, dtype=np.int)
+
+    fmap[ind] = np.arange(un.size)[inv]
+    return fmap
+
+
+def _get_indices(keyarray, mask=None):
+    # Return a pair of indices for each group of equivalent feed pairs
+    if mask == None:
+        mask = np.ones(keyarray.shape, np.bool)
+
+    wm = np.where(mask.ravel())[0]
+    keysflat = keyarray.ravel()[wm]
+
+    un, ind = np.unique(keysflat, return_index=True)
+    upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
+
+    return np.sort(upairs, axis=-1) # Sort to ensure we are in upper triangle
+
+
+
+#_horizon_const = 0
 def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     """Get the maximum (l,m) that a baseline is sensitive to.
 
@@ -57,14 +107,21 @@ def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     umax = (np.abs(baselines[:,0]) + uwidth) / wavelengths
     vmax = (np.abs(baselines[:,1]) + vwidth)  / wavelengths
 
-    mmax = np.ceil(2 * np.pi * umax).astype(np.int64) + _horizon_const
-    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64) + _horizon_const
+    mmax = np.ceil(2 * np.pi * umax).astype(np.int64)# + _horizon_const
+    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)# + _horizon_const
 
     return lmax, mmax
 
+def latlon_to_sphpol(latlon):
+
+    zenith = np.array([np.pi / 2.0 - np.radians(latlon[0]),
+                       np.remainder(np.radians(latlon[1]), 2*np.pi)])
+
+    return zenith
 
 
-class TransitTelescope(object):
+
+class TransitTelescope(util.ConfigReader):
     """Base class for simulating any transit interferometer.
     
     This is an abstract class, and several methods must be implemented before it
@@ -90,18 +147,50 @@ class TransitTelescope(object):
     tsys_flat : scalar
         The system temperature (in K). Override `tsys` for anything more
         sophisticated.
+    positive_m_only: boolean
+        Whether to only deal with half the `m` range. In many cases we are
+        much less sensitive to negative-m (depending on the hemisphere, and
+        baseline alignment). This does not affect the beams calculated, only
+        how they're used in further calculation. Default: False
+    minlength, maxlength : scalar
+        Minimum and maximum baseline lengths to include (in metres).
+
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
 
     
     freq_lower = 400.0
     freq_upper = 800.0
-
     num_freq = 50
+
+
+    tsys_flat = 50.0 # Kelvin
+    ndays = 733 # ~2 years in sidereal days
+
+    accuracy_boost = 1
+    l_boost = 1.0
+    positive_m_only = False
+
+    minlength = 0.0
+    maxlength = 1000000.0
 
     _progress = lambda x: x
 
-    accuracy_boost = 1
+    __config_table_ =   {   'zenith'        : [latlon_to_sphpol, 'zenith'],
+                            'freq_lower'    : [float,   'freq_lower'], 
+                            'freq_upper'    : [float,   'freq_upper'],
+                            'num_freq'      : [int,     'num_freq'],
+
+                            'tsys'          : [float,   'tsys_flat'],
+                            'ndays'         : [int,     'ndays'],
+
+                            'accuracy'      : [float,   'accuracy_boost'],
+                            'l_boost'       : [float,   'l_boost'],
+
+                            'positive_m_only' : [bool,  'positive_m_only'],
+                            'minlength'     : [float,   'minlength'],
+                            'maxlength'     : [float,   'maxlength']
+                        }
 
 
     def __init__(self, latitude=45, longitude=0):
@@ -113,10 +202,10 @@ class TransitTelescope(object):
             Position on the Earths surface of the telescope (in degrees).
         """
 
-        self.zenith = np.array([np.pi / 2.0 - np.radians(latitude),
-                                np.remainder(np.radians(longitude), 2*np.pi)])
+        self.zenith = latlon_to_sphpol([latitude, longitude])
 
-        self._init_trans(2)
+        self.add_config(self.__config_table_)
+
 
     def __getstate__(self):
 
@@ -141,7 +230,7 @@ class TransitTelescope(object):
     def baselines(self):
         """The unique baselines in the telescope."""
         if self._baselines == None:
-            self.calculate_baselines()
+            self.calculate_feedpairs()
 
         return self._baselines
 
@@ -153,24 +242,68 @@ class TransitTelescope(object):
         """The redundancy of each baseline (corresponds to entries in
         cyl.baselines)."""
         if self._redundancy == None:
-            self.calculate_baselines()
+            self.calculate_feedpairs()
 
         return self._redundancy
 
     @property
     def nbase(self):
         """The number of unique baselines."""
+        return self.npairs
+
+
+    @property
+    def npairs(self):
+        """The number of unique feed pairs."""
         return self.baselines.shape[0]
 
     
-    _feedpairs = None
+    _uniquepairs = None
     
     @property
-    def feedpairs(self):
-        """An (nbase,2) array of the feed pairs corresponding to each baseline."""
-        if self._feedpairs == None:
-            self.calculate_baselines()
-        return self._feedpairs
+    def uniquepairs(self):
+        """An (npairs, 2) array of the feed pairs corresponding to each baseline."""
+        if self._uniquepairs == None:
+            self.calculate_feedpairs()
+        return self._uniquepairs
+
+
+    _feedmap = None
+
+    @property
+    def feedmap(self):
+        """An (nfeed, nfeed) array giving the mapping between feedpairs and
+        the calculated baselines. Each entry is an index into the arrays of unique pairs."""
+
+        if self._feedmap == None:
+            self.calculate_feedpairs()
+
+        return self._feedmap
+
+
+    _feedmask = None
+
+    @property
+    def feedmask(self):
+        """An (nfeed, nfeed) array giving the entries that have been
+        calculated. This allows to mask out pairs we want to ignore."""
+
+        if self._feedmask == None:
+            self.calculate_feedpairs()
+
+        return self._feedmask
+
+    _feedmap = None
+
+    @property
+    def feedconj(self):
+        """An (nfeed, nfeed) array giving the feed pairs which must be complex
+        conjugated."""
+
+        if self._feedconj == None:
+            self.calculate_feedpairs()
+
+        return self._feedconj
     
     #===================================================
 
@@ -190,8 +323,8 @@ class TransitTelescope(object):
 
     def calculate_frequencies(self):
 
-        self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
-
+        #self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
+        self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * ((self.freq_upper - self.freq_lower) / self.num_freq)
 
     @property
     def wavelengths(self):
@@ -244,13 +377,13 @@ class TransitTelescope(object):
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
         lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
-        return lmax.max()
+        return int(np.ceil(lmax.max() * self.l_boost))
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
         lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
-        return mmax.max()
+        return int(np.ceil(mmax.max() * self.l_boost))
 
     #===================================================
 
@@ -258,20 +391,97 @@ class TransitTelescope(object):
 
     #== Methods for calculating the unique baselines ===
     
-    def calculate_baselines(self):
-        """Calculate all the unique baselines and their redundancies, and set
+    def calculate_feedpairs(self):
+        """Calculate all the unique feedpairs and their redundancies, and set
         the internal state of the object.
         """
 
-        # Form list of all feed pairs
-        fpairs = np.indices((self.nfeed, self.nfeed))[(slice(None),) + np.triu_indices(self.nfeed, 1)]
-
-        # Get unique pairs
-        upairs, self._redundancy = self._get_unique(fpairs)
+        # Get unique pairs, and create mapping arrays
+        self._feedmap, self._feedmask = self._get_unique()
+        self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
+        self._uniquepairs = _get_indices(self._feedmap, mask=self._feedmask)
+        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask)]) / 2
         
-        self._baselines = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]  # Should this be the negative?
+        # Reorder and conjugate baselines such that the default feedpair
+        # points W->E (to ensure we use positive-m)
+        self._make_ew()
+        self._baselines = self.feedpositions[self._uniquepairs[:, 0]] - self.feedpositions[self._uniquepairs[:, 1]]
 
-        self._feedpairs = upairs.T
+
+
+    def _make_ew(self):
+        # Reorder baselines pairs, such that the baseline vector always points E (or pure N)
+        for i in range(self.npairs:
+            sep = self.feedpositions[self._uniquepairs[i, 0]] - self.feedpositions[self._uniquepairs[i, 1]]
+
+            if sep[0] < 0.0 or (sep[0] == 0.0 and sep[1] < 0.0):
+                # Reorder feed pairs and conjugate mapping
+                self._uniquepairs[i, 1], self._uniquepairs[i, 0] = self._uniquepairs[i, 0], self._uniquepairs[i, 1]
+                self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
+
+
+
+    def _unique_baselines(self):
+        """Map of equivalent baseline lengths, and mask of ones to exclude.
+        """
+        # Construct array of indices
+        fshape = [self.nfeed, self.nfeed]
+        f_ind = np.indices(fshape)
+
+        # Construct array of baseline separations in complex representation
+        bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
+        bl2 = map_half_plane(bl1.reshape(-1, 2)).reshape(bl1.shape)
+        bl3 = np.around(bl2[..., 0] + 1.0J * bl2[..., 1], 4)
+
+        # Construct array of baseline lengths
+        blen = np.sum(bl1**2, -1)**0.5
+
+        # Create mask of included baselines
+        mask = np.logical_and(blen >= self.minlength, blen <= self.maxlength)
+
+        return _remap_keyarray(bl3), mask
+
+
+
+    def _unique_beams(self):
+        """Map of unique beam pairs, and mask of ones to exclude.
+        """
+        # Construct array of indices
+        fshape = [self.nfeed, self.nfeed]
+        
+        return np.zeros(fshape, dtype=np.int), np.ones(fshape, dtype=np.bool)
+
+
+    def _get_unique(self):
+        """Calculate the unique baseline pairs.
+        
+        All feeds are assumed to be identical. Baselines are identified if
+        they have the same length, and are selected such that they point East
+        (to ensure that the sensitivity ends up in positive-m modes).
+
+        It is also possible to select only baselines within a particular
+        length range by setting the `minlength` and `maxlength` properties.
+
+        Parameters
+        ----------
+        fpairs : np.ndarray
+            An array of all the feed pairs, packed as [[i1, i2, ...], [j1, j2, ...] ].
+
+        Returns
+        -------
+        baselines : np.ndarray
+            An array of all the unique pairs. Packed as [ [i1, i2, ...], [j1, j2, ...]].
+        redundancy : np.ndarray
+            For each unique pair, give the number of equivalent pairs.
+        """
+
+        # Fetch and merge map of unique feed pairs        
+        base_map, base_mask = self._unique_baselines()
+        beam_map, beam_mask = self._unique_beams()
+        comb_map, comb_mask = _merge_keyarray(base_map, beam_map, mask1=base_mask, mask2=beam_mask)
+        
+        return comb_map, comb_mask
+ 
 
     #===================================================
 
@@ -309,7 +519,7 @@ class TransitTelescope(object):
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
         ## Check indices are all in range
-        if out_of_range(bl_indices, 0, self.nbase):
+        if out_of_range(bl_indices, 0, self.npairs):
             raise Exception("Baseline indices aren't valid")
 
         if out_of_range(f_indices, 0, self.nfreq):
@@ -317,17 +527,16 @@ class TransitTelescope(object):
 
         # Fetch the set of lmax's for the baselines (in order to reduce time
         # regenerating Healpix maps)
-        lmax, mmax = max_lm(self.baselines[bl_indices], self.wavelengths[f_indices], self.u_width, self.v_width)
-
+        lmax, mmax = np.ceil(self.l_boost * np.array(max_lm(self.baselines[bl_indices], self.wavelengths[f_indices], self.u_width, self.v_width))).astype(np.int64)
+        #lmax, mmax = lmax * self.l_boost, mmax * self.l_boost
         # Set the size of the (l,m) array to write into
         lside = self.lmax if global_lmax else lmax.max()
 
         # Generate the array for the Transfer functions
 
-        tarray = np.zeros(bl_indices.shape + (self.num_pol_telescope, self.num_pol_sky, lside+1, 2*lside+1),
-                          dtype=np.complex128)
-
-        print "Size: %i elements. Memory %f GB." % (tarray.size, 2*tarray.size * 8.0 / 2**30)
+        tshape = bl_indices.shape + (self.num_pol_telescope, self.num_pol_sky, lside+1, 2*lside+1)
+        print "Size: %i elements. Memory %f GB." % (np.prod(tshape), 2*np.prod(tshape) * 8.0 / 2**30)
+        tarray = np.zeros(tshape, dtype=np.complex128)
 
         # Sort the baselines by ascending lmax and iterate through in that
         # order, calculating the transfer matrices
@@ -359,7 +568,7 @@ class TransitTelescope(object):
         transfer : np.ndarray
             The transfer matrices. Packed as in `TransitTelescope.transfer_matrices`.
         """
-        bi = np.arange(self.nbase)
+        bi = np.arange(self.npairs)
         fi = freq * np.ones_like(bi)
 
         return self.transfer_matrices(bi, fi)
@@ -389,8 +598,6 @@ class TransitTelescope(object):
 
     #======== Noise properties of the telescope ========
 
-    tsys_flat = 50.0 # Kelvin
-    ndays = 732.5 # 2 years in sidereal days
     
     def tsys(self, f_indices = None):
         """The system temperature.
@@ -494,27 +701,6 @@ class TransitTelescope(object):
         return
 
 
-    # Implement to determine which baselines are unique
-    @abc.abstractmethod
-    def _get_unique(self, fpairs):
-        """Calculate the unique baseline pairs.
-
-        **Abstract method** must be implemented.
-        
-        Parameters
-        ----------
-        fpairs : np.ndarray
-            An array of all the feed pairs, packed as [[i1, i2, ...], [j1, j2, ...] ].
-
-        Returns
-        -------
-        baselines : np.ndarray
-            An array of all the unique pairs. Packed as [ [i1, i2, ...], [j1, j2, ...]].
-        redundancy : np.ndarray
-            For each unique pair, give the number of equivalent pairs.
-        """
-        return
-
 
     # The work method which does the bulk of calculating all the transfer matrices.
     @abc.abstractmethod
@@ -548,7 +734,6 @@ class TransitTelescope(object):
     #===================================================
     #============== END ABSTRACT METHODS ===============
     #===================================================
-    
 
 
 
@@ -587,13 +772,10 @@ class UnpolarisedTelescope(TransitTelescope):
 
     #===== Implementations of abstract functions =======
 
-    def _transfer_single(self, bl_index, f_index, lmax, lside):
+    def _beam_map_single(self, bl_index, f_index):
         
-        if self._nside != hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost):
-            self._init_trans(hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost))
-
         # Get beam maps for each feed.
-        feedi, feedj = self.feedpairs[bl_index]
+        feedi, feedj = self.uniquepairs[bl_index]
         beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
 
         # Get baseline separation and fringe map.
@@ -606,8 +788,18 @@ class UnpolarisedTelescope(TransitTelescope):
         # Calculate the complex visibility
         cvis = self._horizon * fringe * beami * beamj / omega_A
 
-        # Perform the harmonic transform to get the transfer matrix.
-        btrans = hputil.sphtrans_complex(cvis, centered = False, lmax = lmax, lside=lside)
+        return cvis
+
+
+    def _transfer_single(self, bl_index, f_index, lmax, lside):
+        
+        if self._nside != hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost):
+            self._init_trans(hputil.nside_for_lmax(lmax, accuracy_boost=self.accuracy_boost))
+
+        cvis = self._beam_map_single(bl_index, f_index)
+
+        # Perform the harmonic transform to get the transfer matrix (conj is correct - see paper)
+        btrans = hputil.sphtrans_complex(cvis.conj(), centered = False, lmax = lmax, lside=lside).conj()
 
         return [ [ btrans ]]
 
@@ -649,35 +841,90 @@ class PolarisedTelescope(TransitTelescope):
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
     
-    Properties
-    ----------
-    feedx, feedy : np.ndarray
-        Two element vectors giving the orientation of the x, y polarisations in
-        the UV plane. The directions are assumed to be the same over all feeds.
+    Abstract Methods
+    ----------------
+    beamx, beamy : methods
+        Routines giving the field pattern for the x and y feeds.
     """
     __metaclass__ = abc.ABCMeta
     
-    feedx = np.array([1.0, 0.0])
-    feedy = np.array([0.0, 1.0])
-
     _npol_tel_ = 3
     _npol_sky_ = 3
 
-    
-    def _init_trans(self, nside):
-        ## Override _init_trans to generate the polarisation projections.
+
+    @abc.abstractmethod
+    def beamx(self, feed, freq):
+        """Beam for the x polarisation feed.
         
-        TransitTelescope._init_trans(self, nside)
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
 
-        # Polarisation projections of feed pairs
-        self._pIQUxx = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedx)
-        self._pIQUxy = visibility.pol_IQU(self._angpos, self.zenith, self.feedx, self.feedy)
-        self._pIQUyy = visibility.pol_IQU(self._angpos, self.zenith, self.feedy, self.feedy)
+        Returns
+        -------
+        beam : np.ndarray
+            Healpix maps (of size [self._nside, 2]) of the field pattern in the
+            theta and phi directions.         
+        """
 
-        # Multiplied pairs
-        self._mIQUxx = self._horizon * self._pIQUxx
-        self._mIQUxy = self._horizon * self._pIQUxy
-        self._mIQUyy = self._horizon * self._pIQUyy
+    @abc.abstractmethod
+    def beamy(self, feed, freq):
+        """Beam for the x polarisation feed.
+        
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
+
+        Returns
+        -------
+        beam : np.ndarray
+            Healpix maps (of size [self._nside, 2]) of the field pattern in the
+            theta and phi directions.         
+        """
+    
+
+
+    def _beam_map_single(self, bl_index, f_index):
+
+        pIQU = [0.5 * np.array([[1.0, 0.0], [0.0, 1.0]]),
+                0.5 * np.array([[1.0, 0.0], [0.0, -1.0]]),
+                0.5 * np.array([[0.0, 1.0], [1.0, 0.0]]) ]
+
+        # Get beam maps for each feed.
+        feedi, feedj = self.uniquepairs[bl_index]
+        beamix, beamiy = self.beamx(feedi, f_index), self.beamy(feedi, f_index)
+        beamjx, beamjy = self.beamx(feedj, f_index), self.beamy(feedj, f_index)
+        
+        # Get baseline separation and fringe map.
+        uv = self.baselines[bl_index] / self.wavelengths[f_index]
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        powIQU_xx = [ np.sum(beamix * np.dot(beamjx, polproj), axis=1) * self._horizon for polproj in pIQU]
+        powIQU_xy = [ np.sum(beamix * np.dot(beamjy, polproj), axis=1) * self._horizon for polproj in pIQU]
+        powIQU_yy = [ np.sum(beamiy * np.dot(beamjy, polproj), axis=1) * self._horizon for polproj in pIQU]
+        
+        pxarea = (4*np.pi / beamix.shape[0])
+
+        om_ix = np.sum(np.abs(beamix)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_iy = np.sum(np.abs(beamiy)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_jx = np.sum(np.abs(beamjx)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_jy = np.sum(np.abs(beamjy)**2 * self._horizon[:, np.newaxis]) * pxarea
+
+        omega_A_xx = (om_ix * om_jx)**0.5
+        omega_A_xy = (om_ix * om_jy)**0.5
+        omega_A_yy = (om_iy * om_jy)**0.5
+        
+        cvIQUxx = [ p * (2 * fringe / omega_A_xx) for p in powIQU_xx ]
+        cvIQUxy = [ p * (2 * fringe / omega_A_xy) for p in powIQU_xy ]
+        cvIQUyy = [ p * (2 * fringe / omega_A_yy) for p in powIQU_yy ]
+
+        return cvIQUxx, cvIQUxy, cvIQUyy
 
 
     #===== Implementations of abstract functions =======
@@ -687,32 +934,12 @@ class PolarisedTelescope(TransitTelescope):
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))
 
-        # Get beam maps for each feed.
-        feedi, feedj = self.feedpairs[bl_index]
-        beamix, beamjx = self.beamx(feedi, f_index), self.beamx(feedj, f_index)
-        beamiy, beamjy = self.beamy(feedi, f_index), self.beamy(feedj, f_index)
+        bmaps = self._beam_map_single(bl_index, f_index)
 
-        # Get baseline separation and fringe map.
-        uv = self.baselines[bl_index] / self.wavelengths[f_index]
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+        btrans = [ [ pb.conj() for pb in hputil.sphtrans_complex_pol(bmap.conj(), centered = False,
+                                                                     lmax = int(lmax), lside=lside) ] for bmap in bmaps]
 
-        omega_A_xx = (np.abs(beamix) * np.abs(beamjx) * self._horizon).sum() * (4*np.pi / beamix.size)
-        omega_A_xy = (np.abs(beamix) * np.abs(beamjy) * self._horizon).sum() * (4*np.pi / beamix.size)
-        omega_A_yy = np.abs((beamiy) * np.abs(beamjy) * self._horizon).sum() * (4*np.pi / beamiy.size)
-
-        cvIQUxx = self._mIQUxx * fringe * beamix * beamjx / omega_A_xx
-        cvIQUxy = self._mIQUxy * fringe * beamix * beamjy / omega_A_xy
-        cvIQUyy = self._mIQUyy * fringe * beamiy * beamjy / omega_A_yy
-
-        ### If beams ever become complex need to do yx combination.
-        btransxx = hputil.sphtrans_complex_pol(cvIQUxx, centered = False,
-                                               lmax = int(lmax), lside=lside)
-        btransxy = hputil.sphtrans_complex_pol(cvIQUxy, centered = False,
-                                               lmax = int(lmax), lside=lside)
-        btransyy = hputil.sphtrans_complex_pol(cvIQUyy, centered = False,
-                                               lmax = int(lmax), lside=lside)
-
-        return [btransxx, btransxy, btransyy]
+        return btrans
 
 
     #===================================================

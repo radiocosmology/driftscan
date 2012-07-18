@@ -47,3 +47,41 @@ def proj_mblock(hpmap, vec_mblock):
     hpproj = healpy.alm2map(hputil.pack_alm(almproj.T), healpy.npix2nside(hpmap.size))
 
     return hpproj
+
+
+class ConfigReader(object):
+
+    @classmethod
+    def from_config(cls, config, *args, **kwargs):
+        c = cls(*args, **kwargs)
+        c.read_config(config)
+
+        return c
+
+    def add_config(self, config_options):
+
+        if not hasattr(self, '_config_dict'):
+            self._config_dict = config_options
+        else:
+            self._config_dict.update(config_options)
+
+
+    def read_config(self, config):
+
+        if not hasattr(self, '_config_dict'):
+            return
+
+        keys = set(config).intersection(self._config_dict)
+
+        for key in keys:
+            ctype, cname = self._config_dict[key]
+            cval = config[key]
+
+            print "Setting %s to %s" % (cname, cval)
+
+            self.__setattr__(cname, ctype(cval))
+
+
+
+
+

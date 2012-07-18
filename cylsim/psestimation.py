@@ -22,18 +22,40 @@ def uniform_band(k, kstart, kend):
     return np.where(np.logical_and(k > kstart, k < kend), np.ones_like(k), np.zeros_like(k))
 
 
+def range_config(lst):
 
-class PSEstimation(object):
+    lst2 = []
 
-    kltrans = None
-    telescope = None
+    for item in lst:
+        if isinstance(item, dict):
+            
+            if item['spacing'] == 'log':
+                item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num'], endpoint=False)
+            elif item['spacing'] == 'linear':
+                item = np.linspace(item['start'], item['stop'], item['num'], endpoint=False)
 
-    bands = np.concatenate((np.linspace(0.0, 0.25, 25, endpoint=False),     np.logspace(np.log10(0.25), np.log10(3.0), 16)))
+        item = np.atleast_1d(item)
+
+        lst2.append(item)
+
+    return np.concatenate(lst2)
+
+
+class PSEstimation(util.ConfigReader):
 
 
 
-    threshold = None
+    bands = np.concatenate((np.linspace(0.0, 0.13, 13, endpoint=False),
+                            0.13*np.exp(np.arange(29)*np.log(1+1/13.0))))
+    threshold = 0.0
 
+    unit_bands = True
+
+
+    __config_table_ =   {   'bands'       : [range_config,    'bands'],
+                            'threshold'   : [float,           'threshold'],
+                            'units_bands' : [bool,            'units_bands']
+                        }
 
     @property
     def _cfile(self):
@@ -41,34 +63,48 @@ class PSEstimation(object):
         return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
 
 
-    def __init__(self, kltrans, subdir = 'ps/'):
+    def __init__(self, kltrans, subdir=None):
 
         self.kltrans = kltrans
         self.telescope = kltrans.telescope
-        self.psdir = self.kltrans.evdir + '/' + subdir
+        self.psdir = self.kltrans.evdir + '/' + ("ps" if subdir is None else subdir) + '/'
         
         if mpiutil.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
         
 
     def genbands(self):
 
         print "Generating bands..."
    
-        self.band_pk = [((lambda bs, be: (lambda k: uniform_band(k, bs, be)))(b_start, b_end), b_start, b_end) for b_start, b_end in zip(self.bands[:-1], self.bands[1:])]
+        cr = corr21cm.Corr21cm()
+
+        bandlims = zip(self.bands[:-1], self.bands[1:])
+
+        # Create band functions and set nominal value of band.
+        if self.units_bands:
+            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
+            self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
+
+            self.bpower = np.ones(len(self.band_pk))
+        else:
+            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be) * cr.ps_vv(k))
+            self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
+            
+            self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
 
         if mpiutil.rank0:
             for i, (pk, bs, be) in enumerate(self.band_pk):
                 print "Band %i: %f to %f. Centre: %g" % (i, bs, be, 0.5*(be+bs))
 
         
-        cr = corr21cm.Corr21cm()
-
-        self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
-
+        # Create array of band limits
         self.bstart = self.bands[:-1]
         self.bend = self.bands[1:]
         self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
@@ -203,7 +239,7 @@ class PSEstimation(object):
 
     def fisher_mpi(self, mlist = None):
         if mlist is None:
-            mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
+            mlist = range(self.telescope.mmax + 1)
 
         mpart = mpiutil.partition_list_mpi(mlist)
 
@@ -215,7 +251,7 @@ class PSEstimation(object):
 
         if mpiutil.rank0:
             nb = self.bands.shape[0] - 1
-            fisher = np.zeros((2*self.telescope.mmax+1, nb, nb), dtype=np.complex128)
+            fisher = np.zeros((self.telescope.mmax+1, nb, nb), dtype=np.complex128)
             #print f_all
             for proc_rank in f_all:
                 #print proc_rank
@@ -225,7 +261,7 @@ class PSEstimation(object):
 
             f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
 
-            f.create_dataset('fisher_m/', data=fisher)
+            #f.create_dataset('fisher_m/', data=fisher)
             f.create_dataset('fisher_all/', data=np.sum(fisher, axis=0))
             f.create_dataset('bandpower/', data=self.bpower)
             f.create_dataset('bandstart/', data=self.bstart)
@@ -237,7 +273,7 @@ class PSEstimation(object):
     def fisher_section(self, mlist = None):
 
         if mlist is None:
-            mlist = range(-self.telescope.mmax, self.telescope.mmax + 1)
+            mlist = range(self.telescope.mmax + 1)
             
         mpart = mpiutil.partition_list_mpi(mlist)
 

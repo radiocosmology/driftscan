@@ -41,7 +41,7 @@ klt = kltransform.KLTransform(bt)
 klt.subset = False
 klt.inverse = False
 klt.use_foregrounds = True
-#klt.generate()
+klt.generate()
 
 # Performing DoubleKL transform
 #dk = doublekl.DoubleKL(bt, subdir="dk1")

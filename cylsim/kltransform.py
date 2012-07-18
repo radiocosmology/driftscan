@@ -242,7 +242,7 @@ class KLTransform(util.ConfigReader):
 
         Returns
         -------
-        s, n : np.ndarray[nfreq, npol*nbase, nfreq, npol*nbase]
+        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
             Signal and noice covariance matrices.
         """
 
@@ -269,7 +269,7 @@ class KLTransform(util.ConfigReader):
 
         # Add in the instrumental noise. Assumed to be diagonal for now.
         for fi in range(self.beamtransfer.nfreq):
-            bla = np.arange(self.telescope.nbase)
+            bla = np.arange(self.telescope.npairs)
 
             # Double up baselines to fetch (corresponds to grabbing positive and negative m)
             if not self.telescope.positive_m_only:
@@ -685,8 +685,7 @@ class KLTransform(util.ConfigReader):
         evals, evecs = self.modes_m(mi, threshold)
 
         if evals is None:
-            return np.zeros(self.telescope.num_pol_telescope * self.telescope.nbase *
-                            self.telescope.nfreq, dtype=np.complex128)
+            return np.zeros(self.beamtransfer.ntel*self.telescope.nfreq, dtype=np.complex128)
 
         if vec.shape[0] != evecs.shape[0]:
             raise Exception("Vectors are incompatible.")
@@ -768,10 +767,7 @@ class KLTransform(util.ConfigReader):
         projmatrix : np.ndarray
             The matrix projected into the eigenbasis.
         """
-        npol = self.telescope.num_pol_sky
-        nbase = self.telescope.nbase
-        nfreq = self.telescope.nfreq
-        nside = npol * nbase * nfreq
+        nside = self.beamtransfer.nfreq * self.beamtransfer.ntel
 
         mproj = self.beamtransfer.project_matrix_forward(mi, mat)
 
@@ -818,7 +814,7 @@ class KLTransform(util.ConfigReader):
         mpart = mpiutil.partition_list_mpi(mlist)
         
         # Total number of sky modes.
-        nmodes = self.telescope.num_pol_telescope * self.telescope.nbase * self.telescope.nfreq
+        nmodes = self.beamtransfer.nfreq * self.beamtransfer.ntel
 
         # If sky is alm fine, if not perform spherical harmonic transform.
         alm = sky if harmonic else hputil.sphtrans_sky(sky, lmax=self.telescope.lmax)

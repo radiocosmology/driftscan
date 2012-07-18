@@ -38,6 +38,54 @@ def map_half_plane(arr):
     return arr
 
 
+
+
+def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
+
+    mask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=np.bool)
+    mask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=np.bool)
+
+    # Merge two groups of feed arrays
+    cmask = np.logical_and(mask1, mask2)
+    ckeys = _remap_keyarray(keys1 + 1.0J * keys2, mask=cmask)
+
+    if mask1 is None and mask2 is None:
+        return ckeys
+    else:
+        return ckeys, cmask
+
+
+def _remap_keyarray(keyarray, mask=None):
+    # Look through an array of keys and attach integer labels to each
+    # equivalent classes of keys (also take into account masking).
+    if mask == None:
+        mask = np.ones(keyarray.shape, np.bool)
+
+    ind = np.where(mask)
+
+    un, inv = np.unique(keyarray[ind], return_inverse=True)
+
+    fmap = -1*np.ones(keyarray.shape, dtype=np.int)
+
+    fmap[ind] = np.arange(un.size)[inv]
+    return fmap
+
+
+def _get_indices(keyarray, mask=None):
+    # Return a pair of indices for each group of equivalent feed pairs
+    if mask == None:
+        mask = np.ones(keyarray.shape, np.bool)
+
+    wm = np.where(mask.ravel())[0]
+    keysflat = keyarray.ravel()[wm]
+
+    un, ind = np.unique(keysflat, return_index=True)
+    upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
+
+    return np.sort(upairs, axis=-1) # Sort to ensure we are in upper triangle
+
+
+
 #_horizon_const = 0
 def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     """Get the maximum (l,m) that a baseline is sensitive to.
@@ -182,7 +230,7 @@ class TransitTelescope(util.ConfigReader):
     def baselines(self):
         """The unique baselines in the telescope."""
         if self._baselines == None:
-            self.calculate_baselines()
+            self.calculate_feedpairs()
 
         return self._baselines
 
@@ -194,24 +242,68 @@ class TransitTelescope(util.ConfigReader):
         """The redundancy of each baseline (corresponds to entries in
         cyl.baselines)."""
         if self._redundancy == None:
-            self.calculate_baselines()
+            self.calculate_feedpairs()
 
         return self._redundancy
 
     @property
     def nbase(self):
         """The number of unique baselines."""
+        return self.npairs
+
+
+    @property
+    def npairs(self):
+        """The number of unique feed pairs."""
         return self.baselines.shape[0]
 
     
-    _feedpairs = None
+    _uniquepairs = None
     
     @property
-    def feedpairs(self):
-        """An (nbase,2) array of the feed pairs corresponding to each baseline."""
-        if self._feedpairs == None:
-            self.calculate_baselines()
-        return self._feedpairs
+    def uniquepairs(self):
+        """An (npairs, 2) array of the feed pairs corresponding to each baseline."""
+        if self._uniquepairs == None:
+            self.calculate_feedpairs()
+        return self._uniquepairs
+
+
+    _feedmap = None
+
+    @property
+    def feedmap(self):
+        """An (nfeed, nfeed) array giving the mapping between feedpairs and
+        the calculated baselines. Each entry is an index into the arrays of unique pairs."""
+
+        if self._feedmap == None:
+            self.calculate_feedpairs()
+
+        return self._feedmap
+
+
+    _feedmask = None
+
+    @property
+    def feedmask(self):
+        """An (nfeed, nfeed) array giving the entries that have been
+        calculated. This allows to mask out pairs we want to ignore."""
+
+        if self._feedmask == None:
+            self.calculate_feedpairs()
+
+        return self._feedmask
+
+    _feedmap = None
+
+    @property
+    def feedconj(self):
+        """An (nfeed, nfeed) array giving the feed pairs which must be complex
+        conjugated."""
+
+        if self._feedconj == None:
+            self.calculate_feedpairs()
+
+        return self._feedconj
     
     #===================================================
 
@@ -298,36 +390,69 @@ class TransitTelescope(util.ConfigReader):
     
 
     #== Methods for calculating the unique baselines ===
-
-
     
-    def calculate_baselines(self):
-        """Calculate all the unique baselines and their redundancies, and set
+    def calculate_feedpairs(self):
+        """Calculate all the unique feedpairs and their redundancies, and set
         the internal state of the object.
         """
 
-        # Form list of all feed pairs
-        fpairs = np.indices((self.nfeed, self.nfeed))[(slice(None),) + np.tril_indices(self.nfeed, -1)]
-
-        # Get unique pairs
-        upairs, self._redundancy = self._get_unique(fpairs)
+        # Get unique pairs, and create mapping arrays
+        self._feedmap, self._feedmask = self._get_unique()
+        self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
+        self._uniquepairs = _get_indices(self._feedmap, mask=self._feedmask)
+        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask)]) / 2
         
-        self._baselines = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
-                                                      # Should this be the negative?
-
-        self._feedpairs = upairs.T
-
-
-
-    def _remap_feed_array(self, keyarray):
-
-        un, inv = np.unique(keyarray, return_inverse=True)
-        return np.arange(un.size)[inv].reshape(keyarray.shape)
+        # Reorder and conjugate baselines such that the default feedpair
+        # points W->E (to ensure we use positive-m)
+        self._make_ew()
+        self._baselines = self.feedpositions[self._uniquepairs[:, 0]] - self.feedpositions[self._uniquepairs[:, 1]]
 
 
 
+    def _make_ew(self):
+        # Reorder baselines pairs, such that the baseline vector always points E (or pure N)
+        for i in range(self.npairs:
+            sep = self.feedpositions[self._uniquepairs[i, 0]] - self.feedpositions[self._uniquepairs[i, 1]]
 
-    def _get_unique(self, feedarray):
+            if sep[0] < 0.0 or (sep[0] == 0.0 and sep[1] < 0.0):
+                # Reorder feed pairs and conjugate mapping
+                self._uniquepairs[i, 1], self._uniquepairs[i, 0] = self._uniquepairs[i, 0], self._uniquepairs[i, 1]
+                self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
+
+
+
+    def _unique_baselines(self):
+        """Map of equivalent baseline lengths, and mask of ones to exclude.
+        """
+        # Construct array of indices
+        fshape = [self.nfeed, self.nfeed]
+        f_ind = np.indices(fshape)
+
+        # Construct array of baseline separations in complex representation
+        bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
+        bl2 = map_half_plane(bl1.reshape(-1, 2)).reshape(bl1.shape)
+        bl3 = np.around(bl2[..., 0] + 1.0J * bl2[..., 1], 4)
+
+        # Construct array of baseline lengths
+        blen = np.sum(bl1**2, -1)**0.5
+
+        # Create mask of included baselines
+        mask = np.logical_and(blen >= self.minlength, blen <= self.maxlength)
+
+        return _remap_keyarray(bl3), mask
+
+
+
+    def _unique_beams(self):
+        """Map of unique beam pairs, and mask of ones to exclude.
+        """
+        # Construct array of indices
+        fshape = [self.nfeed, self.nfeed]
+        
+        return np.zeros(fshape, dtype=np.int), np.ones(fshape, dtype=np.bool)
+
+
+    def _get_unique(self):
         """Calculate the unique baseline pairs.
         
         All feeds are assumed to be identical. Baselines are identified if
@@ -349,47 +474,14 @@ class TransitTelescope(util.ConfigReader):
         redundancy : np.ndarray
             For each unique pair, give the number of equivalent pairs.
         """
+
+        # Fetch and merge map of unique feed pairs        
+        base_map, base_mask = self._unique_baselines()
+        beam_map, beam_mask = self._unique_beams()
+        comb_map, comb_mask = _merge_keyarray(base_map, beam_map, mask1=base_mask, mask2=beam_mask)
         
-        # Calculate separation of all pairs, and map into a half plane (so
-        # baselines and their negative are identical).
-
-        
-        f_ind = 
-        bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
-
-        bl2 = telescope.map_half_plane(bl1.reshape(-1, 2)).reshape(bl1.shape)
-
-        bl1 = map_half_plane(bl1)
-
-        # Round all numbers to a precision of 10^{-4}.
-        # Avoid strange issues with roundoff errors making baselines not equivalent.
-        bl1 = np.around(bl1, 4)
-
-        # Turn separation into a complex number and find unique elements
-        ub, ind, inv = np.unique(bl1[..., 0] + 1.0J * bl1[..., 1], return_index=True, return_inverse=True)
-
-        # Bin to find redundancy of each pair
-        redundancy = np.bincount(inv)
-
-        # Construct array of pairs
-        upairs = feedpairs[:,ind]
-
-        # Trim baselines pairs that are too short or too long.        
-        bl1 = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
-        blength = np.hypot(bl1[:,0], bl1[:,1])
-        mask = np.where(np.logical_and(blength >= self.minlength, blength < self.maxlength))
-        upairs, redundancy = upairs[:,mask][:, 0, ...], redundancy[mask]
-
-        # Reorder the pairs to ensure that the separation vector always points East.
-        # Ensures that the dominant sensitivity is in the positive-m modes.
-        for i in range(upairs.shape[1]):
-            ewsep = self.feedpositions[upairs[0, i], 0] - self.feedpositions[upairs[1, i], 0]
-
-            if ewsep < 0.0:
-                upairs[1, i], upairs[0, i] = upairs[0, i], upairs[1, i]
-
-
-        return upairs, redundancy
+        return comb_map, comb_mask
+ 
 
 
     #===================================================
@@ -428,7 +520,7 @@ class TransitTelescope(util.ConfigReader):
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
         ## Check indices are all in range
-        if out_of_range(bl_indices, 0, self.nbase):
+        if out_of_range(bl_indices, 0, self.npairs):
             raise Exception("Baseline indices aren't valid")
 
         if out_of_range(f_indices, 0, self.nfreq):
@@ -477,7 +569,7 @@ class TransitTelescope(util.ConfigReader):
         transfer : np.ndarray
             The transfer matrices. Packed as in `TransitTelescope.transfer_matrices`.
         """
-        bi = np.arange(self.nbase)
+        bi = np.arange(self.npairs)
         fi = freq * np.ones_like(bi)
 
         return self.transfer_matrices(bi, fi)
@@ -684,7 +776,7 @@ class UnpolarisedTelescope(TransitTelescope):
     def _beam_map_single(self, bl_index, f_index):
         
         # Get beam maps for each feed.
-        feedi, feedj = self.feedpairs[bl_index]
+        feedi, feedj = self.uniquepairs[bl_index]
         beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
 
         # Get baseline separation and fringe map.
@@ -806,7 +898,7 @@ class PolarisedTelescope(TransitTelescope):
                 0.5 * np.array([[0.0, 1.0], [1.0, 0.0]]) ]
 
         # Get beam maps for each feed.
-        feedi, feedj = self.feedpairs[bl_index]
+        feedi, feedj = self.uniquepairs[bl_index]
         beamix, beamiy = self.beamx(feedi, f_index), self.beamy(feedi, f_index)
         beamjx, beamjy = self.beamx(feedj, f_index), self.beamy(feedj, f_index)
         

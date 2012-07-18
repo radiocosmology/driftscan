@@ -74,7 +74,7 @@ class CylinderTelescope(telescope.TransitTelescope):
         return 0.0
 
 
-    def _get_unique(self, feedpairs):
+    def _unique_baselines(self):
         """Calculate the unique baseline pairs.
         
         Pairs are considered identical if they have the same baseline
@@ -93,16 +93,22 @@ class CylinderTelescope(telescope.TransitTelescope):
             For each unique pair, give the number of equivalent pairs.
         """
         
-        upairs, redundancy = super(CylinderTelescope, self)._get_unique(feedpairs)
+        base_map, base_mask = super(CylinderTelescope, self)._unique_baselines()
 
-        bl1 = self.feedpositions[upairs[0]] - self.feedpositions[upairs[1]]
 
         if not self.in_cylinder:
-            mask = np.where(bl1[:, 0] != 0.0)
-            upairs = upairs[:, mask][:, 0, ...]
-            redundancy = redundancy[mask]
+            # Construct array of indices
+            fshape = [self.nfeed, self.nfeed]
+            f_ind = np.indices(fshape)
+
+            # Construct array of baseline separations in complex representation
+            bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
+
+            ic_mask = np.where(bl1[..., 0] != 0.0, np.ones(fshape, dtype=np.bool), np.zeros(fshape, dtype=np.bool))
+            base_mask = np.logical_and(base_mask, ic_mask)
+            base_map = telescope._remap_keyarray(base_map, base_mask)
         
-        return upairs, redundancy
+        return base_map, base_mask
 
 
 

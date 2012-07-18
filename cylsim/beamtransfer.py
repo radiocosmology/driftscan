@@ -106,8 +106,8 @@ class BeamTransfer(object):
 
         Returns
         -------
-        beam : np.ndarray (nfreq, 2, nbase, npol_tel, npol_sky, lmax+1)
-            If `single` is set, shape (nfreq, nbase, npol_tel, npol_sky, lmax+1)
+        beam : np.ndarray (nfreq, 2, npairs, npol_tel, npol_sky, lmax+1)
+            If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
         """
         if single or self.telescope.positive_m_only:
             return self._load_beam_m(mi)
@@ -145,13 +145,13 @@ class BeamTransfer(object):
 
         Returns
         -------
-        invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, nbase, npol_tel)
+        invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, npairs, npol_tel)
         """
 
         beam = self.beam_m(mi)
 
         if self.noise_weight:
-            noisew = self.telescope.noisepower(np.arange(self.telescope.nbase), 0).flatten()**(-0.5)
+            noisew = self.telescope.noisepower(np.arange(self.telescope.npairs), 0).flatten()**(-0.5)
             beam = beam * noisew[:, np.newaxis, np.newaxis, np.newaxis]
 
         beam = beam.reshape((self.nfreq, self.ntel, self.nsky))
@@ -160,7 +160,7 @@ class BeamTransfer(object):
 
         if self.noise_weight:
             # Reshape to make it easy to multiply baselines by noise level
-            ibeam = ibeam.reshape((-1, self.telescope.nbase, self.telescope.num_pol_telescope))
+            ibeam = ibeam.reshape((-1, self.telescope.npairs, self.telescope.num_pol_telescope))
             ibeam = ibeam * noisew[:, np.newaxis]
 
         shape = (self.nfreq, self.telescope.num_pol_sky,
@@ -254,7 +254,7 @@ class BeamTransfer(object):
             f.create_group('m_section')
             # Set a few useful attributes.
             f.attrs['baselines'] = self.telescope.baselines
-            f.attrs['baseline_indices'] = np.arange(self.telescope.nbase)
+            f.attrs['baseline_indices'] = np.arange(self.telescope.npairs)
             f.attrs['frequency_index'] = fi
             f.attrs['frequency'] = self.telescope.frequencies[fi]
             f.attrs['cylobj'] = self._telescope_pickle
@@ -434,9 +434,9 @@ class BeamTransfer(object):
     def ntel(self):
         """Degrees of freedom measured by the telescope (per frequency)"""
         if self.telescope.positive_m_only:
-            return self.telescope.nbase * self.telescope.num_pol_telescope
+            return self.telescope.npairs * self.telescope.num_pol_telescope
         else:
-            return 2 * self.telescope.nbase * self.telescope.num_pol_telescope
+            return 2 * self.telescope.npairs * self.telescope.num_pol_telescope
 
     @property
     def nsky(self):

@@ -54,12 +54,15 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
     beam_size = 0.1
     beam_pivot = 400.0
 
+    beam_freq_scale = True
+
     __config_table_ = { 'beam_num_u'        : [int,     'beam_num_u'],
                         'beam_num_v'        : [int,     'beam_num_v'],
                         'beam_spacing_u'    : [float,   'beam_spacing_u'],
                         'beam_spacing_v'    : [float,   'beam_spacing_v'],
                         'beam_size'         : [float,   'beam_size'],
-                        'beam_pivot'        : [float,   'beam_pivot']
+                        'beam_pivot'        : [float,   'beam_pivot'],
+                        'beam_freq_scale'   : [bool,    'beam_freq_scale']
                       }
 
     def __init__(self, *args, **kwargs):
@@ -91,7 +94,10 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
     def beam(self, feed, freq):
 
         pointing = self.beam_pointings[feed]
-        fwhm = self.beam_size * self.frequencies[freq] / self.beam_pivot
+        if self.beam_freq_scale:
+            fwhm = self.beam_size * self.frequencies[freq] / self.beam_pivot
+        else:
+            fwhm = self.beam_size
 
         return gaussian_beam(self._angpos, pointing, fwhm)
         

@@ -255,7 +255,7 @@ class TransitTelescope(util.ConfigReader):
     @property
     def npairs(self):
         """The number of unique feed pairs."""
-        return self.baselines.shape[0]
+        return self.uniquepairs.shape[0]
 
     
     _uniquepairs = None
@@ -400,7 +400,7 @@ class TransitTelescope(util.ConfigReader):
         self._feedmap, self._feedmask = self._get_unique()
         self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
         self._uniquepairs = _get_indices(self._feedmap, mask=self._feedmask)
-        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask)]) / 2
+        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask * np.tri(self.nfeed))]) # Triangle mask to avoid double counting
         
         # Reorder and conjugate baselines such that the default feedpair
         # points W->E (to ensure we use positive-m)
@@ -411,7 +411,7 @@ class TransitTelescope(util.ConfigReader):
 
     def _make_ew(self):
         # Reorder baselines pairs, such that the baseline vector always points E (or pure N)
-        for i in range(self.npairs:
+        for i in range(self.npairs):
             sep = self.feedpositions[self._uniquepairs[i, 0]] - self.feedpositions[self._uniquepairs[i, 1]]
 
             if sep[0] < 0.0 or (sep[0] == 0.0 and sep[1] < 0.0):
@@ -449,7 +449,7 @@ class TransitTelescope(util.ConfigReader):
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
         
-        return np.zeros(fshape, dtype=np.int), np.ones(fshape, dtype=np.bool)
+        return np.zeros(fshape, dtype=np.int), np.logical_not(np.identity(self.nfeed, dtype=np.bool))
 
 
     def _get_unique(self):

@@ -6,7 +6,7 @@ import yaml
 
 from cylsim import mpiutil
 
-from cylsim import cylinder, gmrt
+from cylsim import cylinder, gmrt, focalplane
 from cylsim import beamtransfer
 
 from cylsim import kltransform, doublekl
@@ -51,7 +51,8 @@ teltype = yconf['telescope']['type']
 
 teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelescope,
                     'PolarisedCylinder'     : cylinder.PolarisedCylinderTelescope,
-                    'GMRT'                  : gmrt.GmrtUnpolarised
+                    'GMRT'                  : gmrt.GmrtUnpolarised,
+                    'FocalPlane'            : focalplane.FocalPlaneArray
                 }
 
 if teltype not in teltype_dict:

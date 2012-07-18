@@ -39,7 +39,7 @@ bt.generate_cache()
 # Perform the KL transform (saving all modes)
 klt = kltransform.KLTransform(bt)
 klt.subset = False
-klt.inverse = False
+klt.inverse = True
 klt.use_foregrounds = True
 klt.generate()
 

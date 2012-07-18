@@ -655,7 +655,17 @@ class TransitTelescope(util.ConfigReader):
         noisebase = noisepower / self.redundancy[bl_indices]
 
         return noisebase
-        
+
+
+    def noisepower_feedpairs(self, fi, fj, f_indices, m, ndays=None):
+        ndays = self.ndays if not ndays else ndays
+
+        bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
+        delnu = units.t_sidereal * bw / (2*np.pi)
+        noisepower = self.tsys(f_indices)**2 / (2 * np.pi * delnu * ndays)
+
+        return np.ones_like(fi) * np.ones_like(fj) * np.ones_like(m) * noisepower / 2.0 # For unpolarised only at the moment.
+
     #===================================================
 
 

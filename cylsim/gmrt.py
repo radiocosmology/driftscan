@@ -59,6 +59,8 @@ class GmrtArray(telescope.TransitTelescope):
     _bc_freq = None
     _bc_nside = None
 
+    _positions = None
+
     pointing = np.array([0.0, 0.0])
 
     dish_width = 45.0
@@ -131,7 +133,9 @@ class GmrtArray(telescope.TransitTelescope):
             The positions in the telescope plane of the receivers. Packed as
             [[u1, v1], [u2, v2], ...].
         """
-        
+        if self._positions is None:
+            self._positions = np.loadtxt(self._pos_file)
+            
         return self._positions
             
 

@@ -72,13 +72,23 @@ vist = np.fft.ifft(vis) * (2 * tel.mmax + 1)
 ## The time samples the visibility is calculated at
 tphi = np.linspace(0, 2*np.pi, vist.shape[1], endpoint=False)
 
-f = h5py.File(outfile, 'w')
+tseries = np.zeros(tel.feedmap.shape + tphi.shape, dtype=np.complex128)
 
-f.create_dataset('/visibilities', data=vist)
-f.create_dataset('/phisamples', data=tphi)
-f.create_dataset('/baselines', data=tel.baselines)
+wm = np.where(tel.feedmask)
+wc = np.where(tel.feedconj)
+tseries[wm] = vist[tel.feedmap[wm]]
 
-f.attr['frequency'] = tel.frequencies[freq_ind]
+tseries[wc] = tseries[wc].conj()
+
+
+
+#f = h5py.File(outfile, 'w')
+
+#f.create_dataset('/visibilities', data=vist)
+#f.create_dataset('/phisamples', data=tphi)
+#f.create_dataset('/baselines', data=tel.baselines)
+
+#telf.attr['frequency'] = tel.frequencies[freq_ind]
 
 tel._init_trans(128)
 bm27 = tel._beam_map_single(3, 0)

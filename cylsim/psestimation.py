@@ -54,7 +54,7 @@ class PSEstimation(util.ConfigReader):
 
     __config_table_ =   {   'bands'       : [range_config,    'bands'],
                             'threshold'   : [float,           'threshold'],
-                            'units_bands' : [bool,            'units_bands']
+                            'unit_bands' : [bool,            'unit_bands']
                         }
 
     @property
@@ -88,7 +88,7 @@ class PSEstimation(util.ConfigReader):
         bandlims = zip(self.bands[:-1], self.bands[1:])
 
         # Create band functions and set nominal value of band.
-        if self.units_bands:
+        if self.unit_bands:
             bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
             self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
 

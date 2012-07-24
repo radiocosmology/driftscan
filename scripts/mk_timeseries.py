@@ -10,22 +10,6 @@ from cylsim import beamtransfer, blockla
 
 
 def rotate_phi(map, dphi):
-    """Rotate a map from galactic co-ordinates into celestial co-ordinates.
-
-    Parameters
-    ----------
-    map : np.ndarray
-        Healpix map.
-    x, y : {'C', 'G', 'E'}
-        Coordinate system to transform to/from. Celestial, 'C'; Galactic 'G'; or
-        Ecliptic 'E'.
-
-    Returns
-    -------
-    rotmap : np.ndarray
-        The rotated map.
-    """
-
     angpos = hputil.ang_positions(healpy.npix2nside(map.size))
     theta, phi = angpos[:, 0], ((angpos[:, 1] - dphi) % (2*np.pi))
     return healpy.get_interp_val(map, theta, phi)
@@ -35,7 +19,8 @@ parser = argparse.ArgumentParser(description="Create the visibility timeseries c
 parser.add_argument("teldir", help="The telescope directory to use.")
 parser.add_argument("mapfile", help="Input map.")
 parser.add_argument("outfile", help="Output file for timeseries.")
-parser.add_argument("--freq", help="Index of frequency slice to use.", default=0, type=int)
+parser.add_argument("-f", "--freq", help="Index of frequency slice to use.", default=0, type=int)
+parser.add_argument("-n", "--ndays", help="Number of days of co-added data (affects noise amplitude).", default=0, type=int)
 args = parser.parse_args()
 
 ## Read in cylinder system
@@ -72,22 +57,47 @@ vist = np.fft.ifft(vis) * (2 * tel.mmax + 1)
 ## The time samples the visibility is calculated at
 tphi = np.linspace(0, 2*np.pi, vist.shape[1], endpoint=False)
 
-f = h5py.File(outfile, 'w')
+tseries = np.zeros(tel.feedmap.shape + tphi.shape, dtype=np.complex128)
 
-f.create_dataset('/visibilities', data=vist)
-f.create_dataset('/phisamples', data=tphi)
+wm = np.where(tel.feedmask)
+wc = np.where(tel.feedconj)
+tseries[wm] = vist[tel.feedmap[wm]]
+
+tseries[wc] = tseries[wc].conj()
+
+nseries = (np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1]) +
+           np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1])) / 2**0.5
+
+fi, fj = np.indices([tel.nfeed, tel.nfeed])
+nseries *= tel.noisepower_feedpairs(fi, fj, freq_ind, 0, ndays=(args.ndays if args.ndays > 0 else None))[:, :, np.newaxis]**0.5
+
+nseries = np.fft.ifft(nseries) * (2 * tel.mmax + 1)
+
+
+
+
+f = h5py.File(args.outfile, 'w')
+
+f.create_dataset('/visibility_timeseries', data=tseries)
+f.create_dataset('/noise_timeseries', data=nseries)
+f.create_dataset('/phi', data=tphi)
+f.create_dataset('/feedmap', data=tel.feedmap)
+f.create_dataset('/feedconj', data=tel.feedconj)
+f.create_dataset('/uniquepairs', data=tel.uniquepairs)
 f.create_dataset('/baselines', data=tel.baselines)
 
-f.attr['frequency'] = tel.frequencies[freq_ind]
+f.attrs['frequency'] = tel.frequencies[freq_ind]
 
-tel._init_trans(128)
-bm27 = tel._beam_map_single(3, 0)
+f.close()
 
-vism = np.zeros(tphi.size, dtype=np.complex128)
+#tel._init_trans(128)
+#bm27 = tel._beam_map_single(3, 0)
 
-for i in range(tphi.size):
-    print i
-    vism[i] = np.mean(rotate_phi(bm27, tphi[i]) * skymap) * 4*np.pi
+#vism = np.zeros(tphi.size, dtype=np.complex128)
+
+#for i in range(tphi.size):
+#    print i
+#    vism[i] = np.mean(rotate_phi(bm27, tphi[i]) * skymap) * 4*np.pi
 
 
 #vism = np.mean(bm27 * skymap) * 4*np.pi

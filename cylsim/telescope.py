@@ -80,7 +80,9 @@ def _get_indices(keyarray, mask=None):
     keysflat = keyarray.ravel()[wm]
 
     un, ind = np.unique(keysflat, return_index=True)
-    upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
+    # CHANGE: np (< 1.6) does not support multiple indices in np.unravel_index
+    #upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
+    upairs = np.array([np.unravel_index(i1, keyarray.shape) for i1 in wm[ind] ])
 
     return np.sort(upairs, axis=-1) # Sort to ensure we are in upper triangle
 

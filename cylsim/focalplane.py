@@ -56,13 +56,16 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     beam_freq_scale = True
 
+    square_beam = False
+
     __config_table_ = { 'beam_num_u'        : [int,     'beam_num_u'],
                         'beam_num_v'        : [int,     'beam_num_v'],
                         'beam_spacing_u'    : [float,   'beam_spacing_u'],
                         'beam_spacing_v'    : [float,   'beam_spacing_v'],
                         'beam_size'         : [float,   'beam_size'],
                         'beam_pivot'        : [float,   'beam_pivot'],
-                        'beam_freq_scale'   : [bool,    'beam_freq_scale']
+                        'beam_freq_scale'   : [bool,    'beam_freq_scale'],
+                        'square_beam'       : [bool,    'square_beam']
                       }
 
     def __init__(self, *args, **kwargs):
@@ -91,7 +94,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
     
 
     @util.cache_last
-    def beam(self, feed, freq):
+    def beam_gaussian(self, feed, freq):
 
         pointing = self.beam_pointings[feed]
         if self.beam_freq_scale:
@@ -101,6 +104,24 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
         return gaussian_beam(self._angpos, pointing, fwhm)
         
+
+    @util.cache_last
+    def beam_square(self, feed, freq):
+
+        pointing = self.beam_pointings[feed]
+        bdist = (self._angpos - pointing[np.newaxis, :])
+        bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
+        #bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
+        beam = np.logical_and(bdist[:, 0] < 0.5, bdist[:, 1] < 0.5).astype(np.float64)
+        
+        return beam
+
+    def beam(self, feed, freq):
+        if self.square_beam:
+            return self.beam_square(feed, freq)
+        else:
+            return self.beam_gaussian(feed, freq)
+    
 
     @property
     def dish_width(self):

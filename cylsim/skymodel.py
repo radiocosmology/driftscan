@@ -9,6 +9,8 @@ _reionisation = False
 
 _zaverage = 5
 
+_endpoint = False
+
 
 def clarray(aps, lmax, zarray, zaverage=None):
 
@@ -21,7 +23,10 @@ def clarray(aps, lmax, zarray, zaverage=None):
     else:
         zhalf = np.abs(zarray[1] - zarray[0]) / 2.0
         zlen = zarray.size
-        za = (zarray[:, np.newaxis] + np.linspace(-zhalf, zhalf, zaverage)[np.newaxis, :]).flatten()
+        if _endpoint:
+            za = (zarray[:, np.newaxis] + np.linspace(-zhalf, zhalf, zaverage)[np.newaxis, :]).flatten()
+        else:
+            za = np.linspace(zarray[0] - zhalf, zarray[-1]+ zhalf, zlen * zaverage, endpoint=False) + (zhalf / zaverage)
 
         lsections = np.array_split(np.arange(lmax+1), lmax / 50)
 

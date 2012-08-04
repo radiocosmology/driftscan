@@ -29,7 +29,9 @@ cyl.tsys_flat = 10.0
 #cyl.tsys_flat = 0.0
 cyl.l_boost = 1.2
 
-cyl.positive_m_only = True
+cyl.auto_correlations = True
+
+cyl.positive_m_only = False
 #cyl.in_cylinder = False
 
 # Generate all the beam transfer functions

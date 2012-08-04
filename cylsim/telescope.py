@@ -174,6 +174,8 @@ class TransitTelescope(util.ConfigReader):
     minlength = 0.0
     maxlength = 1000000.0
 
+    auto_correlations = False
+
     _progress = lambda x: x
 
     __config_table_ =   {   'zenith'        : [latlon_to_sphpol, 'zenith'],
@@ -189,7 +191,8 @@ class TransitTelescope(util.ConfigReader):
 
                             'positive_m_only' : [bool,  'positive_m_only'],
                             'minlength'     : [float,   'minlength'],
-                            'maxlength'     : [float,   'maxlength']
+                            'maxlength'     : [float,   'maxlength'],
+                            'auto_correlations' : [bool, 'auto_correlations']
                         }
 
 
@@ -448,8 +451,15 @@ class TransitTelescope(util.ConfigReader):
         """
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
-        
-        return np.zeros(fshape, dtype=np.int), np.logical_not(np.identity(self.nfeed, dtype=np.bool))
+
+        beam_map = np.zeros(fshape, dtype=np.int)
+
+        if self.auto_correlations:
+            beam_mask = np.ones(fshape, dtype=np.bool)
+        else:
+            beam_mask = np.logical_not(np.identity(self.nfeed, dtype=np.bool))
+
+        return beam_map, beam_mask
 
 
     def _get_unique(self):

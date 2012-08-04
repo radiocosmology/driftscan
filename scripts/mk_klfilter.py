@@ -14,6 +14,7 @@ from cylsim import cylinder
 from cylsim import beamtransfer
 from cylsim import kltransform
 from cylsim import mpiutil
+from mpi4py import MPI
 
 ## Read arguments in.
 parser = argparse.ArgumentParser(description="Filter a map using S/N eigenmodes.")
@@ -37,6 +38,9 @@ cut = args.threshold
     
 nside = 0
 
+
+alm = np.zeros((cyl.nfreq, cyl.lmax+1, cyl.lmax+1), dtype=np.complex128)
+
 if mpiutil.rank0:
     ## Useful output
     print "=================================="
@@ -53,10 +57,10 @@ if mpiutil.rank0:
     nside = healpy.get_nside(skymap[0])
 
     alm = hputil.sphtrans_sky(skymap, lmax=cyl.lmax)
-else:
-    alm = None
+#else:
+#    almr = None
     
-alm = mpiutil.world.bcast(alm, root=0)
+mpiutil.world.Bcast([alm, MPI.COMPLEX16], root=0)
 
 
 

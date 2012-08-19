@@ -56,7 +56,7 @@ class RestrictedCylinder(cylinder.UnpolarisedCylinderTelescope):
 
         return beam
 
-    @util.cache_last
+    #@util.cache_last
     def beam_box(self, feed, freq):
 
         pointing = self.zenith

@@ -72,18 +72,31 @@ def eigh_gen(A, B):
     
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
-        except la.LinAlgError:
+        except la.LinAlgError as e:
             
-            #raise Exception("blah")
-            print "Matrix probabaly not positive definite due to numerical issues. \
-            Trying to a constant...."
-        
-            evb = la.eigvalsh(B)
-            add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
-            
-            B[np.diag_indices(B.shape[0])] += add_const
-            evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
-        
+            # Get error number
+            mo = re.search('order (\\d+)', e.message)
+
+            # If exception unrecognised then re-raise.
+            if mo is None:
+                raise e
+
+            errno = mo.group(1)
+
+            if errno < (A.shape[0]+1):
+
+                print "Matrix probabaly not positive definite due to numerical issues. \
+                Trying to a constant...."
+
+                evb = la.eigvalsh(B)
+                add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
+
+                B[np.diag_indices(B.shape[0])] += add_const
+                evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
+
+            else:
+                evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True, turbo=False)
+
     return evals, evecs, add_const
 
 

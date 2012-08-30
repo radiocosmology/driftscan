@@ -31,7 +31,6 @@ freq_ind = args.freq
 ## Load file
 f = h5py.File(args.mapfile, 'r')
 skymap = f['map'][:] if len(f['map'].shape) == 1 else f['map'][freq_ind]
-skymap = healpy.smoothing(healpy.ud_grade(skymap, 128), degree=True, fwhm=1.0)
 f.close()
 
 tel = bt.telescope
@@ -69,10 +68,15 @@ nseries = (np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1]) +
            np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1])) / 2**0.5
 
 fi, fj = np.indices([tel.nfeed, tel.nfeed])
-nseries *= tel.noisepower_feedpairs(fi, fj, freq_ind, 0, ndays=(args.ndays if args.ndays > 0 else None))[:, :, np.newaxis]**0.5
 
+npower = tel.noisepower_feedpairs(fi, fj, freq_ind, 0, ndays=(args.ndays if args.ndays > 0 else None))
+
+nseries *= npower[:, :, np.newaxis]**0.5
 nseries = np.fft.ifft(nseries) * (2 * tel.mmax + 1)
 
+nseries = 0.5*(nseries + nseries.T.conj())
+
+npower = npower * 2*np.pi / tphi[1]
 
 
 
@@ -83,8 +87,10 @@ f.create_dataset('/noise_timeseries', data=nseries)
 f.create_dataset('/phi', data=tphi)
 f.create_dataset('/feedmap', data=tel.feedmap)
 f.create_dataset('/feedconj', data=tel.feedconj)
+f.create_dataset('/feedmask', data=tel.feedmask)
 f.create_dataset('/uniquepairs', data=tel.uniquepairs)
 f.create_dataset('/baselines', data=tel.baselines)
+f.create_dataset('/noisepower', data=npower)
 
 f.attrs['frequency'] = tel.frequencies[freq_ind]
 

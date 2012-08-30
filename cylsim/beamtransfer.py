@@ -357,7 +357,7 @@ class BeamTransfer(object):
         mi : integer
             Mode index to fetch for.
         vec : np.ndarray
-            Sky data vector packed as [freq, pol, l]
+            Sky data vector packed as [freq, baseline, polarisation]
 
         Returns
         -------

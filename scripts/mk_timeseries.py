@@ -31,7 +31,6 @@ freq_ind = args.freq
 ## Load file
 f = h5py.File(args.mapfile, 'r')
 skymap = f['map'][:] if len(f['map'].shape) == 1 else f['map'][freq_ind]
-skymap = healpy.smoothing(healpy.ud_grade(skymap, 128), degree=True, fwhm=1.0)
 f.close()
 
 tel = bt.telescope
@@ -74,6 +73,8 @@ npower = tel.noisepower_feedpairs(fi, fj, freq_ind, 0, ndays=(args.ndays if args
 
 nseries *= npower[:, :, np.newaxis]**0.5
 nseries = np.fft.ifft(nseries) * (2 * tel.mmax + 1)
+
+nseries = 0.5*(nseries + nseries.T.conj())
 
 npower = npower * 2*np.pi / tphi[1]
 

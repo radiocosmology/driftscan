@@ -109,8 +109,12 @@ class PSEstimation(util.ConfigReader):
         self.bend = self.bands[1:]
         self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
 
-        self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
+        #self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
+        # Use new parallel map to speed up computaiton of bands
+        self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band[0]), self.band_pk)
+
         print "Done."
+
         
     def make_clzz(self, pk):
         #print "Making C_l(z,z')"

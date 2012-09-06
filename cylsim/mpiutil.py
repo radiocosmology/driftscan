@@ -57,3 +57,30 @@ def barrier():
     if _size > 1:
         _comm.Barrier()
     
+def parallel_map(func, glist):
+
+    # If we're only on a single node, then just perform without MPI
+    if _size == 1 and _rank == 0:
+        return [func(item) for item in glist]
+
+    # Pair up each list item with its position.
+    zlist = list(enumerate(glist))
+
+    # Partition list based on MPI rank
+    llist = partition_list_mpi(zlist)
+
+    # Operate on sublist
+    flist = [(ind, func(item)) for ind, item in llist]
+
+    # Gather all results onto all ranks
+    rlist = _comm.allgather(flist)
+
+    # Flatten the list of results
+    flatlist = [item for sublist in rlist for item in sublist]
+
+    # Sort into original order
+    sortlist = sorted(flatlist, key=(lambda item: item[0]))
+
+    # Zip to remove indices and extract the return values into a list
+    return list(zip(*sortlist)[1])
+

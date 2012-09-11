@@ -1,5 +1,6 @@
 import time
 import os
+import re
 
 import numpy as np
 import scipy.linalg as la
@@ -73,7 +74,7 @@ def eigh_gen(A, B):
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
-            
+            print "Error occured in eigenvalue solve."
             # Get error number
             mo = re.search('order (\\d+)', e.message)
 
@@ -86,7 +87,7 @@ def eigh_gen(A, B):
             if errno < (A.shape[0]+1):
 
                 print "Matrix probabaly not positive definite due to numerical issues. \
-                Trying to a constant...."
+                Trying to add a constant diagonal...."
 
                 evb = la.eigvalsh(B)
                 add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
@@ -95,6 +96,7 @@ def eigh_gen(A, B):
                 evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
 
             else:
+                print "Strange convergence issue. Trying non divide and conquer routine."
                 evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True, turbo=False)
 
     return evals, evecs, add_const

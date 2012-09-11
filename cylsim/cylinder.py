@@ -172,7 +172,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 
 
     
-    @util.cache_last
+    #@util.cache_last
     def beam(self, feed, freq):
         """Beam for a particular feed.
         

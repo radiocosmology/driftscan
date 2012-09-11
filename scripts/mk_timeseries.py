@@ -49,6 +49,7 @@ alm = np.squeeze(np.rollaxis(alm, -1))
 ## Calculate the visibility fourier modes
 vis = blockla.multiply_dm_v(bf0, alm).T
 
+
 ## Transform to find the visibility time series (the multiplicative factor
 ## corrects to get the normalisation)
 vist = np.fft.ifft(vis) * (2 * tel.mmax + 1)
@@ -66,6 +67,10 @@ tseries[wc] = tseries[wc].conj()
 
 nseries = (np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1]) +
            np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1])) / 2**0.5
+
+print "Shape", nseries.shape
+print "Size: %f GB" % (nseries.size * 16 / 2**30.0)
+
 
 fi, fj = np.indices([tel.nfeed, tel.nfeed])
 

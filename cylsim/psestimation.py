@@ -89,12 +89,12 @@ class PSEstimation(util.ConfigReader):
 
         # Create band functions and set nominal value of band.
         if self.unit_bands:
-            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
+            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be) * cr.ps_vv(k))
             self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
 
             self.bpower = np.ones(len(self.band_pk))
         else:
-            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be) * cr.ps_vv(k))
+            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
             self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
             
             self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
@@ -108,7 +108,7 @@ class PSEstimation(util.ConfigReader):
         self.bstart = self.bands[:-1]
         self.bend = self.bands[1:]
         self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
-
+        self.psvalues = cr.ps_vv(self.bcenter)
         self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
         print "Done."
         
@@ -267,6 +267,7 @@ class PSEstimation(util.ConfigReader):
             f.create_dataset('bandstart/', data=self.bstart)
             f.create_dataset('bandend/', data=self.bend)
             f.create_dataset('bandcenter/', data=self.bcenter)
+            f.create_dataset('psvalues/', data=self.psvalues)
             f.close()
             
     

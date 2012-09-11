@@ -14,8 +14,13 @@ def gaussian_fwhm(x, fwhm):
 class RestrictedCylinder(cylinder.UnpolarisedCylinderTelescope):
 
     beam_height = 30.0
+    beam_type = 'box'
 
-    __config_table_ =   {   'beam_height'   : [float, 'beam_height'] }
+    __config_table_ =   {
+                          'beam_height'   : [float, 'beam_height'],
+                          'beam_type'     : [str,   'beam_type']
+                        }
+
 
     def __init__(self, *args, **kwargs):
         super(RestrictedCylinder, self).__init__(*args, **kwargs)
@@ -23,38 +28,33 @@ class RestrictedCylinder(cylinder.UnpolarisedCylinderTelescope):
         self.add_config(self.__config_table_)
 
 
-    @util.cache_last
-    def beam_gauss(self, feed, freq):
+    #@util.cache_last
+    def beam_gaussian(self, feed, freq):
 
         pointing = self.zenith
         bdist = (self._angpos - pointing[np.newaxis, :])
         bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :]))
-        #bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
 
         fwhm_x = 1.0 / (self.cylinder_width / self.wavelengths[freq])
-        fwhm_y = 1.0 / (self.feed_spacing / self.wavelengths[freq])
 
-        print fwhm_x, fwhm_y
-
-        beam = gaussian_fwhm(bdist[:, 0], fwhm_y) * gaussian_fwhm(bdist[:, 1], fwhm_x)
+        beam = np.sinc(bdist[:, 1] / fwhm_x) * gaussian_fwhm(bdist[:, 0], np.radians(self.beam_height))
 
         return beam
 
 
-    @util.cache_last
-    def beam_sinc(self, feed, freq):
+    #@util.cache_last
+    # def beam_sinc(self, feed, freq):
 
-        pointing = self.zenith
-        bdist = (self._angpos - pointing[np.newaxis, :])
-        bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :]))
-        #bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
+    #     pointing = self.zenith
+    #     bdist = (self._angpos - pointing[np.newaxis, :])
+    #     bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :]))
 
-        D_x = (self.cylinder_width / self.wavelengths[freq])
-        D_y = (self.feed_spacing / self.wavelengths[freq])
+    #     D_x = (self.cylinder_width / self.wavelengths[freq])
+    #     D_y = (self.feed_spacing / self.wavelengths[freq])
 
-        beam = np.sinc(bdist[:, 0] * D_y) * np.sinc(bdist[:, 1] * D_x)
+    #     beam = np.sinc(bdist[:, 0] * D_y) * np.sinc(bdist[:, 1] * D_x)
 
-        return beam
+    #     return beam
 
     #@util.cache_last
     def beam_box(self, feed, freq):
@@ -62,13 +62,20 @@ class RestrictedCylinder(cylinder.UnpolarisedCylinderTelescope):
         pointing = self.zenith
         bdist = (self._angpos - pointing[np.newaxis, :])
         bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :]))
-        #bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
 
         D_x = (self.cylinder_width / self.wavelengths[freq])
-        D_y = (self.feed_spacing / self.wavelengths[freq])
 
         beam = np.sinc(bdist[:, 1] * D_x) * (np.abs(bdist[:, 0] / np.radians(self.beam_height)) < 0.5)
 
         return beam
 
-    beam = beam_box
+
+    def beam(self, *args, **kwargs):
+        bdict = {
+                  'gaussian' : self.beam_gaussian,
+                  #'sinc'     : self.beam_sinc,
+                  'box'      : self.beam_box
+                }
+
+        return bdict[self.beam_type](*args, **kwargs)
+

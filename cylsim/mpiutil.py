@@ -59,6 +59,9 @@ def barrier():
     
 def parallel_map(func, glist):
 
+    # Synchronize
+    barrier()
+
     # If we're only on a single node, then just perform without MPI
     if _size == 1 and _rank == 0:
         return [func(item) for item in glist]
@@ -80,6 +83,9 @@ def parallel_map(func, glist):
 
     # Sort into original order
     sortlist = sorted(flatlist, key=(lambda item: item[0]))
+
+    # Synchronize
+    barrier()
 
     # Zip to remove indices and extract the return values into a list
     return list(zip(*sortlist)[1])

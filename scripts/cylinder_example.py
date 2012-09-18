@@ -11,7 +11,7 @@ from cylsim import psmc
 cyl = cylinder.UnpolarisedCylinderTelescope()
 
 # Check to see if there is a SCRATCH directory and use it if possible.
-teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/voltest')
+teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/voltest_small')
 
 # Set the measured frequencies of the telescope
 cyl.num_freq = 10
@@ -22,14 +22,14 @@ cyl.freq_upper = 450.0
 cyl.cylinder_width = 5.0
 cyl.num_cylinders = 2
 cyl.feed_spacing = 0.5
-cyl.num_feeds = 10
+cyl.num_feeds = 5
 
 # Set the thermal noise (T_sys flat across spectrum)
 cyl.tsys_flat = 10.0
 #cyl.tsys_flat = 0.0
 cyl.l_boost = 1.2
 
-cyl.auto_correlations = True
+cyl.auto_correlations = False
 
 cyl.positive_m_only = False
 #cyl.in_cylinder = False

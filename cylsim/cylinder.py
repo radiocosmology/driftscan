@@ -223,7 +223,7 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
 
         self.add_config(self.__config_table_)
 
-    @util.cache_last
+    #@util.cache_last
     def beamx(self, feed, freq):
         
         bpat = visibility.cylinder_beam(self._angpos, self.zenith,
@@ -240,7 +240,7 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
             
         return bm
 
-    @util.cache_last
+    #@util.cache_last
     def beamy(self, feed, freq):
 
         bpat = visibility.cylinder_beam(self._angpos, self.zenith,

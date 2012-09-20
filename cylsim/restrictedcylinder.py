@@ -62,7 +62,7 @@ class RestrictedCylinder(RestrictedBeam, cylinder.UnpolarisedCylinderTelescope):
                   'box'      : self.bmask_box
                 }
 
-        return bdict[self.beam_type](*args, **kwargs) * cylinder.UnpolarisedCylinderTelescope.beam(*args, **kwargs)
+        return bdict[self.beam_type](*args, **kwargs) * cylinder.UnpolarisedCylinderTelescope.beam(self, *args, **kwargs)
 
 
 

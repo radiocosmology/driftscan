@@ -958,7 +958,7 @@ class PolarisedTelescope(TransitTelescope):
 
         bmaps = self._beam_map_single(bl_index, f_index)
 
-        btrans = [ [ pb.conj() for pb in hputil.sphtrans_complex_pol(bmap.conj(), centered = False,
+        btrans = [ [ pb.conj() for pb in hputil.sphtrans_complex_pol([bm.conj() for bm in bmap], centered = False,
                                                                      lmax = int(lmax), lside=lside) ] for bmap in bmaps]
 
         return btrans

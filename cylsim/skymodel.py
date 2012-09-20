@@ -64,7 +64,7 @@ def foreground_model(lmax, frequencies, npol, polfrac=0.5):
         cv_fg[1, 1] = skysim.clarray(fpol.angular_powerspectrum, lmax, frequencies)
         cv_fg[2, 2] = skysim.clarray(fpol.angular_powerspectrum, lmax, frequencies)
 
-    #cv_fg[0, 0] += clarray(fps.angular_powerspectrum, lmax, frequencies)
+    cv_fg[0, 0] += clarray(fps.angular_powerspectrum, lmax, frequencies)
     return cv_fg
 
 

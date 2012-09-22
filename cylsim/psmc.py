@@ -117,7 +117,8 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         btsims = np.zeros((bt.nfreq, bt.ntel, self.nsamples), dtype=np.complex128)
         skysim = sim_skyvec(self.transarray[bi], self.nsamples)
-        beam = self.kltrans.beamtransfer.beam_m(mi).reshape((bt.nfreq, bt.ntel, bt.nsky))
+        #beam = self.kltrans.beamtransfer.beam_m(mi).reshape((bt.nfreq, bt.ntel, bt.nsky))
+        beam = self.kltrans.beamtransfer.beam_m(mi).reshape((bt.nfreq, bt.ntel, bt.nsky))[:, :, :(bt.nsky/self.telescope.num_pol_sky)]
         
         for fi in range(bt.nfreq):
             btsims[fi] = np.dot(beam[fi], skysim[:, fi, :])

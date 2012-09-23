@@ -87,3 +87,38 @@ class RestrictedPolarisedCylinder(RestrictedBeam, cylinder.PolarisedCylinderTele
 
         return bdict[self.beam_type](*args, **kwargs)[:, np.newaxis] * cylinder.PolarisedCylinderTelescope.beamy(self, *args, **kwargs)
 
+
+
+
+class RestrictedExtra(RestrictedCylinder):
+
+    extra_feeds = np.array([])
+
+    __config_table_ =   {
+                          'extra_feeds'   : [np.array, 'extra_feeds'],
+                        }
+
+
+    def __init__(self, *args, **kwargs):
+        super(RestrictedExtra, self).__init__(*args, **kwargs)
+
+        self.add_config(self.__config_table_)
+
+
+    def feed_positions_cylinder(self, cylinder_index):
+
+        pos = super(RestrictedExtra, self).feed_positions_cylinder(cylinder_index)
+
+
+        nextra = self.extra_feeds.shape[0]
+
+        pos2 = np.zeros((pos.shape[0] + nextra, 2), dtype=np.float64)
+
+        pos2[nextra:] = pos
+
+        pos2[:nextra, 0] = cylinder_index * self.cylinder_spacing
+        pos2[:nextra, 1] = self.extra_feeds
+
+        return pos2
+
+        

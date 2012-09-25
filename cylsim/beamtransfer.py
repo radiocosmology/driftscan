@@ -455,7 +455,7 @@ class BeamTransfer(object):
 class BeamTransferChunked(BeamTransfer):
 
 
-    _mem_switch = 5.0 # Rough chunks (in GB) to divide calculation into.
+    _mem_switch = 3.0 # Rough chunks (in GB) to divide calculation into.
 
 
     def generate(self, regen=False):
@@ -509,6 +509,7 @@ class BeamTransferChunked(BeamTransfer):
                 tarray = self.telescope.transfer_matrices(b_ind, f_ind)
                 dset[(b_ind[0]):(b_ind[-1]+1), ..., :(self.telescope.mmax+1)] = tarray[..., :(self.telescope.mmax+1)]
                 dset[(b_ind[0]):(b_ind[-1]+1), ..., (-self.telescope.mmax):]  = tarray[..., (-self.telescope.mmax):]
+                del tarray
 
             f.close()
 

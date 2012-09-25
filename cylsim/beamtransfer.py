@@ -452,7 +452,160 @@ class BeamTransfer(object):
 
 
 
+class BeamTransferChunked(BeamTransfer):
 
-                    
-            
+
+    _mem_switch = 5.0 # Rough chunks (in GB) to divide calculation into.
+
+
+    def generate(self, regen=False):
+        """Save out all beam transfer matrices to disk.
+
+        Parameters
+        ----------
+        regen : boolean, optional
+            Force regeneration even if cache files exist (default: False).
+        """
+
+        # For each frequency, create the HDF5 file, and write in each `m` as a
+        # seperate compressed dataset. Use MPI if available. 
+        for fi in mpiutil.mpirange(self.nfreq):
+
+            if os.path.exists(self._ffile % fi) and not regen:
+                print ("f index %i. File: %s exists. Skipping..." %
+                       (fi, (self._ffile % fi)))
+                continue
+            else:
+                print ('f index %i. Creating file: %s' %
+                       (fi, (self._ffile % fi)))
+
+            f = h5py.File(self._ffile % fi, 'w')
+
+            # Set a few useful attributes.
+            f.attrs['baselines'] = self.telescope.baselines
+            f.attrs['baseline_indices'] = np.arange(self.telescope.npairs)
+            f.attrs['frequency_index'] = fi
+            f.attrs['frequency'] = self.telescope.frequencies[fi]
+            f.attrs['cylobj'] = self._telescope_pickle
+
+            dsize = (self.telescope.nbase, self.telescope.num_pol_telescope,
+                     self.telescope.num_pol_sky, self.telescope.lmax+1, 2*self.telescope.mmax+1)
+
+            csize = (10, self.telescope.num_pol_telescope,
+                     self.telescope.num_pol_sky, self.telescope.lmax+1, 1)
+
+            dset = f.create_dataset('beam_freq', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
+
+            # Divide into roughly 5 GB chunks
+            nsections = np.ceil(np.prod(dsize) * 16.0 / 2**30.0 / self._mem_switch)
+
+            print "Dividing calculation of %f GB array into %i sections." % (np.prod(dsize) * 16.0 / 2**30.0, nsections)
+
+            b_sec = np.array_split(np.arange(self.telescope.npairs, dtype=np.int), nsections)
+            f_sec = np.array_split(fi * np.ones(self.telescope.npairs, dtype=np.int), nsections)
+
+            # Iterate over each section, generating transfers and save them.
+            for b_ind, f_ind in zip(b_sec, f_sec):
+                tarray = self.telescope.transfer_matrices(b_ind, f_ind)
+                dset[(b_ind[0]):(b_ind[-1]+1), ..., :(self.telescope.mmax+1)] = tarray[..., :(self.telescope.mmax+1)]
+                dset[(b_ind[0]):(b_ind[-1]+1), ..., (-self.telescope.mmax):]  = tarray[..., (-self.telescope.mmax):]
+
+            f.close()
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        # For each `m` collect all the `m` sections from each frequency file,
+        # and write them into a new `m` file. Use MPI if available. 
+        for mi in mpiutil.mpirange(-self.telescope.mmax,
+                                   self.telescope.mmax + 1):
+
+            if os.path.exists(self._mfile % mi) and not regen:
+                print ("m index %i. File: %s exists. Skipping..." %
+                       (mi, (self._mfile % mi)))
+                continue
+            else:
+                print 'm index %i. Creating file: %s' % (mi, self._mfile % mi)
+
+            ## Create hdf5 file for each m-mode
+            f = h5py.File(self._mfile % mi, 'w')
+
+            dsize = (self.telescope.nfreq, self.telescope.nbase,
+                     self.telescope.num_pol_telescope, self.telescope.num_pol_sky, self.telescope.lmax+1)
+
+            csize = (1, 10, self.telescope.num_pol_telescope,
+                     self.telescope.num_pol_sky, self.telescope.lmax+1)
+
+            dset = f.create_dataset('beam_m', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
+
+
+            ## For each frequency read in the current m-mode 
+            ## and copy into file.
+            for fi in np.arange(self.telescope.nfreq):
+
+                ff = h5py.File(self._ffile % fi, 'r')
+
+                # Check frequency is what we expect.
+                if fi != ff.attrs['frequency_index']:
+                    raise Exception("Bork.")
         
+                dset[fi] = ff['beam_freq'][..., mi]
+
+                ff.close()
+                
+            # Write a few useful attributes.
+            f.attrs['baselines'] = self.telescope.baselines
+            f.attrs['m'] = mi
+            f.attrs['frequencies'] = self.telescope.frequencies
+            f.attrs['cylobj'] = self._telescope_pickle
+            
+            f.close()
+
+        # Save pickled telescope object
+        if mpiutil.rank0:
+            with open(self._picklefile, 'w') as f:
+                print "=== Saving Telescope object. ==="
+                pickle.dump(self.telescope, f)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+    generate_cache = generate # For compatibility with old code
+        
+
+
+
+    def _load_beam_m(self, mi):
+        ## Read in beam from disk
+        mfile = h5py.File(self._mfile % mi, 'r')
+
+        beam = mfile['beam_m'][:]
+        mfile.close()
+
+        return beam
+
+    @util.cache_last
+    def _load_beam_freq(self, fi, fullm=False):
+        
+        tel = self.telescope
+        mside = 2 * tel.lmax + 1 if fullm else 2 * tel.mmax + 1
+        
+        ffile = h5py.File(self._ffile % fi, 'r')
+        beamf = ffile['beam_freq'][:]
+        ffile.close()
+        
+        if fullm:
+            beamt = np.zeros(beamf.shape[:-1] + (2*tel.lmax+1,), dtype=np.complex128)
+
+            for mi in range(-tel.mmax, tel.mmax + 1):
+                beamt[..., mi] = beamf[..., mi]
+        
+            beamf = beamt
+        
+        return beamf
+
+
+
+
+            
+    

@@ -165,8 +165,8 @@ class CylinderTelescope(telescope.TransitTelescope):
         
         pos = np.empty([nf, 2], dtype=np.float64)
 
-        pos[:,0] = cylinder_index * self.cylinder_spacing
-        pos[:,1] = np.arange(nf) * sp
+        pos[:, 0] = cylinder_index * self.cylinder_spacing
+        pos[:, 1] = np.arange(nf) * sp
 
         return pos
 

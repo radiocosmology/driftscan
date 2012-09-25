@@ -69,7 +69,11 @@ if 'reionisation' in yconf['config']:
         skymodel._reionisation = True
 
 ## Beam transfer generation
-bt = beamtransfer.BeamTransfer(outdir + '/bt/', telescope=telescope)
+if 'chunked' in yconf['config'] and yconf['config']['chunked']:
+    bt = beamtransfer.BeamTransferChunked(outdir + '/bt/', telescope=telescope)    
+else:
+    bt = beamtransfer.BeamTransfer(outdir + '/bt/', telescope=telescope)
+
 if yconf['config']['beamtransfers']:
     bt.generate()
 

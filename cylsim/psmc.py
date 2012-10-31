@@ -65,8 +65,11 @@ class PSMonteCarlo(psestimation.PSEstimation):
     nsamples = 200
     nswitch = 200
 
+    debias_sub = True
+
     __config_table_ =   {   'nsamples'  : [ int,    'nsamples'],
-                            'nswitch'   : [ int,    'nswitch']
+                            'nswitch'   : [ int,    'nswitch'],
+                            'debias_sub': [ bool,   'debias_sub']
                         }
 
 
@@ -163,8 +166,15 @@ class PSMonteCarlo(psestimation.PSEstimation):
             for ia in range(nbands):
                 # Estimate diagonal elements (including bias correction)
                 va = self.vec_cache[ia]
-                tmat = np.dot(va, va.T.conj())
-                fab[ia, ia] = (np.sum(np.abs(tmat)**2) / ns**2 - np.trace(tmat)**2 / ns**3) / (1.0 - 1.0 / ns**2)
+
+                if self.debias_sub:
+                    tmat = np.dot(va, va.T.conj())
+                    fab[ia, ia] = (np.sum(np.abs(tmat)**2) / ns**2 - np.trace(tmat)**2 / ns**3) / (1.0 - 1.0 / ns**2)
+                else:
+                    h1 = self.nsamples / 2
+                    va1 = va[:h1]
+                    vb1 = va[h1:(2*h1)]
+                    fab[ia, ia] = np.sum(np.abs(np.dot(va1, vb1.T.conj()))**2) / ns**2
 
                 # Estimate diagonal elements
                 for ib in range(ia):

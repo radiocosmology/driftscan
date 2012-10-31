@@ -800,7 +800,7 @@ class KLTransform(util.ConfigReader):
         evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
         et = time.time()
         
-        print "Evsky: %f" % (et-st)
+        #print "Evsky: %f" % (et-st)
 
         st = time.time()
         ev1n = np.transpose(evsky, (2, 3, 0, 1)).copy()
@@ -814,7 +814,7 @@ class KLTransform(util.ConfigReader):
 
         et = time.time()
         
-        print "Rest: %f" % (et-st)
+        #print "Rest: %f" % (et-st)
 
 
         return matf

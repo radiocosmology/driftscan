@@ -133,7 +133,7 @@ class PSEstimation(util.ConfigReader):
 
     
     def makeproj(self, mi, bi):
-        print "Projecting to eigenbasis."
+        #print "Projecting to eigenbasis."
         nevals = self.kltrans.modes_m(mi, threshold=self.threshold)[0].size
 
         if nevals < 1000:
@@ -144,24 +144,31 @@ class PSEstimation(util.ConfigReader):
 
     def cacheproj(self, mi):
 
+
         ## Don't generate cache for small enough matrices
         if self.num_evals(mi) < 500:
-            return
+            self._bp_cache = []
 
         for i in range(len(self.clarray)):
-            print "Creating cache file:" + self._cfile % (mi, i)
-            f = h5py.File(self._cfile % (mi, i), 'w')
-
+            print "Generating cache for m=%i band=%i" % (mi, i)
             projm = self.makeproj(mi, i)
 
-            f.create_dataset('proj', data=projm)
-            f.close()
+            ## Don't generate cache for small enough matrices
+            if self.num_evals(mi) < 500:
+                self._bp_cache.append(projm)
+
+            else:
+                print "Creating cache file:" + self._cfile % (mi, i)
+                f = h5py.File(self._cfile % (mi, i), 'w')
+                f.create_dataset('proj', data=projm)
+                f.close()
+
 
     def delproj(self, mi):
 
         ## As we don't cache for small matrices, just return
         if self.num_evals(mi) < 500:
-            return
+            self._bp_cache = []
 
         for i in range(len(self.clarray)):
             
@@ -177,8 +184,9 @@ class PSEstimation(util.ConfigReader):
 
         ## For small matrices or uncached files don't fetch cache, just generate
         ## immediately
-        if self.num_evals(mi) < 500 or not os.path.exists:
-            proj = self.makeproj(mi, bi)
+        if self.num_evals(mi) < 500:# or not os.path.exists:
+            proj = self._bp_cache[bi]
+            #proj = self.makeproj(mi, bi)
         else:
             f = h5py.File(fn, 'r')
             proj = f['proj'][:]

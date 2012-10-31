@@ -60,7 +60,7 @@ if mpiutil.rank0:
 #else:
 #    almr = None
     
-mpiutil.world.Bcast([alm, MPI.COMPLEX16], root=0)
+#mpiutil.world.Bcast([alm, MPI.COMPLEX16], root=0)
 
 
 

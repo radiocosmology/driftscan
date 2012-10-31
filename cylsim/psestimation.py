@@ -242,9 +242,15 @@ class PSEstimation(util.ConfigReader):
         return [ (mi, self.fisher_m(mi)) for mi in mlist ]
 
 
-    def fisher_mpi(self, mlist = None):
+    def fisher_mpi(self, mlist = None, regen=False):
         if mlist is None:
             mlist = range(self.telescope.mmax + 1)
+
+        ffile = self.psdir +'fisher.hdf5'
+
+        if os.path.exists(ffile) and not regen:
+            print ("Fisher matrix file: %s exists. Skipping..." % ffile)
+            return
 
         mpart = mpiutil.partition_list_mpi(mlist)
 

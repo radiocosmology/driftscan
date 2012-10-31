@@ -158,7 +158,12 @@ if yconf['config']['projections']:
         proj.generate()
 
 
-
+if mpiutil.rank0:
+    print "========================================"
+    print "=                                      ="
+    print "=           DONE AT LAST!!             ="
+    print "=                                      ="
+    print "========================================"
 
 
 

@@ -63,7 +63,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
     """
     
     nsamples = 200
-    nswitch = 200
+    nswitch = 0 #200
 
     debias_sub = True
 
@@ -199,4 +199,110 @@ class PSMonteCarlo(psestimation.PSEstimation):
         else:
             return self.fisher_m_mc(mi)
         
+        
+
+class PSMonteCarlo2(psestimation.PSEstimation):
+    """An extension of the PSEstimation class to support estimation of the
+    Fisher matrix via Monte-Carlo simulations.
+
+    This should be significantly faster when including large numbers of eigenmodes.
+
+    Attributes
+    ----------
+    nswitch : integer
+        The threshold number of eigenmodes above which we switch to Monte-Carlo
+        estimation.
+    nsamples : integer
+        The number of samples to draw from each band.
+    """
+    
+    nsamples = 200
+    nswitch = 0 #200
+
+    __config_table_ =   {   'nsamples'  : [ int,    'nsamples'],
+                            'nswitch'   : [ int,    'nswitch'],
+                        }
+
+
+    def __init__(self, *args, **kwargs):
+
+        super(PSMonteCarlo2, self).__init__(*args, **kwargs)
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
+
+
+
+
+    def gen_vecs(self, mi):
+        """Generate a cache of sample vectors for each bandpower.
+        """
+
+        bt = self.kltrans.beamtransfer
+        evals, evecs = self.kltrans.modes_m(mi)
+        nbands = len(self.bands) - 1
+
+        
+        cf = (evals + 1.0)**-0.5
+
+        xv = 2*(np.random.rand(evals.size, self.nsamples) <= 0.5).astype(np.float) - 1.0
+        xv1 = cf[:, np.newaxis] * xv
+        xv2 = np.dot(evecs.T.conj(), xv1)
+
+        self.vec_cache = []
+
+        for bi in range(nbands):
+
+            p0 = bt.project_matrix_forward(mi, self.clarray[bi]).reshape((bt.nfreq * bt.ntel, -1))
+            xv3 = np.dot(p0, xv2)
+            xv4 = np.dot(evecs, xv3)
+            xv5 = cf[:, np.newaxis] * xv4
+
+            self.vec_cache.append(xv5)
+
+
+
+    def fisher_m_mc(self, mi):
+        """Calculate the Fisher Matrix by Monte-Carlo.
+        """
+            
+        nbands = len(self.bands) - 1
+        fab = np.zeros((nbands, nbands), dtype=np.complex128)
+
+        if self.num_evals(mi) > 0:
+            print "Making fisher (for m=%i)." % mi
+
+            self.gen_vecs(mi)
+
+            ns = self.nsamples
+
+            for ia in range(nbands):
+                # Estimate diagonal elements (including bias correction)
+                va = self.vec_cache[ia]
+
+                fab[ia, ia] = np.sum(va * va.conj()) / ns
+
+                # Estimate diagonal elements
+                for ib in range(ia):
+                    vb = self.vec_cache[ib]
+
+                    fab[ia, ib] = np.sum(va * vb.conj()) / ns
+                    fab[ib, ia] = np.conj(fab[ia, ib])
+            
+        else:
+            print "No evals (for m=%i), skipping." % mi
+
+        return fab
+
+
+    def fisher_m(self, mi):
+        """Calculate the Fisher Matrix for a given m.
+
+        Decides whether to use direct evaluation or Monte-Carlo depending on the
+        number of eigenvalues required.
+        """
+        if self.num_evals(mi) < self.nswitch:
+            return super(PSMonteCarlo, self).fisher_m(mi)
+        else:
+            return self.fisher_m_mc(mi)
         

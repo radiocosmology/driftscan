@@ -107,7 +107,8 @@ if 'kltransform' in yconf:
 
 ## Power spectrum estimation configuration
 pstype_dict =   {   'Full'          : psestimation.PSEstimation,
-                    'MonteCarlo'    : psmc.PSMonteCarlo
+                    'MonteCarlo'    : psmc.PSMonteCarlo,
+                    'MonteCarlo2'    : psmc.PSMonteCarlo2
                 }
 
 if yconf['config']['psfisher']:

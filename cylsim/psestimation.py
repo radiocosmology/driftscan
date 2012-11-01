@@ -10,6 +10,7 @@ from cylsim import util
 from simulations import corr21cm
 
 from scipy.integrate import quad
+import scipy.linalg as la
 
 import numpy as np
 
@@ -280,8 +281,20 @@ class PSEstimation(util.ConfigReader):
 
             f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
 
+            f_all = np.sum(fisher, axis=0).real # Be careful of the .real here.
+            cv = la.inv(f_all)
+            err = cv.diagonal()**0.5
+            cr = cv / np.outer(err, err)
+
             #f.create_dataset('fisher_m/', data=fisher)
-            f.create_dataset('fisher_all/', data=np.sum(fisher, axis=0))
+            f.create_dataset('fisher_all/', data=f_all)
+            
+            f.create_dataset('fisher/', data=f_all)
+            f.create_dataset('covariance/', data=cv)
+            f.create_dataset('error/', data=err)
+            f.create_dataset('correlation/', data=cr)
+
+
             f.create_dataset('bandpower/', data=self.bpower)
             f.create_dataset('bandstart/', data=self.bstart)
             f.create_dataset('bandend/', data=self.bend)

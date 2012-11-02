@@ -253,12 +253,38 @@ class PSMonteCarlo2(psestimation.PSEstimation):
 
         for bi in range(nbands):
 
-            p0 = bt.project_matrix_forward(mi, self.clarray[bi]).reshape((bt.nfreq * bt.ntel, -1))
-            xv3 = np.dot(p0, xv2)
-            xv4 = np.dot(evecs, xv3)
-            xv5 = cf[:, np.newaxis] * xv4
+            # Get projection matrix from stokes I to telescope
+            bp = bt.beam_m(mi)[:, :, :, 0, :].reshape(bt.nfreq, bt.ntel, -1)
+            lside = bp.shape[-1]
 
-            self.vec_cache.append(xv5)
+            xv2r = xv2.reshape(bt.nfreq, bt.ntel, self.nsamples)
+            xv3 = np.zeros((bt.nfreq, lside, self.nsamples), dtype=np.complex128)
+
+            for fi in range(bt.nfreq):
+                xv3[fi] = np.dot(bp[fi].T.conj(), xv2r[fi])
+
+            xv4 = np.zeros_like(xv3)
+            for li in range(lside):
+                xv4[:, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, li, :]) # TT only.
+
+            xv5 = np.zeros_like(xv2r)
+
+            for fi in range(bt.nfreq):
+                xv5[fi] = np.dot(bp[fi], xv4[fi])
+
+            xv6 = np.dot(evecs, xv5.reshape(bt.nfreq * bt.ntel, self.nsamples))
+            xv7 = cf[:, np.newaxis] * xv6
+
+            self.vec_cache.append(xv7)
+
+
+            #p0 = bt.project_matrix_forward(mi, self.clarray[bi]).reshape((bt.nfreq * bt.ntel, -1))
+            #xv3 = np.dot(p0, xv2)
+
+            #xv4 = np.dot(evecs, xv3)
+            #xv5 = cf[:, np.newaxis] * xv4
+
+            #self.vec_cache.append(xv5)
 
 
 

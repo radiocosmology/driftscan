@@ -261,32 +261,18 @@ class PSEstimation(util.ConfigReader):
             print ("Fisher matrix file: %s exists. Skipping..." % ffile)
             return
 
-        mpart = mpiutil.partition_list_mpi(mlist)
-
-        f_m = self._fisher_section(mpart)
-
-        mpiutil.barrier()
-
-        f_all = mpiutil.world.gather(f_m, root=0)
+        # Use parallel map to distribute Fisher calculation
+        fisher = mpiutil.parallel_map(self.fisher_m, mlist)
 
         if mpiutil.rank0:
-            nb = self.bands.shape[0] - 1
-            fisher = np.zeros((self.telescope.mmax+1, nb, nb), dtype=np.complex128)
-            #print f_all
-            for proc_rank in f_all:
-                #print proc_rank
-                for fm in proc_rank:
-                    #print fm
-                    fisher[fm[0]] = fm[1]
 
             f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
 
-            f_all = np.sum(fisher, axis=0).real # Be careful of the .real here.
+            f_all = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here.
             cv = la.inv(f_all)
             err = cv.diagonal()**0.5
             cr = cv / np.outer(err, err)
 
-            #f.create_dataset('fisher_m/', data=fisher)
             f.create_dataset('fisher_all/', data=f_all)
             
             f.create_dataset('fisher/', data=f_all)

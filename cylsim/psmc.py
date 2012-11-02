@@ -275,7 +275,7 @@ class PSMonteCarlo2(psestimation.PSEstimation):
                 xv4[:, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, li, :]) # TT only.
 
             # Projection from sky vector into telescope
-            xv5 = np.zeros_like(xv2r)
+            xv5 = np.zeros_like(xv2)
             for fi in range(bt.nfreq):
                 xv5[fi] = np.dot(bp[fi], xv4[fi])
 

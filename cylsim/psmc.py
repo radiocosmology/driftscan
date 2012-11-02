@@ -205,7 +205,8 @@ class PSMonteCarlo2(psestimation.PSEstimation):
     """An extension of the PSEstimation class to support estimation of the
     Fisher matrix via Monte-Carlo simulations.
 
-    This should be significantly faster when including large numbers of eigenmodes.
+    This uses a stochastic estimation of the trace which allows us to compute
+    a reduced set of products between the four covariance matrices.
 
     Attributes
     ----------
@@ -238,53 +239,52 @@ class PSMonteCarlo2(psestimation.PSEstimation):
         """Generate a cache of sample vectors for each bandpower.
         """
 
+        # Delete cache
+        self.vec_cache = []
+
         bt = self.kltrans.beamtransfer
         evals, evecs = self.kltrans.modes_m(mi)
         nbands = len(self.bands) - 1
 
-        
+        # Set of S/N weightings
         cf = (evals + 1.0)**-0.5
 
+        # Generate random set of Z_2 vectors
         xv = 2*(np.random.rand(evals.size, self.nsamples) <= 0.5).astype(np.float) - 1.0
-        xv1 = cf[:, np.newaxis] * xv
-        xv2 = np.dot(evecs.T.conj(), xv1)
 
-        self.vec_cache = []
+        # Multiply by C^-1 factorization
+        xv1 = cf[:, np.newaxis] * xv
+
+        # Project vector from eigenbasis into telescope basis
+        xv2 = np.dot(evecs.T.conj(), xv1).reshape(bt.nfreq, bt.ntel, self.nsamples)
+
+        # Get projection matrix from stokes I to telescope
+        bp = bt.beam_m(mi)[:, :, :, 0, :].reshape(bt.nfreq, bt.ntel, -1)
+        lside = bp.shape[-1]
+
+        # Project with transpose B matrix
+        xv3 = np.zeros((bt.nfreq, lside, self.nsamples), dtype=np.complex128)
+        for fi in range(bt.nfreq):
+            xv3[fi] = np.dot(bp[fi].T.conj(), xv2[fi])
 
         for bi in range(nbands):
 
-            # Get projection matrix from stokes I to telescope
-            bp = bt.beam_m(mi)[:, :, :, 0, :].reshape(bt.nfreq, bt.ntel, -1)
-            lside = bp.shape[-1]
-
-            xv2r = xv2.reshape(bt.nfreq, bt.ntel, self.nsamples)
-            xv3 = np.zeros((bt.nfreq, lside, self.nsamples), dtype=np.complex128)
-
-            for fi in range(bt.nfreq):
-                xv3[fi] = np.dot(bp[fi].T.conj(), xv2r[fi])
-
+            # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)
             for li in range(lside):
                 xv4[:, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, li, :]) # TT only.
 
+            # Projection from sky vector into telescope
             xv5 = np.zeros_like(xv2r)
-
             for fi in range(bt.nfreq):
                 xv5[fi] = np.dot(bp[fi], xv4[fi])
 
+            # Projection into eigenbasis
             xv6 = np.dot(evecs, xv5.reshape(bt.nfreq * bt.ntel, self.nsamples))
             xv7 = cf[:, np.newaxis] * xv6
 
+            # Push set of vectors into cache.
             self.vec_cache.append(xv7)
-
-
-            #p0 = bt.project_matrix_forward(mi, self.clarray[bi]).reshape((bt.nfreq * bt.ntel, -1))
-            #xv3 = np.dot(p0, xv2)
-
-            #xv4 = np.dot(evecs, xv3)
-            #xv5 = cf[:, np.newaxis] * xv4
-
-            #self.vec_cache.append(xv5)
 
 
 

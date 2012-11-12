@@ -436,7 +436,7 @@ class TransitTelescope(util.ConfigReader):
         # Construct array of baseline separations in complex representation
         bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
         bl2 = map_half_plane(bl1.reshape(-1, 2)).reshape(bl1.shape)
-        bl3 = np.around(bl2[..., 0] + 1.0J * bl2[..., 1], 4)
+        bl3 = np.around(bl2[..., 0] + 1.0J * bl2[..., 1], 7)
 
         # Construct array of baseline lengths
         blen = np.sum(bl1**2, -1)**0.5

@@ -273,7 +273,7 @@ class KLTransform(util.ConfigReader):
             cvb_n = np.zeros_like(cvb_s)
 
         # Add in a small diagonal to regularise the noise matrix.
-        cnr = cvb_n.reshape((self.beamtransfer.nfreq * self.beamtransfer.ntel, -1))
+        cnr = cvb_n.reshape((self.beamtransfer.ndof(mi), -1))
         cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
 
         # Even if noise=False, we still want a very small amount of
@@ -281,18 +281,18 @@ class KLTransform(util.ConfigReader):
         nc = 1.0
         if not self.use_thermal:
             nc =  (1e-3 / self.telescope.tsys_flat)**2
+        else:
+            # Add in the instrumental noise. Assumed to be diagonal for now.
+            for fi in range(self.beamtransfer.nfreq):
+                bla = np.arange(self.telescope.npairs)
 
-        # Add in the instrumental noise. Assumed to be diagonal for now.
-        for fi in range(self.beamtransfer.nfreq):
-            bla = np.arange(self.telescope.npairs)
+                # Double up baselines to fetch (corresponds to grabbing positive and negative m)
+                if not self.telescope.positive_m_only:
+                    bla = np.concatenate((bla, bla))
 
-            # Double up baselines to fetch (corresponds to grabbing positive and negative m)
-            if not self.telescope.positive_m_only:
-                bla = np.concatenate((bla, bla))
-            
-            # Fetch array of system temperatures at frequency
-            noisebase = np.diag(nc * self.telescope.noisepower(bla, fi).reshape(self.beamtransfer.ntel))
-            cvb_n[fi, :, fi, :] += noisebase
+                # Fetch array of system temperatures at frequency
+                noisebase = np.diag(nc * self.telescope.noisepower(bla, fi).reshape(self.beamtransfer.ntel))
+                cvb_n[fi, :, fi, :] += noisebase
 
         return cvb_s, cvb_n
 
@@ -316,7 +316,7 @@ class KLTransform(util.ConfigReader):
 
         # Fetch the covariance matrices to diagonalise
         st = time.time()
-        nside = self.beamtransfer.ntel * self.telescope.nfreq
+        nside = self.beamtransfer.ndof(mi)
         cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
         print "Time =", (et-st)
@@ -371,7 +371,7 @@ class KLTransform(util.ConfigReader):
 
         ## If modes have been already truncated (e.g. DoubleKL) then pad out
         ## with zeros at the lower end.
-        nside = self.beamtransfer.ntel * self.beamtransfer.nfreq
+        nside = self.beamtransfer.ndof(mi)
         evalsf = np.zeros(nside, dtype=np.float64)
         if evals.size != 0:
             evalsf[(-evals.size):] = evals
@@ -455,7 +455,7 @@ class KLTransform(util.ConfigReader):
             print "Creating eigenvalues file (process 0 only)."
         
         mlist = range(self.telescope.mmax+1)
-        shape = (self.beamtransfer.ntel * self.telescope.nfreq, )
+        shape = (self.beamtransfer.ndof(mi), )
         evarray = collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
@@ -863,4 +863,55 @@ class KLTransform(util.ConfigReader):
         return proj_arr
 
             
+class SVDKLTransform(KLTransform):
+
+
+    def sn_covariance(self, mi):
+        """Compute the signal and noise covariances (on the telescope).
+
+        The signal is formed from the 21cm signal, whereas the noise includes
+        both foregrounds and instrumental noise. This is for a single m-mode.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate at.
+
+        Returns
+        -------
+        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
+            Signal and noice covariance matrices.
+        """
+
+        if not (self.use_foregrounds or self.use_thermal):
+            raise Exception("Either `use_thermal` or `use_foregrounds`, or both must be True.")
+
+        # Project the signal and foregrounds from the sky onto the telescope.
+        cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
+
+        if self.use_foregrounds:
+            cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground())
+        else:
+            cvb_n = np.zeros_like(cvb_s)
+
+        # Add in a small diagonal to regularise the noise matrix.
+        cnr = cvb_n.reshape((self.beamtransfer.ndof(mi), -1))
+        cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
+
+        # Even if noise=False, we still want a very small amount of
+        # noise, so we multiply by a constant to turn Tsys -> 1 mK.
+        nc = 1.0
+        if not self.use_thermal:
+            nc =  (1e-3 / self.telescope.tsys_flat)**2
+        
+        # Construct diagonal noise power in telescope basis
+        bl = np.arange(self.telescope.npairs)
+        bl = np.concatenate((bl, bl))
+        npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
+
+        # Project into SVD basis and add into noise matrix
+        cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
+
+
+        return cvb_s, cvb_n
 

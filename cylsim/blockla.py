@@ -82,6 +82,43 @@ def multiply_dm_v(matrix, vector, conj=False):
     return nvector
 
 
+def multiply_dm_dm(matrix1, matrix2):
+    """Multiply a block diagonal matrix by a blocked vector.
+
+    Parameters
+    ----------
+    matrix : (nblocks, n, m) np.ndarray
+        An array containing `nblocks` diagonal blocks of size (`n`, `m`).
+    vector : (nblocks, m) np.ndarray
+        An array containing the blocks of the vector, each of length `m`.
+    conj : boolean, optional
+        Whether to multiply by the Hermitian conjugate of the matrix.
+
+    Returns
+    -------
+    newvector : (nblocks, n) np.ndarray
+         An array containing the blocks of the vector, each of length `n`.
+    """
+   
+
+    nblocks, n, m = matrix1.shape
+    k = matrix2.shape[2]
+
+
+    if matrix2.shape[:2] != (nblocks, m):
+        raise Exception("Shapes not compatible.")
+
+    # Check dtype
+    dt = np.promote_types(matrix1.dtype, matrix2.dtype)
+
+    nmatrix = np.empty((nblocks, n, k), dtype=dt)
+
+    for i in range(nblocks):
+        nmatrix[i] = np.dot(matrix1[i], matrix2[i])
+
+    return nmatrix
+
+
 def pinv_dm(matrix, *args, **kwargs):
     """Construct the pseudo-inverse of a block diagonal matrix.
 

@@ -77,15 +77,18 @@ class BeamTransfer(object):
                 raise Exception("Could not load Telescope object from disk.")
 
 
-    def _load_beam_m(self, mi):
+    def _load_beam_m(self, mi, fi=None):
         ## Read in beam from disk
         mfile = h5py.File(self._mfile % mi, 'r')
         sh = mfile[(self._fsection % 0)].shape
 
-        beam = np.zeros((self.telescope.nfreq,) + sh, dtype=np.complex128)
-
-        for fi in range(self.telescope.nfreq):
-            beam[fi] = mfile[(self._fsection % fi)]
+        # If fi is None, return all frequency blocks. Otherwise just the one requested.
+        if fi is None:
+            beam = np.zeros((self.telescope.nfreq,) + sh, dtype=np.complex128)
+            for fi in range(self.telescope.nfreq):
+                beam[fi] = mfile[(self._fsection % fi)]
+        else:
+            beam = mfile[(self._fsection % fi)][:]
 
         mfile.close()
 
@@ -93,13 +96,15 @@ class BeamTransfer(object):
 
 
     @util.cache_last
-    def beam_m(self, mi, single=False):
+    def beam_m(self, mi, fi=None, single=False):
         """Fetch the beam transfer matrix for a given m.
 
         Parameters
         ----------
         mi : integer
             m-mode to fetch.
+        fi : integer
+            frequency block to fetch. fi=None (default) returns all.
         single : boolean, optional
             When set, fetch only the uncombined beam transfer (that is only
             positive or negative m). Default is False.
@@ -112,17 +117,22 @@ class BeamTransfer(object):
         if single or self.telescope.positive_m_only:
             return self._load_beam_m(mi)
 
-        bp = self._load_beam_m(mi)
-        bm = (-1)**mi * self._load_beam_m(-mi).conj()
+        bp = self._load_beam_m(mi, fi=fi)
+        bm = (-1)**mi * self._load_beam_m(-mi, fi=fi).conj()
 
         # Zero out m=0 (for negative) to avoid double counting
         if mi == 0:
             bm[:] = 0.0
 
-        bc = np.empty(bp.shape[:1] + (2,) + bp.shape[1:], dtype=bp.dtype)
-
-        bc[:, 0] = bp
-        bc[:, 1] = bm
+        # Required array shape depends on whether we are returning all frequency blocks or not.
+        if fi is None:
+            bc = np.empty(bp.shape[:1] + (2,) + bp.shape[1:], dtype=bp.dtype)
+            bc[:, 0] = bp
+            bc[:, 1] = bm
+        else:
+            bc = np.empty((2,) + bp.shape, dtype=bp.dtype)
+            bc[0] = bp
+            bc[1] = bm
 
         return bc
 
@@ -448,6 +458,10 @@ class BeamTransfer(object):
         """Number of frequencies measured."""
         return self.telescope.nfreq
 
+    def ndof(self, mi):
+        """The number of degrees of freedom at a given m."""
+        return self.ntel * self.nfreq
+
 
 
 
@@ -576,11 +590,15 @@ class BeamTransferChunked(BeamTransfer):
 
 
 
-    def _load_beam_m(self, mi):
+    def _load_beam_m(self, mi, fi=None):
         ## Read in beam from disk
         mfile = h5py.File(self._mfile % mi, 'r')
 
-        beam = mfile['beam_m'][:]
+        if fi is None:
+            beam = mfile['beam_m'][:]
+        else:
+            beam = mfile['beam_m'][fi][:]
+        
         mfile.close()
 
         return beam
@@ -606,6 +624,255 @@ class BeamTransferChunked(BeamTransfer):
         return beamf
 
 
+class SVDBeamTransfer(BeamTransferChunked):
+
+
+    svcut = 0.0
+
+    @property
+    def _svdfile(self):
+        # Pattern to form the `m` ordered file.
+        return (self.directory + "/beam_svd_m_" +
+                util.natpattern(self.telescope.mmax) + ".hdf5")
+
+    def generate(self, regen=False):
+
+        super(SVDBeamTransfer, self).generate(regen=regen)
+
+
+        # For each `m` collect all the `m` sections from each frequency file,
+        # and write them into a new `m` file. Use MPI if available. 
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            if os.path.exists(self._svdfile % mi) and not regen:
+                print ("m index %i. File: %s exists. Skipping..." %
+                       (mi, (self._svdfile % mi)))
+                continue
+            else:
+                print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile % mi)
+
+            # Open positive and negative m beams for reading.
+            fp = h5py.File(self._mfile % mi, 'r')
+            fm = h5py.File(self._mfile % (-mi), 'r')
+
+            # Open file to write SVD results into.
+            fs = h5py.File(self._svdfile % mi, 'w')
+
+            # The size of the SVD output matrices
+            svd_len = min(self.telescope.lmax+1, self.ntel)
+
+            # Create a chunked dataset for writing the SVD beam matrix into.
+            dsize_bsvd = (self.telescope.nfreq, svd_len, self.telescope.num_pol_sky, self.telescope.lmax+1)
+            csize_bsvd = (1, 10, self.telescope.num_pol_sky, self.telescope.lmax+1)
+            dset_bsvd = fs.create_dataset('beam_svd', dsize_bsvd, chunks=csize_bsvd, compression='lzf', dtype=np.complex128)
+
+            # Create a chunked dataset for the stokes T U-matrix (left evecs)
+            dsize_ut = (self.telescope.nfreq, svd_len, self.ntel)
+            csize_ut = (1, 10, self.ntel)
+            dset_ut  = fs.create_dataset('beam_ut', dsize_ut, chunks=csize_ut, compression='lzf', dtype=np.complex128)
+
+            # Create a dataset for the singular values.
+            dsize_sig = (self.telescope.nfreq, svd_len)
+            dset_sig  = fs.create_dataset('singularvalues', dsize_sig, dtype=np.float64)
+
+            ## For each frequency in the m-files read in the block, SVD it,
+            ## and construct the new beam matrix, and save.
+            for fi in np.arange(self.telescope.nfreq):
+
+                # Read the positive and negative m beams, and combine into one.
+                bfp = fp['beam_m'][fi][:]
+                bfm = (-1)**mi * fm['beam_m'][fi][:].conj()
+                bf = np.array([bfp, bfm]).reshape(self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+
+                # Get the T-mode only beam matrix
+                bft = bf[:, 0, :]
+
+                # Perform the SVD to find the left evecs
+                u, sig, v = la.svd(bft, full_matrices=False)
+                u = u.T.conj() # We only need u^H so just keep that.
+
+                # Save out the evecs (for transforming from the telescope frame into the SVD basis)
+                dset_ut[fi] = u
+
+                # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
+                dset_bsvd[fi] = np.dot(u, bf.reshape(self.ntel, -1)).reshape(svd_len, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+
+                # Save out the singular values for each block
+                dset_sig[fi] = sig
+
+                
+            # Write a few useful attributes.
+            fs.attrs['baselines'] = self.telescope.baselines
+            fs.attrs['m'] = mi
+            fs.attrs['frequencies'] = self.telescope.frequencies
+            fs.attrs['cylobj'] = self._telescope_pickle
+            
+            fs.close()
+            fp.close()
+            fm.close()
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+
+
+
+
+    @util.cache_last
+    def beam_svd(self, mi, fi=None):
+        """Fetch the beam transfer matrix for a given m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        fi : integer
+            frequency block to fetch. fi=None (default) returns all.
+        single : boolean, optional
+            When set, fetch only the uncombined beam transfer (that is only
+            positive or negative m). Default is False.
+
+        Returns
+        -------
+        beam : np.ndarray (nfreq, 2, npairs, npol_tel, npol_sky, lmax+1)
+            If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
+        """
+        
+        svdfile = h5py.File(self._svdfile % mi, 'r')
+
+        # Required array shape depends on whether we are returning all frequency blocks or not.
+        if fi is None:
+            bs = svdfile['beam_svd'][:]
+        else:
+            bs = svdfile['beam_svd'][fi][:]
+            
+        svdfile.close()
+
+        return bs
+
+
+    @util.cache_last
+    def beam_singularvalues(self, mi):
+        """Fetch the beam transfer matrix for a given m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        fi : integer
+            frequency block to fetch. fi=None (default) returns all.
+        single : boolean, optional
+            When set, fetch only the uncombined beam transfer (that is only
+            positive or negative m). Default is False.
+
+        Returns
+        -------
+        beam : np.ndarray (nfreq, 2, npairs, npol_tel, npol_sky, lmax+1)
+            If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
+        """
+        
+        svdfile = h5py.File(self._svdfile % mi, 'r')
+        sv = svdfile['singularvalues'][:]
+        svdfile.close()
+
+        return sv
+
+
+    def project_matrix_sky_to_svd(self, mi, mat):
+        """Project a covariance matrix from the sky into the visibility basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq]
+
+        Returns
+        -------
+        tmat : np.ndarray
+            Covariance in telescope basis.
+        """       
+        npol = self.telescope.num_pol_sky
+        lside = self.telescope.lmax + 1
+
+        svdfile = h5py.File(self._svdfile % mi, 'r')
+
+        # Get the array of singular values for each mode
+        sv = svdfile['singularvalues'][:]
+
+        # Get the SVD beam matrix
+        beam = svdfile['beam_svd']
+
+        # Number of significant sv modes at each frequency
+        svnum = (sv > sv.max() * self.svcut).sum(axis=1)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+        
+        # Create the output matrix
+        matf = np.zeros((svbounds[-1], svbounds[-1]), dtype=np.complex128)
+
+
+        # Should it be a +=?
+        for pi in range(npol):
+            for pj in range(npol):
+                for fi in range(self.nfreq):
+
+                    fibeam = beam[fi, :svnum[fi], pi, :] # Beam for this pol, freq, and svcut (i)
+
+                    for fj in range(self.nfreq):
+                        fjbeam = beam[fj, :svnum[fj], pj, :] # Beam for this pol, freq, and svcut (j)
+                        lmat = mat[pi, pj, :, fi, fj] # Local section of the sky matrix (i.e C_l part)
+
+                        matf[svbounds[fi]:svbounds[fi+1], svbounds[fj]:svbounds[fj+1]] += np.dot(fibeam * lmat, fjbeam.T.conj())
+
+        return matf
+
+
+    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat):
+
+        npol = self.telescope.num_pol_sky
+        lside = self.telescope.lmax + 1
+
+        svdfile = h5py.File(self._svdfile % mi, 'r')
+
+        # Get the array of singular values for each mode
+        sv = svdfile['singularvalues'][:]
+
+        # Get the SVD beam matrix
+        beam = svdfile['beam_ut']
+
+        # Number of significant sv modes at each frequency
+        svnum = (sv > sv.max() * self.svcut).sum(axis=1)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+        
+        # Create the output matrix
+        matf = np.zeros((svbounds[-1], svbounds[-1]), dtype=np.complex128)
+
+
+        # Should it be a +=?
+        for fi in range(self.nfreq):
+            fbeam = beam[fi, :svnum[fi], :] # Beam matrix for this frequency and cut
+            lmat = dmat[fi, :] # Matrix section for this frequency
+
+            matf[svbounds[fi]:svbounds[fi+1], svbounds[fi]:svbounds[fi+1]] += np.dot((fbeam * lmat), fbeam.T.conj())
+
+        return matf
+
+
+
+    def ndof(self, mi):
+        """The number of degrees of freedom at a given m."""
+
+        sv = self.beam_singularvalues(mi)
+
+        # Total number of significant sv modes across all frequencies.
+        svnum = (sv > sv.max() * self.svcut).sum()
+
+        return svnum
 
 
             

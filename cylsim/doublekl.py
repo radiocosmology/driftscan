@@ -54,7 +54,7 @@ class DoubleKL(kltransform.KLTransform):
 
         inv = None
 
-        nside = self.beamtransfer.ntel * self.telescope.nfreq
+        nside = self.beamtransfer.ndof(mi)
 
         # Construct S and F matrices and regularise foregrounds
         self.use_thermal = False

@@ -265,10 +265,10 @@ class KLTransform(util.ConfigReader):
             raise Exception("Either `use_thermal` or `use_foregrounds`, or both must be True.")
 
         # Project the signal and foregrounds from the sky onto the telescope.
-        cvb_s = self.beamtransfer.project_matrix_forward(mi, self.signal())
+        cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
 
         if self.use_foregrounds:
-            cvb_n = self.beamtransfer.project_matrix_forward(mi, self.foreground())
+            cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground())
         else:
             cvb_n = np.zeros_like(cvb_s)
 
@@ -281,18 +281,15 @@ class KLTransform(util.ConfigReader):
         nc = 1.0
         if not self.use_thermal:
             nc =  (1e-3 / self.telescope.tsys_flat)**2
-        else:
-            # Add in the instrumental noise. Assumed to be diagonal for now.
-            for fi in range(self.beamtransfer.nfreq):
-                bla = np.arange(self.telescope.npairs)
+        
+        # Construct diagonal noise power in telescope basis
+        bl = np.arange(self.telescope.npairs)
+        bl = np.concatenate((bl, bl))
+        npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
 
-                # Double up baselines to fetch (corresponds to grabbing positive and negative m)
-                if not self.telescope.positive_m_only:
-                    bla = np.concatenate((bla, bla))
+        # Project into SVD basis and add into noise matrix
+        cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
 
-                # Fetch array of system temperatures at frequency
-                noisebase = np.diag(nc * self.telescope.noisepower(bla, fi).reshape(self.beamtransfer.ntel))
-                cvb_n[fi, :, fi, :] += noisebase
 
         return cvb_s, cvb_n
 
@@ -430,17 +427,11 @@ class KLTransform(util.ConfigReader):
             The full set of eigenvalues across all m-modes.
         """
 
-        nside = self.beamtransfer.ntel * self.telescope.nfreq
-        evarray = np.zeros((self.telescope.mmax+1, nside))
-
-        # Iterate over all m's, reading file and extracting the eigenvalues.
-        for mi in range(self.telescope.mmax+1):
-
-            f = h5py.File(self._evfile % mi, 'r')
-            evarray[mi] = f['evals_full']
-            f.close()
-
-        return evarray
+        f = h5py.File(self.evdir + "/evals.hdf5", 'r')
+        ev = f['evals'][:]
+        f.close()
+        
+        return ev
 
 
     def _collect(self):
@@ -449,13 +440,15 @@ class KLTransform(util.ConfigReader):
             f = h5py.File(self._evfile % mi, 'r')
             ev = f['evals_full'][:]
             f.close()
-            return ev
+            evf = np.zeros(self.beamtransfer.ndofmax)
+            evf[-ev.size:] = ev
+            return evf
 
         if mpiutil.rank0:
             print "Creating eigenvalues file (process 0 only)."
         
         mlist = range(self.telescope.mmax+1)
-        shape = (self.beamtransfer.ndof(mi), )
+        shape = (self.beamtransfer.ndofmax, )
         evarray = collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
@@ -490,19 +483,7 @@ class KLTransform(util.ConfigReader):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
-        # # Create combined eigenvalue file.
-        # if mpiutil.rank0:
-        #     if os.path.exists(self.evdir + "/evals.hdf5") and not regen:
-        #         print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
-        #         return
-
-        #     print "Creating eigenvalues file (process 0 only)."
-        #     evals = self.evals_all()
-
-        #     f = h5py.File(self.evdir + "/evals.hdf5", 'w')
-        #     f.create_dataset('evals', data=evals)
-        #     f.close()
-
+        # Collect together the eigenvalues
         self._collect()
 
 
@@ -648,7 +629,7 @@ class KLTransform(util.ConfigReader):
 
 
 
-    def project_tel_vector_forward(self, mi, vec, threshold=None):
+    def project_vector_svd_to_kl(self, mi, vec, threshold=None):
         """Project a telescope data vector into the eigenbasis.
 
         Parameters
@@ -712,7 +693,7 @@ class KLTransform(util.ConfigReader):
  
 
 
-    def project_sky_vector_forward(self, mi, vec, threshold=None):
+    def project_vector_sky_to_kl(self, mi, vec, threshold=None):
         """Project an m-vector from the sky into the eigenbasis.
 
         Parameters
@@ -731,12 +712,12 @@ class KLTransform(util.ConfigReader):
         projvector : np.ndarray
             The vector projected into the eigenbasis.
         """
-        tvec = self.beamtransfer.project_vector_forward(mi, vec).flatten()
+        tvec = self.beamtransfer.project_vector_sky_to_svd(mi, vec)
 
-        return self.project_tel_vector_forward(mi, tvec, threshold)
+        return self.project_vector_svd_to_kl(mi, tvec, threshold)
 
 
-    def project_tel_matrix_forward(self, mi, mat, threshold=None):
+    def project_matrix_svd_to_kl(self, mi, mat, threshold=None):
         """Project a matrix from the telescope basis into the eigenbasis.
 
         Parameters
@@ -763,7 +744,7 @@ class KLTransform(util.ConfigReader):
         return np.dot(np.dot(evecs, mat), evecs.T.conj())
 
 
-    def project_sky_matrix_forward(self, mi, mat, threshold=None):
+    def project_matrix_sky_to_kl(self, mi, mat, threshold=None):
         """Project a covariance matrix from the sky into the eigenbasis.
 
         Parameters
@@ -782,11 +763,11 @@ class KLTransform(util.ConfigReader):
         projmatrix : np.ndarray
             The matrix projected into the eigenbasis.
         """
-        nside = self.beamtransfer.nfreq * self.beamtransfer.ntel
 
-        mproj = self.beamtransfer.project_matrix_forward(mi, mat)
 
-        return self.project_tel_matrix_forward(mi, mproj.reshape((nside, nside)), threshold)
+        mproj = self.beamtransfer.project_matrix_sky_to_svd(mi, mat)
+
+        return self.project_matrix_svd_to_kl(mi, mproj, threshold)
 
 
     def project_sky_matrix_forward_old(self, mi, mat, threshold=None):
@@ -863,55 +844,3 @@ class KLTransform(util.ConfigReader):
         return proj_arr
 
             
-class SVDKLTransform(KLTransform):
-
-
-    def sn_covariance(self, mi):
-        """Compute the signal and noise covariances (on the telescope).
-
-        The signal is formed from the 21cm signal, whereas the noise includes
-        both foregrounds and instrumental noise. This is for a single m-mode.
-
-        Parameters
-        ----------
-        mi : integer
-            The m-mode to calculate at.
-
-        Returns
-        -------
-        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
-            Signal and noice covariance matrices.
-        """
-
-        if not (self.use_foregrounds or self.use_thermal):
-            raise Exception("Either `use_thermal` or `use_foregrounds`, or both must be True.")
-
-        # Project the signal and foregrounds from the sky onto the telescope.
-        cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
-
-        if self.use_foregrounds:
-            cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground())
-        else:
-            cvb_n = np.zeros_like(cvb_s)
-
-        # Add in a small diagonal to regularise the noise matrix.
-        cnr = cvb_n.reshape((self.beamtransfer.ndof(mi), -1))
-        cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
-
-        # Even if noise=False, we still want a very small amount of
-        # noise, so we multiply by a constant to turn Tsys -> 1 mK.
-        nc = 1.0
-        if not self.use_thermal:
-            nc =  (1e-3 / self.telescope.tsys_flat)**2
-        
-        # Construct diagonal noise power in telescope basis
-        bl = np.arange(self.telescope.npairs)
-        bl = np.concatenate((bl, bl))
-        npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
-
-        # Project into SVD basis and add into noise matrix
-        cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
-
-
-        return cvb_s, cvb_n
-

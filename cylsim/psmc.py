@@ -73,6 +73,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
                         }
 
 
+
     def __init__(self, *args, **kwargs):
 
         super(PSMonteCarlo, self).__init__(*args, **kwargs)
@@ -235,6 +236,7 @@ class PSMonteCarlo2(psestimation.PSEstimation):
 
 
 
+
     def gen_vecs(self, mi):
         """Generate a cache of sample vectors for each bandpower.
         """
@@ -332,3 +334,107 @@ class PSMonteCarlo2(psestimation.PSEstimation):
         else:
             return self.fisher_m_mc(mi)
         
+
+
+
+
+class PSMonteCarlo3(psestimation.PSEstimation):
+    """An extension of the PSEstimation class to support estimation of the
+    Fisher matrix via Monte-Carlo simulations.
+
+    This uses a stochastic estimation of the trace which allows us to compute
+    a reduced set of products between the four covariance matrices.
+
+    Attributes
+    ----------
+    nswitch : integer
+        The threshold number of eigenmodes above which we switch to Monte-Carlo
+        estimation.
+    nsamples : integer
+        The number of samples to draw from each band.
+    """
+    
+    nsamples = 1000
+    nswitch = 0 #200
+
+    __config_table_ =   {   'nsamples'  : [ int,    'nsamples'],
+                            'nswitch'   : [ int,    'nswitch'],
+                        }
+
+
+    def __init__(self, *args, **kwargs):
+
+        super(PSMonteCarlo3, self).__init__(*args, **kwargs)
+
+        # Add configuration options                
+        self.add_config(self.__config_table_)
+
+
+
+
+    def gen_sample(self, mi):
+        """Get a set of random samples from the specified band `bi` for a given
+        `mi`.
+        """
+
+        evals, evecs = self.kltrans.modes_m(mi)
+
+        # Calculate C**(1/2), this is the weight to generate a draw from C
+        w = (evals + 1.0)**0.5
+    
+        # Calculate x
+        x = nputil.complex_std_normal((evals.shape[0], self.nsamples)) * w[:, np.newaxis] 
+
+        return x
+
+
+    def q_estimator(self, mi, vec):
+
+
+        evals, evecs = self.kltrans.modes_m(mi)
+
+        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
+        x0 = (vec.T / (evals + 1.0)).T
+
+        # Project back into SVD basis
+        x1 = np.dot(evecs.T.conj(), x0)
+
+        # Project back into sky basis
+        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+
+        qa = np.zeros((self.nbands + 1,) + vec.shape[1:])
+
+        lside = self.telescope.lmax + 1
+
+        # Calculate q_a for each band
+        for bi in range(self.nbands):
+
+            for li in range(lside):
+
+                lvec = x2[:, 0, li]
+
+                qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][0, 0, li], lvec), axis=0) # TT only.
+
+        # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
+        qa[-1] = np.sum(x0 * x0.conj(), axis=0)
+
+        return qa
+
+
+
+    def fisher_m(self, mi, retbias=False):
+
+        x = self.gen_sample(mi)
+
+        qa = self.q_estimator(mi, x)
+
+        ft = np.cov(qa)
+
+        fisher = ft[:self.nbands, :self.nbands]
+
+        bias = ft[-1, self.nbands]
+
+        if not retbias:
+            return fisher
+        else:
+            return fisher, bias

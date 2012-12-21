@@ -285,7 +285,7 @@ class KLTransform(util.ConfigReader):
         # Construct diagonal noise power in telescope basis
         bl = np.arange(self.telescope.npairs)
         bl = np.concatenate((bl, bl))
-        npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
+        npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
 
         # Project into SVD basis and add into noise matrix
         cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)

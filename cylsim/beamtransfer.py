@@ -949,26 +949,26 @@ class BeamTransfer(object):
 
 class BeamTransferNoSVD(BeamTransfer):
 
-    def project_matrix_sky_to_svd(self, mi, mat):
+    def project_matrix_sky_to_svd(self, mi, mat, *args, **kwargs):
         return self.project_matrix_sky_to_telescope(mi, mat).reshape(self.ndof(mi), self.ndof(mi))
 
 
-    def project_vector_sky_to_svd(self, mi, vec):
+    def project_vector_sky_to_svd(self, mi, vec, *args, **kwargs):
         return self.project_vector_sky_to_telescope(mi, vec)
 
 
-    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat):
+    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, *args, **kwargs):
         return np.diag(dmat.flatten())
 
-    def project_vector_telescope_to_svd(self, mi, vec):
+    def project_vector_telescope_to_svd(self, mi, vec, *args, **kwargs):
         return vec
 
-    def beam_svd(self, mi):
+    def beam_svd(self, mi, *args, **kwargs):
         return self.beam_m(mi)
 
 
 
-    def ndof(self, mi):
+    def ndof(self, mi, *args, **kwargs):
         
         return self.ntel * self.nfreq
 

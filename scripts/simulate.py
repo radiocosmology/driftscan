@@ -69,8 +69,8 @@ if 'reionisation' in yconf['config']:
         skymodel._reionisation = True
 
 ## Beam transfer generation
-if 'chunked' in yconf['config'] and yconf['config']['chunked']:
-    bt = beamtransfer.BeamTransferChunked(outdir + '/bt/', telescope=telescope)    
+if 'nosvd' in yconf['config'] and yconf['config']['nosvd']:
+    bt = beamtransfer.BeamTransferNoSVD(outdir + '/bt/', telescope=telescope)    
 else:
     bt = beamtransfer.BeamTransfer(outdir + '/bt/', telescope=telescope)
 
@@ -108,7 +108,7 @@ if 'kltransform' in yconf:
 ## Power spectrum estimation configuration
 pstype_dict =   {   'Full'          : psestimation.PSEstimation,
                     'MonteCarlo'    : psmc.PSMonteCarlo,
-                    'MonteCarlo2'    : psmc.PSMonteCarlo2
+                    'MonteCarloAlt'    : psmc.PSMonteCarloAlt
                 }
 
 if yconf['config']['psfisher']:
@@ -128,8 +128,7 @@ if yconf['config']['psfisher']:
 
 
         ps = pstype_dict[pstype].from_config(psentry, klobj_dict[klname], subdir=psname)
-        ps.genbands()
-        ps.fisher_mpi()
+        ps.generate()
 
 
 

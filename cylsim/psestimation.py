@@ -151,8 +151,8 @@ class PSEstimation(util.ConfigReader):
         # else:
         #return self.kltrans.project_sky_matrix_forward(mi, self.clarray[bi], self.threshold)
 
-        svdmat = self.beamtransfer.project_matrix_sky_to_svd(mi, self.clarray[bi], temponly=True)
-        return self.kltrans.project_matrix_telescope_to_kl(mi, svdmat, self.threshold)
+        svdmat = self.kltrans.beamtransfer.project_matrix_sky_to_svd(mi, self.clarray[bi], temponly=True)
+        return self.kltrans.project_matrix_svd_to_kl(mi, svdmat, self.threshold)
 
 
     def cacheproj(self, mi):

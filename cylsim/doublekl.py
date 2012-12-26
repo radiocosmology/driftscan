@@ -56,6 +56,10 @@ class DoubleKL(kltransform.KLTransform):
 
         nside = self.beamtransfer.ndof(mi)
 
+        # Ensure that number of SVD degrees of freedom is non-zero before proceeding
+        if nside == 0:
+            return np.array([]), np.array([[]]), np.array([[]]), { 'ac' : 0.0, 'f_evals' : np.array([]) }
+
         # Construct S and F matrices and regularise foregrounds
         self.use_thermal = False
         cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi) ]
@@ -109,17 +113,27 @@ class DoubleKL(kltransform.KLTransform):
     def _collect(self):
         
         def evfunc(mi):
-            f = h5py.File(self._evfile % mi, 'r')
+
+
             ta = np.zeros(shape, dtype=np.float64)
-            ta[0] = f['evals_full'][:]
-            ta[1] = f['f_evals'][:]
+
+            f = h5py.File(self._evfile % mi, 'r')
+
+            if f['evals_full'].shape[0] > 0:
+                ev = f['evals_full'][:]
+                fev = f['f_evals'][:]
+                ta[0, -ev.size:] = ev
+                ta[1, -fev.size:] = fev
+
+            f.close()
+
             return ta
 
         if mpiutil.rank0:
             print "Creating eigenvalues file (process 0 only)."
         
         mlist = range(self.telescope.mmax+1)
-        shape = (2, self.beamtransfer.ntel * self.telescope.nfreq)
+        shape = (2, self.beamtransfer.ndofmax)
         
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
         

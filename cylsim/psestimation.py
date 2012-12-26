@@ -16,7 +16,7 @@ import numpy as np
 
 import os
 import h5py
-
+import time
 
 
 def uniform_band(k, kstart, kend):
@@ -265,6 +265,11 @@ class PSEstimation(util.ConfigReader):
 
     def generate(self, mlist = None, regen=False):
 
+        if mpiutil.rank0:
+            st = time.time()
+            print "======== Starting PS calculation ========"
+
+
         if mlist is None:
             mlist = range(self.telescope.mmax + 1)
 
@@ -274,10 +279,18 @@ class PSEstimation(util.ConfigReader):
             print ("Fisher matrix file: %s exists. Skipping..." % ffile)
             return
 
+        mpiutil.barrier()
+
         self.genbands()
 
         # Use parallel map to distribute Fisher calculation
         fisher = mpiutil.parallel_map(self.fisher_m, mlist)
+
+
+        if mpiutil.rank0:
+            et = time.time()
+            print "======== Ending PS calculation (time=%f) ========" % (et - st)
+
 
         if mpiutil.rank0:
 

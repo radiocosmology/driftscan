@@ -153,7 +153,7 @@ class KLTransform(util.ConfigReader):
     _cvfg = None
     _cvsg = None
 
-    _foreground_regulariser = 2e-15
+    _foreground_regulariser = 1e-14
 
     use_thermal = True
     use_foregrounds = True

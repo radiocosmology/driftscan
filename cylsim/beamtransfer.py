@@ -156,7 +156,7 @@ class BeamTransfer(object):
 
         beam = beam.reshape((self.nfreq, self.ntel, self.nsky))
 
-        ibeam = blockla.pinv_dm(beam, rcond=1e-8)
+        ibeam = blockla.pinv_dm(beam, rcond=1e-6)
 
         if self.noise_weight:
             # Reshape to make it easy to multiply baselines by noise level

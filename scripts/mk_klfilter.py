@@ -51,7 +51,7 @@ if mpiutil.rank0:
 
     # Calculate alm's and broadcast
     print "Read in skymap."
-    f = h5py.File(args.mapfile)
+    f = h5py.File(args.mapfile, 'r')
     skymap = f['map'][:]
     f.close()
     nside = healpy.get_nside(skymap[0])

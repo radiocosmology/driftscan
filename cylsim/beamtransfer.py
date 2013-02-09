@@ -532,6 +532,10 @@ class BeamTransfer(object):
                 bfm = (-1)**mi * fm['beam_m'][fi][:].conj()
                 bf = np.array([bfp, bfm]).reshape(self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1)
 
+                noisew = self.telescope.noisepower(np.arange(self.telescope.npairs), fi).flatten()**(-0.5)
+                noisew = np.concatenate([noisew, noisew])
+                bf = bf * noisew[:, np.newaxis, np.newaxis]
+
                 # Get the T-mode only beam matrix
                 bft = bf[:, 0, :]
 
@@ -540,7 +544,7 @@ class BeamTransfer(object):
                 u = u.T.conj() # We only need u^H so just keep that.
 
                 # Save out the evecs (for transforming from the telescope frame into the SVD basis)
-                dset_ut[fi] = u
+                dset_ut[fi] = (u * noisew[np.newaxis, :])
 
                 # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
                 dset_bsvd[fi] = np.dot(u, bf.reshape(self.ntel, -1)).reshape(svd_len, self.telescope.num_pol_sky,

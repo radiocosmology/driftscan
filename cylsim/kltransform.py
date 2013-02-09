@@ -314,6 +314,11 @@ class KLTransform(util.ConfigReader):
         # Fetch the covariance matrices to diagonalise
         st = time.time()
         nside = self.beamtransfer.ndof(mi)
+
+        # Ensure that number of SVD degrees of freedom is non-zero before proceeding
+        if nside == 0:
+            return np.array([]), np.array([[]]), np.array([[]]), { 'ac' : 0.0 }
+
         cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
         print "Time =", (et-st)
@@ -437,11 +442,14 @@ class KLTransform(util.ConfigReader):
     def _collect(self):
 
         def evfunc(mi):
-            f = h5py.File(self._evfile % mi, 'r')
-            ev = f['evals_full'][:]
-            f.close()
             evf = np.zeros(self.beamtransfer.ndofmax)
-            evf[-ev.size:] = ev
+
+            f = h5py.File(self._evfile % mi, 'r')
+            if f['evals_full'].shape[0] > 0:
+                ev = f['evals_full'][:]
+                evf[-ev.size:] = ev
+            f.close()
+
             return evf
 
         if mpiutil.rank0:
@@ -472,6 +480,10 @@ class KLTransform(util.ConfigReader):
             Set of m's to calculate KL-modes for By default do all m-modes.
         """
         
+        if mpiutil.rank0:
+            st = time.time()
+            print "======== Starting KL calculation ========"
+
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(self.telescope.mmax+1):
             if os.path.exists(self._evfile % mi) and not regen:
@@ -483,9 +495,15 @@ class KLTransform(util.ConfigReader):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
+        if mpiutil.rank0:
+            et = time.time()
+            print "======== Ending KL calculation (time=%f) ========" % (et - st)
+
+
         # Collect together the eigenvalues
         self._collect()
 
+        
 
     olddatafile = False
 

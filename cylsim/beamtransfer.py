@@ -20,7 +20,7 @@ class BeamTransfer(object):
 
     _mem_switch = 3.0 # Rough chunks (in GB) to divide calculation into.
 
-    svcut = 0.0
+    svcut = 1e-10
 
 
     #====== Properties giving internal filenames =======
@@ -952,6 +952,8 @@ class BeamTransfer(object):
 
 
 class BeamTransferNoSVD(BeamTransfer):
+
+    svcut = 0.0
 
     def project_matrix_sky_to_svd(self, mi, mat, *args, **kwargs):
         return self.project_matrix_sky_to_telescope(mi, mat).reshape(self.ndof(mi), self.ndof(mi))

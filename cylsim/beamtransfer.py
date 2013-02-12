@@ -20,7 +20,7 @@ class BeamTransfer(object):
 
     _mem_switch = 3.0 # Rough chunks (in GB) to divide calculation into.
 
-    svcut = 1e-10
+    svcut = 1e-12
 
 
     #====== Properties giving internal filenames =======

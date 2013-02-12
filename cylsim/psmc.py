@@ -172,31 +172,23 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         xv1 = cf[:, np.newaxis] * xv
 
         # Project vector from eigenbasis into telescope basis
-        xv2 = np.dot(evecs.T.conj(), xv1).reshape(bt.nfreq, bt.ntel, self.nsamples)
+        xv2 = np.dot(evecs.T.conj(), xv1).reshape(bt.ndof(mi), self.nsamples)
 
-        # Get projection matrix from stokes I to telescope
-        bp = bt.beam_m(mi)[:, :, :, :, 0, :].reshape(bt.nfreq, bt.ntel, -1)
-        lside = bp.shape[-1]
-
-        # Project with transpose B matrix
-        xv3 = np.zeros((bt.nfreq, lside, self.nsamples), dtype=np.complex128)
-        for fi in range(bt.nfreq):
-            xv3[fi] = np.dot(bp[fi].T.conj(), xv2[fi])
+        # Project back into sky basis
+        xv3 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, xv2, conj=True, temponly=True)
 
         for bi in range(nbands):
 
             # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)
-            for li in range(lside):
-                xv4[:, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, li, :]) # TT only.
+            for li in range(self.telescope.lmax + 1):
+                xv4[:, 0, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, 0, li, :]) # TT only.
 
-            # Projection from sky vector into telescope
-            xv5 = np.zeros_like(xv2)
-            for fi in range(bt.nfreq):
-                xv5[fi] = np.dot(bp[fi], xv4[fi])
+            # Projection from sky back into SVD basis
+            xv5 = self.kltrans.beamtransfer.project_vector_sky_to_svd(mi, xv4, temponly=True)
 
             # Projection into eigenbasis
-            xv6 = np.dot(evecs, xv5.reshape(bt.nfreq * bt.ntel, self.nsamples))
+            xv6 = np.dot(evecs, xv5.reshape(bt.ndof(mi), self.nsamples))
             xv7 = cf[:, np.newaxis] * xv6
 
             # Push set of vectors into cache.

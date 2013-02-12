@@ -118,9 +118,7 @@ class PSEstimation(util.ConfigReader):
         self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
         self.psvalues = cr.ps_vv(self.bcenter)
 
-        #self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
         # Use new parallel map to speed up computaiton of bands
-
         if self.clarray is None:
             self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band[0]), self.band_pk)
 
@@ -207,22 +205,6 @@ class PSEstimation(util.ConfigReader):
             
         return proj
 
-    def fisher_m_old(self, mi):
-        
-        evals, evecs = self.kltrans.modes_m(mi, self.threshold)
-
-        if evals is not None:
-            print "Making fisher (for m=%i)." % mi
-
-            c = [self.makeproj(mi, i) for i in range(len(self.clarray))]
-            ci = np.diag(1.0 / (evals + 1.0))
-            #ci = np.outer(ci, ci)
-            fab = np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])
-        else:
-            print "No evals (for m=%i), skipping." % mi
-            l = self.bands.size - 1
-            fab = np.zeros((l, l))
-        return fab
 
 
     def fisher_m(self, mi):
@@ -257,10 +239,6 @@ class PSEstimation(util.ConfigReader):
 
         return fab
 
-
-    def _fisher_section(self, mlist):
-
-        return [ (mi, self.fisher_m(mi)) for mi in mlist ]
 
 
     def generate(self, mlist = None, regen=False):
@@ -320,26 +298,15 @@ class PSEstimation(util.ConfigReader):
 
 
     def fisher_file(self):
+        """Fetch the h5py file handle for the Fisher matrix.
+
+        Returns
+        -------
+        file : h5py.File
+            File pointing at the hdf5 file with the Fisher matrix.
+        """
         return h5py.File(self.psdir + 'fisher.hdf5', 'r')
 
 
 
             
-    
-    def fisher_section(self, mlist = None):
-
-        if mlist is None:
-            mlist = range(self.telescope.mmax + 1)
-            
-        mpart = mpiutil.partition_list_mpi(mlist)
-
-        fab_t = np.zeros((self.bands.size - 1, self.bands.size - 1), dtype=np.complex128)
-
-        for mi in mpart:
-
-            fab_m = self.fisher_m(mi)
-
-            fab_t += fab_m
-
-        return fab_t
-

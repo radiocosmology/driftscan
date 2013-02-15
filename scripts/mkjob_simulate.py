@@ -55,9 +55,11 @@ script="""#!/bin/bash
 #PBS -l walltime=%(time)s
 #PBS -N %(name)s
 
+#export MXM_LOG_LEVEL=INFO
+
 cd %(pbsdir)s
 export OMP_NUM_THREADS=%(ompnum)i
-mpirun -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s config.yaml &> jobout.log
+mpirun --mca btl self,sm,tcp -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s config.yaml &> jobout.log
 """
 
 script = script % conf

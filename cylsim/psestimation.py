@@ -121,7 +121,7 @@ class PSEstimation(util.ConfigReader):
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
             self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band[0]), self.band_pk)
-
+            
         print "Done."
 
         
@@ -131,6 +131,8 @@ class PSEstimation(util.ConfigReader):
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt)
+        
+        print "Rank: %i - Finished making band." % mpiutil._rank
         return clzz
 
 

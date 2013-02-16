@@ -30,23 +30,31 @@ class BeamTransfer(object):
         # The filename for the pickled telescope
         return self.directory + "/telescopeobject.pickle"
 
-    @property
-    def _mfile(self):
+    def _mdir(self, mi):
         # Pattern to form the `m` ordered file.
-        return (self.directory + "/beam_m_" +
-                util.intpattern(self.telescope.mmax) + ".hdf5")
+        pat = self.directory + "/beam_m/" + util.natpattern(self.telescope.mmax)
+        return pat % abs(mi)
 
-    @property
-    def _ffile(self):
+    def _mfile(self, mi):
+        # Pattern to form the `m` ordered file.
+        return self._mdir(mi) + "/" + ('pos' if mi >= 0 else 'neg') + '.hdf5'
+
+    def _fdir(self, fi):
         # Pattern to form the `freq` ordered file.
-        return (self.directory + "/beam_f_" +
-                util.natpattern(self.telescope.nfreq) + ".hdf5")
+        pat = self.directory + "/beam_f/" + util.natpattern(self.telescope.nfreq)
+        return pat % fi
 
-    @property
-    def _svdfile(self):
+    def _ffile(self, fi):
+        # Pattern to form the `freq` ordered file.
+        return self._fdir(fi) + "/beam.hdf5"
+
+    def _svdfile(self, mi):
         # Pattern to form the `m` ordered file.
-        return (self.directory + "/beam_svd_m_" +
-                util.natpattern(self.telescope.mmax) + ".hdf5")
+
+        # Pattern to form the `m` ordered file.
+        pat = self.directory + "/beam_m/" + util.natpattern(self.telescope.mmax) + "/svd.hdf5"
+
+        return pat % mi
 
     #===================================================
 
@@ -85,7 +93,7 @@ class BeamTransfer(object):
 
     def _load_beam_m(self, mi, fi=None):
         ## Read in beam from disk
-        mfile = h5py.File(self._mfile % mi, 'r')
+        mfile = h5py.File(self._mfile(mi), 'r')
 
         # If fi is None, return all frequency blocks. Otherwise just the one requested.
         if fi is None:
@@ -150,7 +158,7 @@ class BeamTransfer(object):
         tel = self.telescope
         mside = 2 * tel.lmax + 1 if fullm else 2 * tel.mmax + 1
         
-        ffile = h5py.File(self._ffile % fi, 'r')
+        ffile = h5py.File(self._ffile(fi), 'r')
         beamf = ffile['beam_freq'][:]
         ffile.close()
         
@@ -275,7 +283,7 @@ class BeamTransfer(object):
         beam : np.ndarray (nfreq, svd_len, npol_sky, lmax+1)
         """
         
-        svdfile = h5py.File(self._svdfile % mi, 'r')
+        svdfile = h5py.File(self._svdfile(mi), 'r')
 
         # Required array shape depends on whether we are returning all frequency blocks or not.
         if fi is None:
@@ -308,7 +316,7 @@ class BeamTransfer(object):
         beam : np.ndarray (nfreq, svd_len, ntel)
         """
         
-        svdfile = h5py.File(self._svdfile % mi, 'r')
+        svdfile = h5py.File(self._svdfile(mi), 'r')
 
         # Required array shape depends on whether we are returning all frequency blocks or not.
         if fi is None:
@@ -341,7 +349,7 @@ class BeamTransfer(object):
             If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
         """
         
-        svdfile = h5py.File(self._svdfile % mi, 'r')
+        svdfile = h5py.File(self._svdfile(mi), 'r')
         sv = svdfile['singularvalues'][:]
         svdfile.close()
 
@@ -368,6 +376,7 @@ class BeamTransfer(object):
             Force regeneration even if cache files exist (default: False).
         """
 
+        self._generate_dirs()
         self._generate_ffiles(regen)
         self._generate_mfiles(regen)
         self._generate_svdfiles(regen)
@@ -376,21 +385,48 @@ class BeamTransfer(object):
     generate_cache = generate # For compatibility with old code
 
 
+    def _generate_dirs(self):
+
+
+        if mpiutil.rank0:
+
+            # Create main directory for beamtransfer
+            if not os.path.exists(self.directory):
+                os.makedirs(self.directory)
+
+            # Create directories for storing frequency ordered beams
+            for fi in range(self.nfreq):
+                dirname = self._fdir(fi)
+
+                if not os.path.exists(dirname):
+                    os.makedirs(dirname)
+
+            # Create directories for m beams and svd files.
+            for mi in range(self.telescope.mmax + 1):
+                dirname = self._mdir(mi)
+
+                # Create directory if required
+                if not os.path.exists(dirname):
+                    os.makedirs(dirname)
+
+
+
+
     def _generate_ffiles(self, regen=False):
 
         # For each frequency, create the HDF5 file, and write in each `m` as a
         # seperate compressed dataset. Use MPI if available. 
         for fi in mpiutil.mpirange(self.nfreq):
 
-            if os.path.exists(self._ffile % fi) and not regen:
+            if os.path.exists(self._ffile(fi)) and not regen:
                 print ("f index %i. File: %s exists. Skipping..." %
-                       (fi, (self._ffile % fi)))
+                       (fi, (self._ffile(fi))))
                 continue
             else:
                 print ('f index %i. Creating file: %s' %
-                       (fi, (self._ffile % fi)))
+                       (fi, (self._ffile(fi))))
 
-            f = h5py.File(self._ffile % fi, 'w')
+            f = h5py.File(self._ffile(fi), 'w')
 
             # Set a few useful attributes.
             f.attrs['baselines'] = self.telescope.baselines
@@ -435,15 +471,15 @@ class BeamTransfer(object):
         for mi in mpiutil.mpirange(-self.telescope.mmax,
                                    self.telescope.mmax + 1):
 
-            if os.path.exists(self._mfile % mi) and not regen:
+            if os.path.exists(self._mfile(mi)) and not regen:
                 print ("m index %i. File: %s exists. Skipping..." %
-                       (mi, (self._mfile % mi)))
+                       (mi, (self._mfile(mi))))
                 continue
             else:
-                print 'm index %i. Creating file: %s' % (mi, self._mfile % mi)
+                print 'm index %i. Creating file: %s' % (mi, self._mfile(mi))
 
             ## Create hdf5 file for each m-mode
-            f = h5py.File(self._mfile % mi, 'w')
+            f = h5py.File(self._mfile(mi), 'w')
 
             dsize = (self.telescope.nfreq, self.telescope.nbase,
                      self.telescope.num_pol_telescope, self.telescope.num_pol_sky, self.telescope.lmax+1)
@@ -458,7 +494,7 @@ class BeamTransfer(object):
             ## and copy into file.
             for fi in np.arange(self.telescope.nfreq):
 
-                ff = h5py.File(self._ffile % fi, 'r')
+                ff = h5py.File(self._ffile(fi), 'r')
 
                 # Check frequency is what we expect.
                 if fi != ff.attrs['frequency_index']:
@@ -492,19 +528,19 @@ class BeamTransfer(object):
         # and write them into a new `m` file. Use MPI if available. 
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
-            if os.path.exists(self._svdfile % mi) and not regen:
+            if os.path.exists(self._svdfile(mi)) and not regen:
                 print ("m index %i. File: %s exists. Skipping..." %
-                       (mi, (self._svdfile % mi)))
+                       (mi, (self._svdfile(mi))))
                 continue
             else:
-                print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile % mi)
+                print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile(mi))
 
             # Open positive and negative m beams for reading.
-            fp = h5py.File(self._mfile % mi, 'r')
-            fm = h5py.File(self._mfile % (-mi), 'r')
+            fp = h5py.File(self._mfile(mi),  'r')
+            fm = h5py.File(self._mfile(-mi), 'r')
 
             # Open file to write SVD results into.
-            fs = h5py.File(self._svdfile % mi, 'w')
+            fs = h5py.File(self._svdfile(mi), 'w')
 
             # The size of the SVD output matrices
             svd_len = min(self.telescope.lmax+1, self.ntel)
@@ -782,7 +818,7 @@ class BeamTransfer(object):
             Covariance in SVD basis.
         """ 
 
-        svdfile = h5py.File(self._svdfile % mi, 'r')
+        svdfile = h5py.File(self._svdfile(mi), 'r')
 
         # Get the SVD beam matrix
         beam = svdfile['beam_ut']

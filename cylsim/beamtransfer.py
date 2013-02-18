@@ -10,6 +10,32 @@ import util
 import blockla
 
 
+def svd_gen(A, *args, **kwargs):
+    """Find the inverse of A.
+
+    If a standard matrix inverse has issues try using the pseudo-inverse.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Matrix to invert.
+        
+    Returns
+    -------
+    inv : np.ndarray
+    """
+    try:
+        res = la.svd(A, *args, **kwargs)
+    except la.LinAlgError:
+        At = A + A.max() * 1e-40 * np.eye(A.shape[0], A.shape[1])
+        res = la.svd(At, *args, **kwargs)
+        print "Matrix SVD did not converge. Regularised."
+
+    return res
+
+
+
+
 class BeamTransfer(object):
     """A class for reading and writing Beam Transfer matrices from disk. In
     addition this provides methods for projecting vectors and matrices between
@@ -576,7 +602,7 @@ class BeamTransfer(object):
                 bft = bf[:, 0, :]
 
                 # Perform the SVD to find the left evecs
-                u, sig, v = la.svd(bft, full_matrices=False)
+                u, sig, v = svd_gen(bft, full_matrices=False)
                 u = u.T.conj() # We only need u^H so just keep that.
 
                 # Save out the evecs (for transforming from the telescope frame into the SVD basis)

@@ -1,5 +1,6 @@
 import pickle
 import os
+import time
 
 import numpy as np
 import scipy.linalg as la
@@ -376,10 +377,17 @@ class BeamTransfer(object):
             Force regeneration even if cache files exist (default: False).
         """
 
+        st = time.time()
+
         self._generate_dirs()
         self._generate_ffiles(regen)
         self._generate_mfiles(regen)
         self._generate_svdfiles(regen)
+
+        et = time.time()
+
+        if mpiutil.rank0:
+            print "***** Beam generation time: %f" % (et - st)
 
 
     generate_cache = generate # For compatibility with old code

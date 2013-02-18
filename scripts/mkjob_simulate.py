@@ -59,6 +59,8 @@ script="""#!/bin/bash
 
 cd %(pbsdir)s
 export OMP_NUM_THREADS=%(ompnum)i
+export PYTHONPATH=/home/p/pen/jrs65/code/cylinder_simulation_mdirs:$PYTHONPATH
+
 mpirun --mca btl self,sm,tcp -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s config.yaml &> jobout.log
 """
 

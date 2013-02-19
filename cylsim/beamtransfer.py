@@ -47,7 +47,7 @@ class BeamTransfer(object):
 
     _mem_switch = 3.0 # Rough chunks (in GB) to divide calculation into.
 
-    svcut = 1e-12
+    svcut = 1e-6
 
 
     #====== Properties giving internal filenames =======
@@ -443,7 +443,7 @@ class BeamTransfer(object):
                 if not os.path.exists(dirname):
                     os.makedirs(dirname)
 
-
+        mpiutil.barrier()
 
 
     def _generate_ffiles(self, regen=False):

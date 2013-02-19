@@ -55,7 +55,7 @@ script="""#!/bin/bash
 #PBS -l walltime=%(time)s
 #PBS -N %(name)s
 
-#export MXM_LOG_LEVEL=INFO
+export MXM_LOG_LEVEL=INFO
 
 cd %(pbsdir)s
 export OMP_NUM_THREADS=%(ompnum)i

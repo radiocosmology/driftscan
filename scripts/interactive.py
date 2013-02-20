@@ -68,6 +68,7 @@ if 'reionisation' in yconf['config']:
     if yconf['config']['reionisation']:
         skymodel._reionisation = True
 
+
 ## Beam transfer generation
 if 'nosvd' in yconf['config'] and yconf['config']['nosvd']:
     bt = beamtransfer.BeamTransferNoSVD(outdir + '/bt/', telescope=telescope)    
@@ -78,8 +79,8 @@ else:
 if 'svcut' in yconf['config']:
     bt.svcut = float(yconf['config']['svcut'])
 
-if yconf['config']['beamtransfers']:
-    bt.generate()
+#if yconf['config']['beamtransfers']:
+#    bt.generate()
 
 
 
@@ -103,72 +104,9 @@ if 'kltransform' in yconf:
         kl = kltype_dict[kltype].from_config(klentry, bt, subdir=klname)
         klobj_dict[klname] = kl
 
-        if yconf['config']['kltransform']:
-            kl.generate()
+#        if yconf['config']['kltransform']:
+#            kl.generate()
 
-
-
-
-## Power spectrum estimation configuration
-pstype_dict =   {   'Full'          : psestimation.PSEstimation,
-                    'MonteCarlo'    : psmc.PSMonteCarlo,
-                    'MonteCarloAlt'    : psmc.PSMonteCarloAlt
-                }
-
-if yconf['config']['psfisher']:
-    if 'psfisher' not in yconf:
-        raise Exception('Require a psfisher section if config: psfisher is Yes.')
-
-    for psentry in yconf['psfisher']:
-        pstype = psentry['type']
-        klname = psentry['klname']
-        psname = psentry['name'] if 'name' in psentry else 'ps'
-        
-        if pstype not in pstype_dict:
-            raise Exception("Unsupported PS estimation.")
-
-        if klname not in klobj_dict:
-            raise Exception('Desired KL object does not exist.')
-
-
-        ps = pstype_dict[pstype].from_config(psentry, klobj_dict[klname], subdir=psname)
-        ps.generate()
-
-
-
-
-## Projections code
-if yconf['config']['projections']:
-    if 'projections' not in yconf:
-        raise Exception('Require a projections section if config: projections is Yes.')
-
-    for projentry in yconf['projections']:
-        klname = projentry['klname']
-
-        # Override default and ensure we copy the original maps
-        if 'copy_orig' not in projentry:
-            projentry['copy_orig'] = True
-
-        for mentry in projentry['maps']:
-            if 'stem' not in mentry:
-                raise Exception('No stem in mapentry %s' % mentry['file'])
-
-            mentry['stem'] = outdir + '/projections/' + klname + '/' + mentry['stem'] + '/'
-        
-        if klname not in klobj_dict:
-            raise Exception('Desired KL object does not exist.')
-
-        proj = projection.Projector.from_config(projentry, klobj_dict[klname])
-        proj.generate()
-
-
-if mpiutil.rank0:
-    print "========================================"
-    print "=                                      ="
-    print "=           DONE AT LAST!!             ="
-    print "=                                      ="
-    print "========================================"
-
-
+kl = klobj_dict
 
 

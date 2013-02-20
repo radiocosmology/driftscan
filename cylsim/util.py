@@ -81,7 +81,3 @@ class ConfigReader(object):
 
             self.__setattr__(cname, ctype(cval))
 
-
-
-
-

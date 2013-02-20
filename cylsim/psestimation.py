@@ -16,7 +16,7 @@ import numpy as np
 
 import os
 import h5py
-
+import time
 
 
 def uniform_band(k, kstart, kend):
@@ -52,6 +52,8 @@ class PSEstimation(util.ConfigReader):
 
     unit_bands = True
 
+    clarray = None
+
 
     __config_table_ =   {   'bands'       : [range_config,    'bands'],
                             'threshold'   : [float,           'threshold'],
@@ -62,6 +64,11 @@ class PSEstimation(util.ConfigReader):
     def _cfile(self):
         # Pattern to form the `m` ordered file.
         return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
+
+
+    @property
+    def nbands(self):
+        return len(self.bands) - 1
 
 
     def __init__(self, kltrans, subdir=None):
@@ -111,10 +118,10 @@ class PSEstimation(util.ConfigReader):
         self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
         self.psvalues = cr.ps_vv(self.bcenter)
 
-        #self.clarray = [self.make_clzz(pk) for pk, bs, be in self.band_pk]
         # Use new parallel map to speed up computaiton of bands
-        self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band[0]), self.band_pk)
-
+        if self.clarray is None:
+            self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band[0]), self.band_pk)
+            
         print "Done."
 
         
@@ -124,6 +131,8 @@ class PSEstimation(util.ConfigReader):
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt)
+        
+        print "Rank: %i - Finished making band." % mpiutil._rank
         return clzz
 
 
@@ -137,10 +146,13 @@ class PSEstimation(util.ConfigReader):
         #print "Projecting to eigenbasis."
         nevals = self.kltrans.modes_m(mi, threshold=self.threshold)[0].size
 
-        if nevals < 1000:
-            return self.kltrans.project_sky_matrix_forward_old(mi, self.clarray[bi], self.threshold)
-        else:
-            return self.kltrans.project_sky_matrix_forward(mi, self.clarray[bi], self.threshold)
+        # if nevals < 1000:
+        #     return self.kltrans.project_sky_matrix_forward_old(mi, self.clarray[bi], self.threshold)
+        # else:
+        #return self.kltrans.project_sky_matrix_forward(mi, self.clarray[bi], self.threshold)
+
+        svdmat = self.kltrans.beamtransfer.project_matrix_sky_to_svd(mi, self.clarray[bi], temponly=True)
+        return self.kltrans.project_matrix_svd_to_kl(mi, svdmat, self.threshold)
 
 
     def cacheproj(self, mi):
@@ -195,22 +207,6 @@ class PSEstimation(util.ConfigReader):
             
         return proj
 
-    def fisher_m_old(self, mi):
-        
-        evals, evecs = self.kltrans.modes_m(mi, self.threshold)
-
-        if evals is not None:
-            print "Making fisher (for m=%i)." % mi
-
-            c = [self.makeproj(mi, i) for i in range(len(self.clarray))]
-            ci = np.diag(1.0 / (evals + 1.0))
-            #ci = np.outer(ci, ci)
-            fab = np.array([ [ np.trace(np.dot(np.dot(c_a, ci), np.dot(c_b, ci))) for c_b in c] for c_a in c])
-        else:
-            print "No evals (for m=%i), skipping." % mi
-            l = self.bands.size - 1
-            fab = np.zeros((l, l))
-        return fab
 
 
     def fisher_m(self, mi):
@@ -246,12 +242,14 @@ class PSEstimation(util.ConfigReader):
         return fab
 
 
-    def _fisher_section(self, mlist):
 
-        return [ (mi, self.fisher_m(mi)) for mi in mlist ]
+    def generate(self, mlist = None, regen=False):
+
+        if mpiutil.rank0:
+            st = time.time()
+            print "======== Starting PS calculation ========"
 
 
-    def fisher_mpi(self, mlist = None, regen=False):
         if mlist is None:
             mlist = range(self.telescope.mmax + 1)
 
@@ -261,8 +259,18 @@ class PSEstimation(util.ConfigReader):
             print ("Fisher matrix file: %s exists. Skipping..." % ffile)
             return
 
+        mpiutil.barrier()
+
+        self.genbands()
+
         # Use parallel map to distribute Fisher calculation
         fisher = mpiutil.parallel_map(self.fisher_m, mlist)
+
+
+        if mpiutil.rank0:
+            et = time.time()
+            print "======== Ending PS calculation (time=%f) ========" % (et - st)
+
 
         if mpiutil.rank0:
 
@@ -287,22 +295,20 @@ class PSEstimation(util.ConfigReader):
             f.create_dataset('bandcenter/', data=self.bcenter)
             f.create_dataset('psvalues/', data=self.psvalues)
             f.close()
+
+    fisher_mpi = generate
+
+
+    def fisher_file(self):
+        """Fetch the h5py file handle for the Fisher matrix.
+
+        Returns
+        -------
+        file : h5py.File
+            File pointing at the hdf5 file with the Fisher matrix.
+        """
+        return h5py.File(self.psdir + 'fisher.hdf5', 'r')
+
+
+
             
-    
-    def fisher_section(self, mlist = None):
-
-        if mlist is None:
-            mlist = range(self.telescope.mmax + 1)
-            
-        mpart = mpiutil.partition_list_mpi(mlist)
-
-        fab_t = np.zeros((self.bands.size - 1, self.bands.size - 1), dtype=np.complex128)
-
-        for mi in mpart:
-
-            fab_m = self.fisher_m(mi)
-
-            fab_t += fab_m
-
-        return fab_t
-

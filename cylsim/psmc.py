@@ -259,7 +259,7 @@ class PSMonteCarlo2(psestimation.PSEstimation):
         xv2 = np.dot(evecs.T.conj(), xv1).reshape(bt.nfreq, bt.ntel, self.nsamples)
 
         # Get projection matrix from stokes I to telescope
-        bp = bt.beam_m(mi)[:, :, :, 0, :].reshape(bt.nfreq, bt.ntel, -1)
+        bp = bt.beam_m(mi)[..., 0, :].reshape(bt.nfreq, bt.ntel, -1)
         lside = bp.shape[-1]
 
         # Project with transpose B matrix

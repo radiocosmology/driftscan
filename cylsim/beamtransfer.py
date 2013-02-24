@@ -28,7 +28,8 @@ def svd_gen(A, *args, **kwargs):
     try:
         res = la.svd(A, *args, **kwargs)
     except la.LinAlgError:
-        At = A + A.max() * 1e-40 * np.eye(A.shape[0], A.shape[1])
+        sv = la.svdvals(A)
+        At = A + sv[0] * 1e-11 * np.eye(A.shape[0], A.shape[1])
         res = la.svd(At, *args, **kwargs)
         print "Matrix SVD did not converge. Regularised."
 

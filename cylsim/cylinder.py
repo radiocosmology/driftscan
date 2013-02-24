@@ -265,22 +265,3 @@ class CylBT(UnpolarisedCylinderTelescope):
 
     pass
 
-
-class RandomCylinder(UnpolarisedCylinderTelescope):
-
-    pos_sigma = 0.5
-
-    def feed_positions_cylinder(self, cylinder_index):
-
-        pos = super(RandomCylinder, self).feed_positions_cylinder(cylinder_index)
-
-        rs = np.random.get_state()
-        np.random.seed(cylinder_index)
-
-        p1 = np.sort(pos[:, 1] + self.pos_sigma * self.feed_spacing * np.random.standard_normal(pos.shape[0]))
-
-        np.random.set_state(rs)
-
-        pos[:, 1] = p1
-        return pos
-

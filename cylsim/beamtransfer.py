@@ -585,7 +585,7 @@ class BeamTransfer(object):
             self.telescope.num_pol_sky * (self.telescope.lmax+1) *
             (2*self.telescope.mmax+1) * 16.0)
 
-        num_bl_per_chunk = int(4e9 / blsize) # Number of baselines to process in each chunk
+        num_bl_per_chunk = int(3e9 / blsize) # Number of baselines to process in each chunk
         num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
 
         if mpiutil.rank0:
@@ -627,6 +627,14 @@ class BeamTransfer(object):
         # Iterate over all chunks performing a cycle of: read frequency data, transpose to m-order data, write m-data.
         for ci in range(num_chunks):
 
+            if mpiutil.rank0:
+                print
+                print "============================================="
+                print "    Starting chunk %i of %i" % (ci, num_chunks)
+                print "============================================="
+                print
+
+
             blstart = ci * num_bl_per_chunk
             blend = min((ci+1)*num_bl_per_chunk, self.telescope.nbase)
 
@@ -665,11 +673,18 @@ class BeamTransfer(object):
             # of the frequency matrices into m arrays. Though this might seem
             # to be more naturally done by scatter-gather, the variable
             # lengths make it difficult.
+
+            # List to contain all the current MPI_Requests for the sends
+            requests = []
+
             for fi in range(nf):
+                f_rank = freq_rank_map[fi]
                 
+                if f_rank == mpiutil.rank:
+                    print "Passing block from freq %i (rank %i)" % (fi, f_rank)
+
                 for mi in range(-self.telescope.mmax, self.telescope.mmax + 1):
                     
-                    f_rank = freq_rank_map[fi]
                     m_rank = m_rank_map[mi]
 
                     # Try and create a unique tag for this combination of (fi, mi)
@@ -678,11 +693,26 @@ class BeamTransfer(object):
                     else:
                         tag = (mi + (nm - 1)/ 2) * nf + fi
 
+                    # Send and receive the messages as non-blocking passes
                     if mpiutil.rank == f_rank:
-                        mpiutil.world.Send([freq_chunks[fi][..., mi].copy(), mpiutil.MPI.COMPLEX16], dest=m_rank, tag=tag)
+                        #print "Passing f-block %i to m-block %i (rank %i to %i)" % (fi, mi, f_rank, m_rank)
+                        request = mpiutil.world.Isend([freq_chunks[fi][..., mi].copy(), mpiutil.MPI.COMPLEX16], dest=m_rank, tag=tag)
+                        requests.append(request)
 
                     if mpiutil.rank == m_rank:
-                        mpiutil.world.Recv([m_arrays[mi][fi], mpiutil.MPI.COMPLEX16], source=f_rank, tag=tag)
+                        mpiutil.world.Irecv([m_arrays[mi][fi], mpiutil.MPI.COMPLEX16], source=f_rank, tag=tag)
+
+
+            # For each frequency iterate over all sends and wait until completion
+            for fi in range(nf):
+
+                if freq_rank_map[fi] == mpiutil.rank:
+                    
+                    for request, mi in zip(requests, range(-self.telescope.mmax, self.telescope.mmax + 1)):
+                        #print "Waiting on transfer f %i to m %i (rank %i to %i)" % (fi, mi, freq_rank_map[fi], m_rank_map[mi])
+                        request.Wait()
+
+                    print "Done waiting on sends from freq %i (rank %i)" % (fi, freq_rank_map[fi])
 
             # Force synchronization
             mpiutil.barrier()
@@ -697,7 +727,18 @@ class BeamTransfer(object):
 
                     mfile.close()
 
+                    print "Done writing chunk to m %i (rank %i)" % (mi, m_rank_map[mi])
+
+            # Delete the local frequency and m ordered
+            # sections. Otherwise we run out of memory on the next
+            # iteration as there is a brief moment where the chunks
+            # exist for both old and new iterations.
+            del freq_chunks
+            del m_arrays
+
             mpiutil.barrier()
+
+            
 
 
 

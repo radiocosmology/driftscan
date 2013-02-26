@@ -519,7 +519,7 @@ class BeamTransfer(object):
             self.telescope.num_pol_sky * (self.telescope.lmax+1) *
             (2*self.telescope.mmax+1) * 16.0)
 
-        num_bl_per_chunk = int(3e9 / blsize) # Number of baselines to process in each chunk
+        num_bl_per_chunk = int(2e9 / blsize) # Number of baselines to process in each chunk
         num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
 
         if mpiutil.rank0:
@@ -660,7 +660,7 @@ class BeamTransfer(object):
                 if mpiutil.rank == m_rank_map[mi]:
                     mfile = h5py.File(self._mfile(mi), 'r+')
 
-                    mfile['beam_m'][:, blstart:blend] = m_arrays[mi]
+                    mfile['beam_m'][:, :, blstart:blend] = m_arrays[mi]
 
                     mfile.close()
 

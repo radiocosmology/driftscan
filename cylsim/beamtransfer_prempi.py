@@ -65,7 +65,7 @@ class BeamTransfer(object):
 
     def _mfile(self, mi):
         # Pattern to form the `m` ordered file.
-        return self._mdir(mi) + '/beam.hdf5'
+        return self._mdir(mi) + "/" + ('pos' if mi >= 0 else 'neg') + '.hdf5'
 
     def _fdir(self, fi):
         # Pattern to form the `freq` ordered file.
@@ -153,8 +153,27 @@ class BeamTransfer(object):
         beam : np.ndarray (nfreq, 2, npairs, npol_tel, npol_sky, lmax+1)
             If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
         """
+        if single or self.telescope.positive_m_only:
+            return self._load_beam_m(mi)
 
-        return self._load_beam_m(mi, fi=fi)
+        bp = self._load_beam_m(mi, fi=fi)
+        bm = (-1)**mi * self._load_beam_m(-mi, fi=fi).conj()
+
+        # Zero out m=0 (for negative) to avoid double counting
+        if mi == 0:
+            bm[:] = 0.0
+
+        # Required array shape depends on whether we are returning all frequency blocks or not.
+        if fi is None:
+            bc = np.empty(bp.shape[:1] + (2,) + bp.shape[1:], dtype=bp.dtype)
+            bc[:, 0] = bp
+            bc[:, 1] = bm
+        else:
+            bc = np.empty((2,) + bp.shape, dtype=bp.dtype)
+            bc[0] = bp
+            bc[1] = bm
+
+        return bc
 
     #===================================================
 
@@ -203,7 +222,7 @@ class BeamTransfer(object):
         """
         bf = self._load_beam_freq(fi, fullm)
 
-        if single:
+        if single or self.telescope.positive_m_only:
             return bf
 
         mside = (bf.shape[-1] + 1) / 2
@@ -392,6 +411,7 @@ class BeamTransfer(object):
         self._generate_mfiles(regen)
         self._generate_svdfiles(regen)
 
+
         # Save pickled telescope object
         if mpiutil.rank0:
             with open(self._picklefile, 'w') as f:
@@ -489,14 +509,57 @@ class BeamTransfer(object):
         mpiutil.barrier()
 
 
-
-
     def _generate_mfiles(self, regen=False):
 
-        if os.path.exists(self.directory + '/beam_m/COMPLETED'):
-            if mpiutil.rank0:
-                print "******* m-files already generated ********"
-            return
+        # For each `m` collect all the `m` sections from each frequency file,
+        # and write them into a new `m` file. Use MPI if available. 
+        for mi in mpiutil.mpirange(-self.telescope.mmax,
+                                   self.telescope.mmax + 1):
+
+            if os.path.exists(self._mfile(mi)) and not regen:
+                print ("m index %i. File: %s exists. Skipping..." %
+                       (mi, (self._mfile(mi))))
+                continue
+            else:
+                print 'm index %i. Creating file: %s' % (mi, self._mfile(mi))
+
+            ## Create hdf5 file for each m-mode
+            f = h5py.File(self._mfile(mi), 'w')
+
+            dsize = (self.telescope.nfreq, self.telescope.nbase,
+                     self.telescope.num_pol_telescope, self.telescope.num_pol_sky, self.telescope.lmax+1)
+
+            csize = (1, 10, self.telescope.num_pol_telescope,
+                     self.telescope.num_pol_sky, self.telescope.lmax+1)
+
+            dset = f.create_dataset('beam_m', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
+
+
+            ## For each frequency read in the current m-mode 
+            ## and copy into file.
+            for fi in np.arange(self.telescope.nfreq):
+
+                ff = h5py.File(self._ffile(fi), 'r')
+
+                # Check frequency is what we expect.
+                if fi != ff.attrs['frequency_index']:
+                    raise Exception("Bork.")
+        
+                dset[fi] = ff['beam_freq'][..., mi]
+
+                ff.close()
+                
+            # Write a few useful attributes.
+            f.attrs['baselines'] = self.telescope.baselines
+            f.attrs['m'] = mi
+            f.attrs['frequencies'] = self.telescope.frequencies
+            f.attrs['cylobj'] = self._telescope_pickle
+            
+            f.close()
+
+
+
+    def _generate_mfiles_mpi(self, regen=False):
 
         st = time.time()
 
@@ -536,15 +599,15 @@ class BeamTransfer(object):
         # Iterate over all m's and create the hdf5 files we will write into.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
-            if os.path.exists(self._mfile(mi)) and not regen:
+            if os.path.exists(self._mfile(mi) + '.mpi') and not regen:
                 print ("m index %i. File: %s exists. Skipping..." %
-                       (mi, (self._mfile(mi))))
+                       (mi, (self._mfile(mi) + '.mpi')))
                 continue
             else:
-                print 'm index %i. Creating file: %s' % (mi, self._mfile(mi))
+                print 'm index %i. Creating file: %s' % (mi, self._mfile(mi) + '.mpi')
 
             ## Create hdf5 file for each m-mode
-            f = h5py.File(self._mfile(mi), 'w')
+            f = h5py.File(self._mfile(mi) + '.mpi', 'w')
 
             dsize = (self.telescope.nfreq, 2, self.telescope.nbase,
                      self.telescope.num_pol_telescope, self.telescope.num_pol_sky, self.telescope.lmax+1)
@@ -658,7 +721,7 @@ class BeamTransfer(object):
             for mi in range(self.telescope.mmax + 1):
 
                 if mpiutil.rank == m_rank_map[mi]:
-                    mfile = h5py.File(self._mfile(mi), 'r+')
+                    mfile = h5py.File(self._mfile(mi) + '.mpi', 'r+')
 
                     mfile['beam_m'][:, blstart:blend] = m_arrays[mi]
 
@@ -675,12 +738,15 @@ class BeamTransfer(object):
 
             mpiutil.barrier()
 
+            
+
+
 
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file. Use MPI if available. 
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
-            mfile = h5py.File(self._mfile(mi), 'r+')
+            mfile = h5py.File(self._mfile(mi) + '.mpi', 'r+')
 
             # Write a few useful attributes.
             mfile.attrs['baselines'] = self.telescope.baselines
@@ -694,15 +760,37 @@ class BeamTransfer(object):
 
         et = time.time()
         if mpiutil.rank0:
-
-            # Make file marker that the m's have been correctly generated:
-            open(self.directory + '/beam_m/COMPLETED', 'a').close()
-
-            # Print out timing
             print "=== MPI transpose took %f s ===" % (et - st)
 
+    def _compare_m_files(self):
 
- 
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            f0p = h5py.File(self._mfile(mi), 'r')
+            f0n = h5py.File(self._mfile(-mi), 'r')
+
+            f1 = h5py.File(self._mfile(mi) + '.mpi', 'r')
+
+
+            bp = f0p['beam_m'][:]
+            bn = ((-1)**mi * f0n['beam_m'][:]).conj()
+
+            if (bp == f1['beam_m'][:, 0]).all():
+                print "pos m: %i identical" % mi
+            else:
+                print "****** pos m: %i DIFFERENT *******" % mi
+
+            if (bn == f1['beam_m'][:, 1]).all():
+                print "neg m: %i identical" % mi
+            else:
+                print "****** neg m: %i DIFFERENT *******" % mi
+
+
+            f0p.close()
+            f0n.close()
+            f1.close()
+
+
 
 
 
@@ -719,8 +807,9 @@ class BeamTransfer(object):
             else:
                 print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile(mi))
 
-            # Open m beams for reading.
-            fm = h5py.File(self._mfile(mi), 'r')
+            # Open positive and negative m beams for reading.
+            fp = h5py.File(self._mfile(mi),  'r')
+            fm = h5py.File(self._mfile(-mi), 'r')
 
             # Open file to write SVD results into.
             fs = h5py.File(self._svdfile(mi), 'w')
@@ -747,7 +836,9 @@ class BeamTransfer(object):
             for fi in np.arange(self.telescope.nfreq):
 
                 # Read the positive and negative m beams, and combine into one.
-                bf = fm['beam_m'][fi][:].reshape(self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+                bfp = fp['beam_m'][fi][:]
+                bfm = (-1)**mi * fm['beam_m'][fi][:].conj() if mi > 0 else np.zeros_like(bfp)
+                bf = np.array([bfp, bfm]).reshape(self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1)
 
                 noisew = self.telescope.noisepower(np.arange(self.telescope.npairs), fi).flatten()**(-0.5)
                 noisew = np.concatenate([noisew, noisew])
@@ -778,6 +869,7 @@ class BeamTransfer(object):
             fs.attrs['cylobj'] = self._telescope_pickle
             
             fs.close()
+            fp.close()
             fm.close()
 
         # If we're part of an MPI run, synchronise here.
@@ -1136,10 +1228,7 @@ class BeamTransfer(object):
     @property
     def ntel(self):
         """Degrees of freedom measured by the telescope (per frequency)"""
-        if self.telescope.positive_m_only:
-            return self.telescope.npairs * self.telescope.num_pol_telescope
-        else:
-            return 2 * self.telescope.npairs * self.telescope.num_pol_telescope
+        return 2 * self.telescope.npairs * self.telescope.num_pol_telescope
 
     @property
     def nsky(self):

@@ -5,10 +5,13 @@ import time
 import numpy as np
 import scipy.linalg as la
 import h5py
+from mpi4py import MPI
 
 import mpiutil
 import util
 import blockla
+
+
 
 
 def svd_gen(A, *args, **kwargs):
@@ -540,8 +543,8 @@ class BeamTransfer(object):
                 print ("m index %i. File: %s exists. Skipping..." %
                        (mi, (self._mfile(mi))))
                 continue
-            else:
-                print 'm index %i. Creating file: %s' % (mi, self._mfile(mi))
+            #else:
+            #    print 'm index %i. Creating file: %s' % (mi, self._mfile(mi))
 
             ## Create hdf5 file for each m-mode
             f = h5py.File(self._mfile(mi), 'w')
@@ -608,7 +611,8 @@ class BeamTransfer(object):
             # lengths make it difficult.
 
             # List to contain all the current MPI_Requests for the sends
-            requests = []
+            requests_send = []
+            requests_recv = []
 
             for fi in range(nf):
                 f_rank = freq_rank_map[fi]
@@ -631,25 +635,41 @@ class BeamTransfer(object):
                         requestp = mpiutil.world.Isend([pos, mpiutil.MPI.COMPLEX16], dest=m_rank, tag=tag)
                         requestm = mpiutil.world.Isend([neg, mpiutil.MPI.COMPLEX16], dest=m_rank, tag=(tag+1))
 
-
-                        requests.append([requestp, requestm])
+                        requests_send.append([fi, mi, requestp, requestm])
 
                     if mpiutil.rank == m_rank:
-                        mpiutil.world.Irecv([m_arrays[mi][fi, 0], mpiutil.MPI.COMPLEX16], source=f_rank, tag=tag)
-                        mpiutil.world.Irecv([m_arrays[mi][fi, 1], mpiutil.MPI.COMPLEX16], source=f_rank, tag=(tag+1))
+                        requestp = mpiutil.world.Irecv([m_arrays[mi][fi, 0], mpiutil.MPI.COMPLEX16], source=f_rank, tag=tag)
+                        requestm = mpiutil.world.Irecv([m_arrays[mi][fi, 1], mpiutil.MPI.COMPLEX16], source=f_rank, tag=(tag+1))
 
+                        requests_recv.append([fi, mi, requestp, requestm])
 
-            # For each frequency iterate over all sends and wait until completion
-            for fi in range(nf):
+            # For each node iterate over all sends and wait until completion
+            for fi, mi, requestp, requestm in requests_send:
 
-                if freq_rank_map[fi] == mpiutil.rank:
-                    
-                    for request, mi in zip(requests, range(-self.telescope.mmax, self.telescope.mmax + 1)):
-                        #print "Waiting on transfer f %i to m %i (rank %i to %i)" % (fi, mi, freq_rank_map[fi], m_rank_map[mi])
-                        request[0].Wait()
-                        request[1].Wait()
+                stat1 = MPI.Status()
+                stat2 = MPI.Status()
 
-                    print "Done waiting on sends from freq %i (rank %i)" % (fi, freq_rank_map[fi])
+                requestp.Wait(status=stat1)
+                requestm.Wait(status=stat2)
+
+                if stat1.error != MPI.SUCCESS or stat2.error != MPI.SUCCESS:
+                    print "**** ERROR in MPI SEND (f: %i m: %i rank: %i) *****" % (fi, mi, mpiutil.rank)
+
+            print "rank %i: Done waiting on MPI SEND" % mpiutil.rank
+
+            # For each frequency iterate over all receives and wait until completion
+            for fi, mi, requestp, requestm in requests_recv:
+
+                stat1 = MPI.Status()
+                stat2 = MPI.Status()
+
+                requestp.Wait(status=stat1)
+                requestm.Wait(status=stat2)
+
+                if stat1.error != MPI.SUCCESS or stat2.error != MPI.SUCCESS:
+                    print "**** ERROR in MPI RECV (f: %i m: %i rank: %i) *****" % (fi, mi, mpiutil.rank)
+
+            print "rank %i: Done waiting on MPI RECV" % mpiutil.rank
 
             # Force synchronization
             mpiutil.barrier()
@@ -664,7 +684,7 @@ class BeamTransfer(object):
 
                     mfile.close()
 
-                    print "Done writing chunk to m %i (rank %i)" % (mi, m_rank_map[mi])
+            print "rank %i: Done writing chunks to disk." % mpiutil.rank
 
             # Delete the local frequency and m ordered
             # sections. Otherwise we run out of memory on the next

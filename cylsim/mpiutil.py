@@ -58,6 +58,24 @@ def barrier():
         _comm.Barrier()
     
 def parallel_map(func, glist):
+    """Apply a parallel map using MPI.
+
+    Should be called collectively on the same list. All ranks return the full
+    set of results.
+
+    Parameters
+    ----------
+    func : function
+        Function to apply.
+
+    glist : list
+        List of map over. Must be globally defined.
+
+    Returns
+    -------
+    results : list
+        Global list of results.
+    """
 
     # Synchronize
     barrier()

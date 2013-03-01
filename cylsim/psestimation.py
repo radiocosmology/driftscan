@@ -274,7 +274,7 @@ class PSEstimation(util.ConfigReader):
 
         if mpiutil.rank0:
 
-            f = h5py.File(self.psdir + 'fisher.hdf5', 'w')
+            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
 
             f_all = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here.
             cv = la.inv(f_all)

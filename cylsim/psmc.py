@@ -1,6 +1,13 @@
-import numpy as np
 
-from cylsim import psestimation
+import os
+import time
+
+
+import numpy as np
+import scipy.linalg as la
+import h5py
+
+from cylsim import psestimation, mpiutil
 
 from cosmoutils import nputil
 
@@ -27,6 +34,9 @@ class PSMonteCarlo(psestimation.PSEstimation):
     nsamples = 500
 
     __config_table_ =   {   'nsamples'  : [ int,    'nsamples'] }
+
+    fisher = None
+    bias = None
 
 
     def __init__(self, *args, **kwargs):
@@ -55,7 +65,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         return x
 
 
-    def q_estimator(self, mi, vec):
+    def q_estimator(self, mi, vec, noise=False):
 
 
         evals, evecs = self.kltrans.modes_m(mi)
@@ -69,7 +79,8 @@ class PSMonteCarlo(psestimation.PSEstimation):
         # Project back into sky basis
         x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
 
-        qa = np.zeros((self.nbands + 1,) + vec.shape[1:])
+        # Create empty q vector (length depends on if we're calculating the noise term too)
+        qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec.shape[1:])
 
         lside = self.telescope.lmax + 1
 
@@ -83,13 +94,14 @@ class PSMonteCarlo(psestimation.PSEstimation):
                 qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][0, 0, li], lvec), axis=0) # TT only.
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
-        qa[-1] = np.sum(x0 * x0.conj(), axis=0)
+        if noise:
+            qa[-1] = np.sum(x0 * x0.conj(), axis=0)
 
         return qa
 
 
 
-    def fisher_m(self, mi, retbias=False):
+    def fisher_m(self, mi, retbias=True):
 
             
         fab = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
@@ -98,11 +110,11 @@ class PSMonteCarlo(psestimation.PSEstimation):
             print "Making fisher (for m=%i)." % mi
 
             x = self.gen_sample(mi)
-            qa = self.q_estimator(mi, x)
+            qa = self.q_estimator(mi, x, noise=True)
             ft = np.cov(qa)
 
             fisher = ft[:self.nbands, :self.nbands]
-            bias = ft[-1, self.nbands]
+            bias = ft[-1, :self.nbands]
 
         else:
             print "No evals (for m=%i), skipping." % mi
@@ -114,6 +126,82 @@ class PSMonteCarlo(psestimation.PSEstimation):
             return fisher
         else:
             return fisher, bias
+
+
+
+
+    def generate(self, mlist = None, regen=False):
+        """Generate the Fisher matrix and bias required for
+        forecasting and powerspectrum estimation.
+
+        Parameters
+        ----------
+        mlist : array_like
+            Restricted set of m's to compute for. If None (default) use all
+            m's.
+
+        regen : boolean
+            If True force recalculation over. Default is False.
+        """
+
+        if mpiutil.rank0:
+            st = time.time()
+            print "======== Starting PS calculation ========"
+
+
+        if mlist is None:
+            mlist = range(self.telescope.mmax + 1)
+
+        ffile = self.psdir +'fisher.hdf5'
+
+        if os.path.exists(ffile) and not regen:
+            print ("Fisher matrix file: %s exists. Skipping..." % ffile)
+            return
+
+        mpiutil.barrier()
+
+        self.genbands()
+
+        # Use parallel map to distribute Fisher calculation
+        fisher_bias = mpiutil.parallel_map(self.fisher_m, mlist)
+
+        # Unpack into separate lists of the Fisher matrix and bias
+        fisher, bias = zip(*fisher_bias)
+
+        # Sum over all m-modes to get the over all Fisher and bias
+        self.fisher = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here
+        self.bias = np.sum(np.array(bias), axis=0).real # Be careful of the .real here
+
+
+        if mpiutil.rank0:
+            et = time.time()
+            print "======== Ending PS calculation (time=%f) ========" % (et - st)
+
+            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
+
+            cv = la.inv(self.fisher)
+            err = cv.diagonal()**0.5
+            cr = cv / np.outer(err, err)
+
+            f.create_dataset('fisher/', data=self.fisher)
+            f.create_dataset('bias/', data=self.bias)
+            f.create_dataset('covariance/', data=cv)
+            f.create_dataset('error/', data=err)
+            f.create_dataset('correlation/', data=cr)
+
+
+            f.create_dataset('bandpower/', data=self.bpower)
+            f.create_dataset('bandstart/', data=self.bstart)
+            f.create_dataset('bandend/', data=self.bend)
+            f.create_dataset('bandcenter/', data=self.bcenter)
+            f.create_dataset('psvalues/', data=self.psvalues)
+            f.close()
+
+
+    def powerspectrum(self, data):
+
+        pass
+        
 
 
 class PSMonteCarloAlt(psestimation.PSEstimation):

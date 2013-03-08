@@ -29,6 +29,15 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
     min_spacing = None
     max_spacing = 20.0
 
+    __config_table_ = { 'min_spacing'   : [float, 'min_spacing'],
+                        'max_spacing'   : [float, 'max_spacing'] }
+
+
+    def __init__(self, *args, **kwargs):
+        super(cylinder.UnpolarisedCylinderTelescope, self).__init__(*args, **kwargs)
+
+        self.add_config(self.__config_table_)
+
     def feed_positions_cylinder(self, cylinder_index):
 
         if cylinder_index >= self.num_cylinders or cylinder_index < 0:
@@ -50,3 +59,4 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
         pos[:, 1] = a*i + 0.5 * b*i**2
 
         return pos
+

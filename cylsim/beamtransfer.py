@@ -522,7 +522,7 @@ class BeamTransfer(object):
             self.telescope.num_pol_sky * (self.telescope.lmax+1) *
             (2*self.telescope.mmax+1) * 16.0)
 
-        num_bl_per_chunk = int(2e9 / blsize) # Number of baselines to process in each chunk
+        num_bl_per_chunk = int(4e9 / blsize) # Number of baselines to process in each chunk
         num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
 
         if mpiutil.rank0:
@@ -559,6 +559,7 @@ class BeamTransfer(object):
 
             f.close()
 
+        mpiutil.barrier()
 
         # Iterate over all chunks performing a cycle of: read frequency data, transpose to m-order data, write m-data.
         for ci in range(num_chunks):
@@ -566,7 +567,7 @@ class BeamTransfer(object):
             if mpiutil.rank0:
                 print
                 print "============================================="
-                print "    Starting chunk %i of %i" % (ci, num_chunks)
+                print "    Starting chunk %i of %i" % (ci + 1, num_chunks)
                 print "============================================="
                 print
 
@@ -603,6 +604,8 @@ class BeamTransfer(object):
             # Create lists containing the relevant frequency and m arrays for this rank.
             freq_chunks = [ _load_fchunk(fi) for fi in range(nf) ]
             m_arrays = [ _mk_marray(mi) for mi in range(nm) ]
+
+            mpiutil.barrier()
 
 
             # Iterate over all frequencies and m's passing the relevant parts
@@ -643,6 +646,8 @@ class BeamTransfer(object):
 
                         requests_recv.append([fi, mi, requestp, requestm])
 
+            mpiutil.barrier()
+
             # For each node iterate over all sends and wait until completion
             for fi, mi, requestp, requestm in requests_send:
 
@@ -656,6 +661,8 @@ class BeamTransfer(object):
                     print "**** ERROR in MPI SEND (f: %i m: %i rank: %i) *****" % (fi, mi, mpiutil.rank)
 
             print "rank %i: Done waiting on MPI SEND" % mpiutil.rank
+
+            mpiutil.barrier()
 
             # For each frequency iterate over all receives and wait until completion
             for fi, mi, requestp, requestm in requests_recv:

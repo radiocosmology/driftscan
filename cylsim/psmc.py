@@ -1,6 +1,13 @@
-import numpy as np
 
-from cylsim import psestimation
+import os
+import time
+
+
+import numpy as np
+import scipy.linalg as la
+import h5py
+
+from cylsim import psestimation, mpiutil
 
 from cosmoutils import nputil
 
@@ -107,7 +114,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
             ft = np.cov(qa)
 
             fisher = ft[:self.nbands, :self.nbands]
-            bias = ft[-1, self.nbands]
+            bias = ft[-1, :self.nbands]
 
         else:
             print "No evals (for m=%i), skipping." % mi

@@ -6,7 +6,7 @@ import h5py
 import healpy
 
 from cosmoutils import hputil
-from cylsim import beamtransfer, blockla
+from drift.core import beamtransfer, blockla
 
 
 def rotate_phi(map, dphi):

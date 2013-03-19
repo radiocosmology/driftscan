@@ -1,6 +1,7 @@
 import numpy as np
 
-from cylsim import cylinder, util
+from drift.core import util
+from drift.telescope import cylinder
 
 
 def gaussian_fwhm(x, fwhm):

@@ -13,7 +13,7 @@ from matplotlib import rc, colors
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 10.0})
 rc('text', usetex=True)
 
-from cylsim import hputil, skysim
+from drift.core import hputil, skysim
 
 mapfile = sys.argv[1]
 stem = sys.argv[2]

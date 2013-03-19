@@ -3,7 +3,9 @@ import healpy
 
 from cosmoutils import coord
 
-from cylsim import telescope, cylinder, visibility, beamtransfer, kltransform
+
+from drift.telescope import cylinder
+from drift.telescope import visibility, beamtransfer, kltransform
 
 class SeoTelescope(cylinder.UnpolarisedCylinderTelescope):
 

@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
-from cylsim import psestimation, mpiutil
+from drift.core import psestimation, mpiutil
 
 from cosmoutils import nputil
 

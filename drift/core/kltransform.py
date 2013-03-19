@@ -9,8 +9,8 @@ import h5py
 from cosmoutils import hputil
 #from simulations import foregroundsck, corr21cm
 
-from cylsim import mpiutil, util
-from cylsim import skymodel
+from drift.core import mpiutil, util
+from drift.core import skymodel
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):

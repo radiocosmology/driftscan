@@ -3,9 +3,9 @@ import os
 import numpy as np
 import h5py
 
-from cylsim import mpiutil
-from cylsim import kltransform
-from cylsim import blockla
+from drift.core import mpiutil
+from drift.core import kltransform
+from drift.core import blockla
 
 
 def svd_trans(bp, thr=1e-15):

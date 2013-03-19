@@ -1,11 +1,11 @@
 
-from cylsim import beamtransfer
-from cylsim import kltransform
-from cylsim import skymodel
+from drift.core import beamtransfer
+from drift.core import kltransform
+from drift.core import skymodel
 
 
-from cylsim import mpiutil
-from cylsim import util
+from drift.core import mpiutil
+from drift.core import util
 
 from simulations import corr21cm
 

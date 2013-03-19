@@ -1,5 +1,5 @@
 
-from cylsim import blockla
+from drift.core import blockla
 
 import numpy as np
 

@@ -3,10 +3,8 @@ import numpy as np
 
 from cosmoutils import coord
 
-import telescope
-import visibility
-
-import util
+from drift.core import telescope, visibility
+from drift.core import util
 
 
 

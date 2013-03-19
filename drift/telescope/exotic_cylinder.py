@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from cylsim import cylinder
+from drift.telescope import cylinder
 
 
 class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):

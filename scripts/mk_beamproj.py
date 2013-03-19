@@ -10,10 +10,10 @@ import healpy
 
 from cosmoutils import hputil
 
-from cylsim import cylinder
-from cylsim import beamtransfer
-from cylsim import kltransform
-from cylsim import mpiutil
+from drift.telescope import cylinder
+from drift.core import beamtransfer
+from drift.core import kltransform
+from drift.core import mpiutil
 
 # Read in arguments
 parser = argparse.ArgumentParser(description="Beam project a series of maps.")

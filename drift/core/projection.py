@@ -7,8 +7,8 @@ import healpy
 
 from cosmoutils import hputil
 
-from cylsim import kltransform
-from cylsim import mpiutil, util
+from drift.core import kltransform
+from drift.core import mpiutil, util
 
 
 class Projector(util.ConfigReader):

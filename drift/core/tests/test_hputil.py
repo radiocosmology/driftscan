@@ -1,5 +1,5 @@
 
-from cylsim import hputil
+from drift.core import hputil
 
 import numpy as np
 

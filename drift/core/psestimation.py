@@ -1,22 +1,22 @@
 
-from drift.core import beamtransfer
-from drift.core import kltransform
-from drift.core import skymodel
-
-
-from drift.core import mpiutil
-from drift.core import util
-
-from simulations import corr21cm
-
-from scipy.integrate import quad
-import scipy.linalg as la
-
-import numpy as np
-
 import os
 import h5py
 import time
+
+from scipy.integrate import quad
+
+import numpy as np
+import scipy.linalg as la
+
+from simulations import corr21cm
+
+from drift.core import beamtransfer
+from drift.core import kltransform
+from drift.core import skymodel
+from drift.util import mpiutil, util, config
+
+
+
 
 
 def uniform_band(k, kstart, kend):
@@ -42,23 +42,20 @@ def range_config(lst):
     return np.concatenate(lst2)
 
 
-class PSEstimation(util.ConfigReader):
+class PSEstimation(config.Reader):
 
 
 
-    bands = np.concatenate((np.linspace(0.0, 0.13, 13, endpoint=False),
-                            0.13*np.exp(np.arange(29)*np.log(1+1/13.0))))
-    threshold = 0.0
+    bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
 
-    unit_bands = True
+    threshold = config.Property(proptype=float, default=0.0)
+
+    unit_bands = config.Property(proptype=bool, default=True)
+
 
     clarray = None
 
 
-    __config_table_ =   {   'bands'       : [range_config,    'bands'],
-                            'threshold'   : [float,           'threshold'],
-                            'unit_bands'  : [bool,            'unit_bands']
-                        }
 
     @property
     def _cfile(self):
@@ -83,8 +80,6 @@ class PSEstimation(util.ConfigReader):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
-        # Add configuration options                
-        self.add_config(self.__config_table_)
         
 
     def genbands(self):

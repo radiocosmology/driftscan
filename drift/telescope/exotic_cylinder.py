@@ -2,6 +2,7 @@
 import numpy as np
 
 from drift.telescope import cylinder
+from drift.util import config
 
 
 class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):
@@ -26,17 +27,9 @@ class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):
 
 class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
 
-    min_spacing = None
-    max_spacing = 20.0
+    min_spacing = config.Property(proptype=float, default=-1.0)
+    max_spacing = config.Property(proptype=float, default=20.0)
 
-    __config_table_ = { 'min_spacing'   : [float, 'min_spacing'],
-                        'max_spacing'   : [float, 'max_spacing'] }
-
-
-    def __init__(self, *args, **kwargs):
-        super(cylinder.UnpolarisedCylinderTelescope, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
 
     def feed_positions_cylinder(self, cylinder_index):
 
@@ -47,7 +40,7 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
         sp = self.feed_spacing
 
         # Parameters for gradient feedspacing
-        a = self.wavelengths[-1] / 2.0 if self.min_spacing is None else self.min_spacing
+        a = self.wavelengths[-1] / 2.0 if self.min_spacing < 0.0 else self.min_spacing
         #b = 2 * (sp - a) / nf
         b = 2.0*(self.max_spacing - a * (nf-1)) / (nf-1)**2.0
         

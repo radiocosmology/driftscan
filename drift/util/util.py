@@ -1,7 +1,4 @@
 import numpy as np
-import scipy.linalg as la
-
-import blockla
 
 
 def intpattern(n):
@@ -36,6 +33,8 @@ def cache_last(func):
 
 class ConfigReader(object):
     """A class for applying attribute values from a supplied dictionary.
+
+    DEPRECATED!! Use routines from drift.util.config instead.
     """
     
     @classmethod
@@ -92,4 +91,3 @@ class ConfigReader(object):
             print "Setting %s to %s" % (cname, cval)
 
             self.__setattr__(cname, ctype(cval))
-

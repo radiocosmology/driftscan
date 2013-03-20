@@ -1,5 +1,5 @@
 
-from drift.core import hputil
+from cosmoutils import hputil
 
 import numpy as np
 

@@ -4,7 +4,8 @@ import numpy as np
 import h5py
 
 from cosmoutils import hputil
-from drift.core import beamtransfer, mpiutil
+from drift.core import beamtransfer
+from drift.util import mpiutil
 
 btdir = sys.argv[1]
 nside = int(sys.argv[2])

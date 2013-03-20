@@ -7,11 +7,7 @@ import scipy.linalg as la
 import h5py
 from mpi4py import MPI
 
-import mpiutil
-import util
-import blockla
-
-
+from drift.util import mpiutil, util, blockla
 
 
 def svd_gen(A, *args, **kwargs):
@@ -1163,10 +1159,7 @@ class BeamTransfer(object):
     @property
     def ntel(self):
         """Degrees of freedom measured by the telescope (per frequency)"""
-        if self.telescope.positive_m_only:
-            return self.telescope.npairs * self.telescope.num_pol_telescope
-        else:
-            return 2 * self.telescope.npairs * self.telescope.num_pol_telescope
+        return 2 * self.telescope.npairs * self.telescope.num_pol_telescope
 
     @property
     def nsky(self):

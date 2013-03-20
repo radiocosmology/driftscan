@@ -8,28 +8,21 @@ import healpy
 from cosmoutils import hputil
 
 from drift.core import kltransform
-from drift.core import mpiutil, util
+from drift.util import mpiutil, util, config
 
 
-class Projector(util.ConfigReader):
+class Projector(config.Reader):
 
-    maps = []
-    thresholds = None
+    maps = config.Property(proptype=list, default=[])
+    thresholds = config.Property(proptype=(lambda x: [float(item) for item in list(x)]), default=[])
     
-    evec_proj = True
-    beam_proj = True
+    evec_proj = config.Property(proptype=bool, default=True)
+    beam_proj = config.Property(proptype=bool, default=True)
 
-    copy_orig = False
+    copy_orig = config.Property(proptype=bool, default=False)
 
-    nside = 256
+    nside = config.Property(proptype=int, default=256)
 
-    __config_table_ =   {   'maps'      : [list,  'maps'],
-                            'thresholds': [lambda x: [float(item) for item in list(x)], 'thresholds'],
-                            'evec_proj' : [bool,    'evec_proj'],
-                            'beam_proj' : [bool,    'beam_proj'],
-                            'copy_orig' : [bool,    'copy_orig'],
-                            'nside'     : [int,     'nside']
-                        }
 
     def __init__(self, klt):
 
@@ -37,7 +30,6 @@ class Projector(util.ConfigReader):
         self.beamtransfer = klt.beamtransfer
         self.telescope = klt.beamtransfer.telescope
 
-        self.add_config(self.__config_table_)
 
 
     def generate(self):

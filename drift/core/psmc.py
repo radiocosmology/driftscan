@@ -7,7 +7,8 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
-from drift.core import psestimation, mpiutil
+from drift.core import psestimation
+from drift.util import mpiutil, config
 
 from cosmoutils import nputil
 
@@ -31,22 +32,10 @@ class PSMonteCarlo(psestimation.PSEstimation):
         The number of samples to draw from each band.
     """
     
-    nsamples = 500
-
-    __config_table_ =   {   'nsamples'  : [ int,    'nsamples'] }
+    nsamples = config.Property(proptype=int, default=500)
 
     fisher = None
     bias = None
-
-
-    def __init__(self, *args, **kwargs):
-
-        super(PSMonteCarlo, self).__init__(*args, **kwargs)
-
-        # Add configuration options                
-        self.add_config(self.__config_table_)
-
-
 
 
     def gen_sample(self, mi):

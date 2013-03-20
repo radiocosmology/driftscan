@@ -4,7 +4,7 @@ import shutil
 
 import yaml
 
-from drift.core import mpiutil
+from drift.util import mpiutil
 
 from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder
 from drift.core import beamtransfer

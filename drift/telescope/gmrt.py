@@ -5,6 +5,7 @@ from scipy.special import jn
 
 from cosmoutils import coord
 from drift.core import telescope
+from drift.util import config
 
 
 def jinc(x):
@@ -61,7 +62,7 @@ class GmrtArray(telescope.TransitTelescope):
 
     _positions = None
 
-    pointing = np.array([0.0, 0.0])
+    pointing = config.Property(proptype=float, default=0.0)
 
     dish_width = 45.0
 
@@ -70,7 +71,6 @@ class GmrtArray(telescope.TransitTelescope):
     minlength = 0.0
     maxlength = 600.0
 
-    __config_table_ = { 'pointing' : [float, 'pointing'] }
 
     def __init__(self, pointing=0.0):
         super(GmrtArray, self).__init__(latitude=19.09, longitude=74.05)
@@ -79,7 +79,6 @@ class GmrtArray(telescope.TransitTelescope):
         #self._positions = self._positions[np.where((self._positions**2).sum(axis=1)**0.5 < 1000)]
         self.pointing = pointing
 
-        self.add_config(self.__config_table_)
 
 
     @property

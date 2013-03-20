@@ -6,7 +6,7 @@ config:
     projections:        No                      # Project through sky maps
 
     ## Directory to store output in/
-    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/testsimulations/"
+    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/testsimulations2/"
 
     ## Cluster configuration (ignored unless on a cluster)
     name:               kljob1                  # PBS jobname
@@ -40,6 +40,7 @@ kltransform:
     # List of each transform to perform
     -   type:           KLTransform             # Type of KL transform
         name:           kl                      # Name of KL transform object (used for later referencing)
+        use_thermal:    Yes
 
     -   type:           DoubleKL
         name:           dk

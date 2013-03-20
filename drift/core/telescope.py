@@ -1,11 +1,11 @@
 import abc
-import pdb
 
 import numpy as np
 
 from cosmoutils import hputil, units
-import visibility
-import util
+
+from drift.core import visibility
+from drift.util import util, config
 
 
 
@@ -123,7 +123,7 @@ def latlon_to_sphpol(latlon):
 
 
 
-class TransitTelescope(util.ConfigReader):
+class TransitTelescope(config.Reader):
     """Base class for simulating any transit interferometer.
     
     This is an abstract class, and several methods must be implemented before it
@@ -160,42 +160,22 @@ class TransitTelescope(util.ConfigReader):
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
 
-    
-    freq_lower = 400.0
-    freq_upper = 800.0
-    num_freq = 50
+    zenith = config.Property(proptype=latlon_to_sphpol, default=[45.0, 0.0])
 
+    freq_lower = config.Property(proptype=float, default=400.0)
+    freq_upper = config.Property(proptype=float, default=800.0)
+    num_freq = config.Property(proptype=int, default=50)
 
-    tsys_flat = 50.0 # Kelvin
-    ndays = 733 # ~2 years in sidereal days
+    tsys_flat = config.Property(proptype=float, default=50.0, key='tsys')
+    ndays = config.Property(proptype=int, default=733)
 
-    accuracy_boost = 1
-    l_boost = 1.0
-    positive_m_only = False
+    accuracy_boost = config.Property(proptype=float, default=1.0)
+    l_boost = config.Property(proptype=float, default=1.0)
 
-    minlength = 0.0
-    maxlength = 1000000.0
+    minlength = config.Property(proptype=float, default=0.0)
+    maxlength = config.Property(proptype=float, default=1.0e7)
 
-    auto_correlations = False
-
-    _progress = lambda x: x
-
-    __config_table_ =   {   'zenith'        : [latlon_to_sphpol, 'zenith'],
-                            'freq_lower'    : [float,   'freq_lower'], 
-                            'freq_upper'    : [float,   'freq_upper'],
-                            'num_freq'      : [int,     'num_freq'],
-
-                            'tsys'          : [float,   'tsys_flat'],
-                            'ndays'         : [int,     'ndays'],
-
-                            'accuracy'      : [float,   'accuracy_boost'],
-                            'l_boost'       : [float,   'l_boost'],
-
-                            'positive_m_only' : [bool,  'positive_m_only'],
-                            'minlength'     : [float,   'minlength'],
-                            'maxlength'     : [float,   'maxlength'],
-                            'auto_correlations' : [bool, 'auto_correlations']
-                        }
+    auto_correlations = config.Property(proptype=bool, default=False)
 
 
     def __init__(self, latitude=45, longitude=0):
@@ -207,9 +187,8 @@ class TransitTelescope(util.ConfigReader):
             Position on the Earths surface of the telescope (in degrees).
         """
 
-        self.zenith = latlon_to_sphpol([latitude, longitude])
+        self.zenith = [latitude, longitude]
 
-        self.add_config(self.__config_table_)
 
 
     def __getstate__(self):

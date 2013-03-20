@@ -4,7 +4,7 @@ import numpy as np
 from cosmoutils import coord
 
 from drift.core import telescope, visibility
-from drift.core import util
+from drift.util import util, config
 
 
 
@@ -30,35 +30,18 @@ class CylinderTelescope(telescope.TransitTelescope):
         If not `touching` this is the spacing in metres.
     """
 
-    num_cylinders = 2
-    num_feeds = 6
+    num_cylinders = config.Property(proptype=int, default=2)
+    num_feeds = config.Property(proptype=int, default=6)
 
-    cylinder_width = 20.0
-    feed_spacing = 0.5
+    cylinder_width = config.Property(proptype=float, default=20.0)
+    feed_spacing = config.Property(proptype=float, default=0.5)
 
-    in_cylinder = True
+    in_cylinder = config.Property(proptype=bool, default=True)
 
-    touching = True
-    cylspacing = None
+    touching = config.Property(proptype=bool, default=True)
+    cylspacing = config.Property(proptype=float, default=0.0)
 
-    non_commensurate = False
-
-
-    __config_table_ = { 'num_cylinders' : [int, 'num_cylinders'],
-                        'num_feeds'     : [int, 'num_feeds'],
-                        'cylinder_width': [float,'cylinder_width'],
-                        'feed_spacing'  : [float, 'feed_spacing'],
-                        'in_cylinder'   : [bool, 'in_cylinder'],
-                        'touching'      : [bool, 'touching'],
-                        'cylspacing'    : [float, 'cylspacing'],
-                        'non_commensurate' : [bool, 'non_commensurate'],
-                        }
-
-
-    def __init__(self, *args, **kwargs):
-        super(CylinderTelescope, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
+    non_commensurate = config.Property(proptype=bool, default=False)
 
 
     ## u-width property override

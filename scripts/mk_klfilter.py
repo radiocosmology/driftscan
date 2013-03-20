@@ -13,7 +13,7 @@ from cosmoutils import hputil
 from drift.telescope import cylinder
 from drift.core import beamtransfer
 from drift.core import kltransform
-from drift.core import mpiutil
+from drift.util import mpiutil
 from mpi4py import MPI
 
 ## Read arguments in.

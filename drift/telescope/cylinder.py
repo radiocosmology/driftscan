@@ -190,19 +190,10 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
     """
     
     # Change the illuminated width in X and Y
-    illumination_x = 1.0
-    illumination_y = 1.0
+    illumination_x = config.Property(proptype=float, default=1.0)
+    illumination_y = config.Property(proptype=float, default=1.0)
 
-    ortho_pol = True
-
-    __config_table_ = { 'illumination_x' : [float, 'illumination_x'],
-                        'illumination_y' : [float, 'illumination_y'],
-                        'ortho_pol'      : [bool,  'ortho_pol'] }
-                        
-    def __init__(self, *args, **kwargs):
-        super(PolarisedCylinderTelescope, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
+    ortho_pol = config.Property(proptype=bool, default=True)
 
     #@util.cache_last
     def beamx(self, feed, freq):

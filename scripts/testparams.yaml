@@ -6,7 +6,7 @@ config:
     projections:        No                      # Project through sky maps
 
     ## Directory to store output in/
-    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/testsimulations2/"
+    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/testsimulations/"
 
     ## Cluster configuration (ignored unless on a cluster)
     name:               kljob1                  # PBS jobname

@@ -72,22 +72,20 @@ class Property(object):
         self.proptype = (lambda x: x) if proptype is None else proptype
         self.default = default
         self.key = key
+        self.propname = None
 
-        ## As the instantiated Property exists per class we store the current
-        ## values in a dictionary of instances.
-        self.instances = weakref.WeakKeyDictionary()
 
     def __get__(self, obj, objtype):
         ## Object getter.
         if obj is None:
             return None
 
-        self._set_key(obj)
+        self._set_propname(obj)
 
-        if self.key not in obj.__dict__:
+        if self.propname not in obj.__dict__:
             return self.proptype(self.default)
         else:
-            return obj.__dict__[self.key]
+            return obj.__dict__[self.propname]
 
 
     def __set__(self, obj, val):
@@ -95,12 +93,12 @@ class Property(object):
         if obj is None:
             return None
 
-        self._set_key(obj)
+        self._set_propname(obj)
 
-        obj.__dict__[self.key] = self.proptype(val)
+        obj.__dict__[self.propname] = self.proptype(val)
 
 
-    def _from_config(self, obj, config, key=None):
+    def _from_config(self, obj, config):
         """Load the configuration from the supplied dictionary.
 
         Parameters
@@ -110,27 +108,27 @@ class Property(object):
         config : dict
             Dictionary of configuration values.
         """
+
+        self._set_propname(obj)
+
         if self.key is None:
-            if key is not None:
-                self.key = key
-            else:
-                self._set_key(obj)
+            self.key = self.propname
 
         if self.key in config:
             val = self.proptype(config[self.key])
-            obj.__dict__[self.key] = val
-            print "Setting attribute %s to %s." % (key, val)
+            obj.__dict__[self.propname] = val
+            print "Setting attribute %s to %s." % (self.key, val)
 
 
-    def _set_key(self, obj):
+    def _set_propname(self, obj):
 
         import inspect
 
-        if self.key is None:
+        if self.propname is None:
             for basecls in inspect.getmro(type(obj))[::-1]:
                 for propname, clsprop in basecls.__dict__.items():
                     if isinstance(clsprop, Property) and clsprop == self:
-                        self.key = propname
+                        self.propname = propname
 
 
 
@@ -168,5 +166,5 @@ class Reader(object):
         for basecls in inspect.getmro(type(self))[::-1]:
             for propname, clsprop in basecls.__dict__.items():
                 if isinstance(clsprop, Property):
-                    clsprop._from_config(self, config, key=propname)
+                    clsprop._from_config(self, config)
 

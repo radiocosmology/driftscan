@@ -1,4 +1,3 @@
-
 import os
 import time
 
@@ -209,23 +208,8 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         The number of samples to draw from each band.
     """
     
-    nsamples = 500
-    nswitch = 0 #200
-
-    __config_table_ =   {   'nsamples'  : [ int,    'nsamples'],
-                            'nswitch'   : [ int,    'nswitch'],
-                        }
-
-
-    def __init__(self, *args, **kwargs):
-
-        super(PSMonteCarloAlt, self).__init__(*args, **kwargs)
-
-        # Add configuration options                
-        self.add_config(self.__config_table_)
-
-
-
+    nsamples = config.Property(proptype=int, default=500)
+    nswitch = config.Property(proptype=int, default=0) #200
 
 
     def gen_vecs(self, mi):

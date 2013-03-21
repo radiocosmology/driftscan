@@ -8,7 +8,7 @@ In this example we set up a class to store information about a person.
 
     >>> class Person(Reader):
     ...
-    ...     name = Property(default='Bill', proptype=str, key='name')
+    ...     name = Property(default='Bill', proptype=str)
     ...     age = Property(default=26, proptype=float, key='ageinyears')
 
 We then extend it to store information about a person with a pet. The
@@ -16,37 +16,34 @@ configuration will be successfully inherited.
 
     >>> class PersonWithPet(Person):
     ... 
-    ...     petname = Property(default='Molly', proptype=str, key='dog')
+    ...     petname = Property(default='Molly', proptype=str)
 
 Let's create a couple of objects from these classes.
 
     >>> person1 = Person()
-    >>> person2 = Person()
+    >>> person2 = PersonWithPet()
 
 And a dictionary of replacement parameters.
 
-    >>> testdict = { 'myname' : 'Richard', 'ageinyears' : 40, 'petname' : 'Sooty'}
+    >>> testdict = { 'name' : 'Richard', 'ageinyears' : 40, 'petname' : 'Sooty'}
 
 First let's check what the default parameters are:
 
     >>> print person1.name, person1.age
     Bill 26.0
-    >>> print person2.name, person2.age, person2.dog
+    >>> print person2.name, person2.age, person2.petname
     Bill 26.0 Molly
 
 Now let's load the configuration from a dictionary:
 
-    >>> person1.fromconfig(testdict)
-    Richard 40.0
-
-    >>> person2.fromconfig(testdict)
-    Richard 40.0 Sooty
+    >>> person1.read_config(testdict)
+    >>> person2.read_config(testdict)
     
 Then we'll print the output to see the updated configuration:
 
     >>> print person1.name, person1.age
     Richard 40.0
-    >>> print person2.name, person2.age, person2.dog
+    >>> print person2.name, person2.age, person2.petname
     Richard 40.0 Sooty
 """
 
@@ -85,17 +82,23 @@ class Property(object):
         if obj is None:
             return None
 
-        if obj not in self.instances:
-            self.instances[obj] = self.proptype(self.default)
+        self._set_key(obj)
 
-        return self.instances[obj]
+        if self.key not in obj.__dict__:
+            return self.proptype(self.default)
+        else:
+            return obj.__dict__[self.key]
+
 
     def __set__(self, obj, val):
         ## Object setter.
         if obj is None:
             return None
 
-        self.instances[obj] = self.proptype(val)
+        self._set_key(obj)
+
+        obj.__dict__[self.key] = self.proptype(val)
+
 
     def _from_config(self, obj, config, key=None):
         """Load the configuration from the supplied dictionary.
@@ -107,13 +110,29 @@ class Property(object):
         config : dict
             Dictionary of configuration values.
         """
-        if self.key is None and key is not None:
-            self.key = key
+        if self.key is None:
+            if key is not None:
+                self.key = key
+            else:
+                self._set_key(obj)
 
         if self.key in config:
-            val = config[self.key]
-            self.instances[obj] = self.proptype(val)
+            val = self.proptype(config[self.key])
+            obj.__dict__[self.key] = val
             print "Setting attribute %s to %s." % (key, val)
+
+
+    def _set_key(self, obj):
+
+        import inspect
+
+        if self.key is None:
+            for basecls in inspect.getmro(type(obj))[::-1]:
+                for propname, clsprop in basecls.__dict__.items():
+                    if isinstance(clsprop, Property) and clsprop == self:
+                        self.key = propname
+
+
 
 
 class Reader(object):

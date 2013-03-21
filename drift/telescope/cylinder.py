@@ -94,7 +94,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 
 
     @property
-    def feedpositions(self):
+    def _single_feedpositions(self):
         """The set of feed positions on *all* cylinders.
         
         Returns
@@ -152,8 +152,12 @@ class CylinderTelescope(telescope.TransitTelescope):
         return pos
 
 
+
+
+class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarisedTelescope):
+    """A complete class for an Unpolarised Cylinder telescope.
+    """
     
-    #@util.cache_last
     def beam(self, feed, freq):
         """Beam for a particular feed.
         
@@ -173,19 +177,10 @@ class CylinderTelescope(telescope.TransitTelescope):
 
         return visibility.cylinder_beam(self._angpos, self.zenith,
                                         self.cylinder_width / self.wavelengths[freq])
-            
-    beamx = beam
-    beamy = beam
-
-
-class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTelescope):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
-    pass
 
 
 
-class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope):
+class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
     
@@ -230,10 +225,3 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
         return bm
         
         
-
-
-class CylBT(UnpolarisedCylinderTelescope):
-    """A cylinder class which ignores large baseline correlations."""
-
-    pass
-

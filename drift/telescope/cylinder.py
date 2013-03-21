@@ -3,10 +3,8 @@ import numpy as np
 
 from cosmoutils import coord
 
-import telescope
-import visibility
-
-import util
+from drift.core import telescope, visibility
+from drift.util import util, config
 
 
 
@@ -32,35 +30,18 @@ class CylinderTelescope(telescope.TransitTelescope):
         If not `touching` this is the spacing in metres.
     """
 
-    num_cylinders = 2
-    num_feeds = 6
+    num_cylinders = config.Property(proptype=int, default=2)
+    num_feeds = config.Property(proptype=int, default=6)
 
-    cylinder_width = 20.0
-    feed_spacing = 0.5
+    cylinder_width = config.Property(proptype=float, default=20.0)
+    feed_spacing = config.Property(proptype=float, default=0.5)
 
-    in_cylinder = True
+    in_cylinder = config.Property(proptype=bool, default=True)
 
-    touching = True
-    cylspacing = None
+    touching = config.Property(proptype=bool, default=True)
+    cylspacing = config.Property(proptype=float, default=0.0)
 
-    non_commensurate = False
-
-
-    __config_table_ = { 'num_cylinders' : [int, 'num_cylinders'],
-                        'num_feeds'     : [int, 'num_feeds'],
-                        'cylinder_width': [float,'cylinder_width'],
-                        'feed_spacing'  : [float, 'feed_spacing'],
-                        'in_cylinder'   : [bool, 'in_cylinder'],
-                        'touching'      : [bool, 'touching'],
-                        'cylspacing'    : [float, 'cylspacing'],
-                        'non_commensurate' : [bool, 'non_commensurate'],
-                        }
-
-
-    def __init__(self, *args, **kwargs):
-        super(CylinderTelescope, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
+    non_commensurate = config.Property(proptype=bool, default=False)
 
 
     ## u-width property override
@@ -113,7 +94,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 
 
     @property
-    def feedpositions(self):
+    def _single_feedpositions(self):
         """The set of feed positions on *all* cylinders.
         
         Returns
@@ -171,8 +152,12 @@ class CylinderTelescope(telescope.TransitTelescope):
         return pos
 
 
+
+
+class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarisedTelescope):
+    """A complete class for an Unpolarised Cylinder telescope.
+    """
     
-    #@util.cache_last
     def beam(self, feed, freq):
         """Beam for a particular feed.
         
@@ -192,36 +177,18 @@ class CylinderTelescope(telescope.TransitTelescope):
 
         return visibility.cylinder_beam(self._angpos, self.zenith,
                                         self.cylinder_width / self.wavelengths[freq])
-            
-    beamx = beam
-    beamy = beam
-
-
-class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.UnpolarisedTelescope):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
-    pass
 
 
 
-class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope):
+class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
     
     # Change the illuminated width in X and Y
-    illumination_x = 1.0
-    illumination_y = 1.0
+    illumination_x = config.Property(proptype=float, default=1.0)
+    illumination_y = config.Property(proptype=float, default=1.0)
 
-    ortho_pol = True
-
-    __config_table_ = { 'illumination_x' : [float, 'illumination_x'],
-                        'illumination_y' : [float, 'illumination_y'],
-                        'ortho_pol'      : [bool,  'ortho_pol'] }
-                        
-    def __init__(self, *args, **kwargs):
-        super(PolarisedCylinderTelescope, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
+    ortho_pol = config.Property(proptype=bool, default=True)
 
     #@util.cache_last
     def beamx(self, feed, freq):
@@ -258,10 +225,3 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.PolarisedTelescope
         return bm
         
         
-
-
-class CylBT(UnpolarisedCylinderTelescope):
-    """A cylinder class which ignores large baseline correlations."""
-
-    pass
-

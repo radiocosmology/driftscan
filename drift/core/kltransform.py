@@ -7,10 +7,9 @@ import scipy.linalg as la
 import h5py
 
 from cosmoutils import hputil
-#from simulations import foregroundsck, corr21cm
 
-from cylsim import mpiutil, util
-from cylsim import skymodel
+from drift.util import mpiutil, util, config
+from drift.core import skymodel
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):
@@ -125,7 +124,7 @@ def inv_gen(A):
 
 
 
-class KLTransform(util.ConfigReader):
+class KLTransform(config.Reader):
     """Perform KL transform.
 
     Attributes
@@ -143,31 +142,21 @@ class KLTransform(util.ConfigReader):
         size reg * cf.max(). Default is 2e-15
     """
 
-    subset = True
-    threshold = 0.1
+    subset = config.Property(proptype=bool, default=True, key='subset')
+    inverse = config.Property(proptype=bool, default=False, key='inverse')
 
-    inverse = False
-    
+    threshold = config.Property(proptype=float, default=0.1, key='threshold')
+
+    _foreground_regulariser = config.Property(proptype=float, default=1e-14, key='regulariser')
+
+    use_thermal = config.Property(proptype=bool, default=True)
+    use_foregrounds = config.Property(proptype=bool, default=True)
+    use_polarised = config.Property(proptype=bool, default=True)
+
     evdir = ""
 
     _cvfg = None
     _cvsg = None
-
-    _foreground_regulariser = 1e-14
-
-    use_thermal = True
-    use_foregrounds = True
-    use_polarised = True
-
-
-    __config_table_ =   {   'subset'            : [bool,    'subset'],
-                            'threshold'         : [float,   'threshold'],
-                            'inverse'           : [bool,    'inverse'],
-                            'use_thermal'       : [bool,    'use_thermal'],
-                            'use_foregrounds'   : [bool,    'use_foregrounds'],
-                            'use_polarised'     : [bool,    'use_polarised'],
-                            'regulariser'       : [float,   '_foreground_regulariser']
-                        }
 
     @property
     def _evfile(self):
@@ -188,10 +177,6 @@ class KLTransform(util.ConfigReader):
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
-
-        # Add configuration options                
-        self.add_config(self.__config_table_)
-
 
 
     def foreground(self):

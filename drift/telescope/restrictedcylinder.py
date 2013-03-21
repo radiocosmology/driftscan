@@ -1,7 +1,7 @@
 import numpy as np
 
-from cylsim import cylinder, util
-
+from drift.telescope import cylinder
+from drift.util import util, config
 
 def gaussian_fwhm(x, fwhm):
 
@@ -14,19 +14,9 @@ def gaussian_fwhm(x, fwhm):
 
 class RestrictedBeam(cylinder.CylinderTelescope):
 
-    beam_height = 30.0
-    beam_type = 'box'
+    beam_height = config.Property(proptype=float, default=30.0)
+    beam_type = config.Property(proptype=str, default='box')
 
-    __config_table_ =   {
-                          'beam_height'   : [float, 'beam_height'],
-                          'beam_type'     : [str,   'beam_type']
-                        }
-
-
-    def __init__(self, *args, **kwargs):
-        super(RestrictedBeam, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
 
 
     def bmask_gaussian(self, feed, freq):
@@ -92,17 +82,7 @@ class RestrictedPolarisedCylinder(RestrictedBeam, cylinder.PolarisedCylinderTele
 
 class RestrictedExtra(RestrictedCylinder):
 
-    extra_feeds = np.array([])
-
-    __config_table_ =   {
-                          'extra_feeds'   : [np.array, 'extra_feeds'],
-                        }
-
-
-    def __init__(self, *args, **kwargs):
-        super(RestrictedExtra, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
+    extra_feeds = config.Property(proptype=np.array, default=[])
 
 
     def feed_positions_cylinder(self, cylinder_index):

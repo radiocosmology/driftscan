@@ -1,4 +1,4 @@
-from cylsim import focalplane, beamtransfer, kltransform, psestimation
+from drift.core import focalplane, beamtransfer, kltransform, psestimation
 
 import healpy
 

@@ -4,16 +4,16 @@ import shutil
 
 import yaml
 
-from cylsim import mpiutil
+from drift.util import mpiutil
 
-from cylsim import cylinder, gmrt, focalplane, restrictedcylinder, exotic_cylinder
-from cylsim import beamtransfer
+from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder, exotic_cylinder
+from drift.core import beamtransfer
 
-from cylsim import kltransform, doublekl
-from cylsim import psestimation, psmc
-from cylsim import skymodel
+from drift.core import kltransform, doublekl
+from drift.core import psestimation, psmc
+from drift.core import skymodel
 
-from cylsim import projection
+from drift.core import projection
 
 parser = argparse.ArgumentParser(description='Run a simulation job.')
 parser.add_argument('configfile', type=argparse.FileType('r'), help='The configuration file to use.')
@@ -31,16 +31,16 @@ if 'config' not in yconf:
 outdir = yconf['config']['output_directory']
 
 # Create directory if required
-if mpiutil.rank0 and not os.path.exists(outdir):
-    os.makedirs(outdir)
+if mpiutil.rank0:
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
 
-# Copy config file into output directory (check it's not already there first)
-sfile = os.path.realpath(os.path.abspath(args.configfile.name))
-dfile = os.path.realpath(os.path.abspath(outdir + '/config.yaml'))
+    # Copy config file into output directory (check it's not already there first)
+    sfile = os.path.realpath(os.path.abspath(args.configfile.name))
+    dfile = os.path.realpath(os.path.abspath(outdir + '/config.yaml'))
 
-if sfile != dfile:
-    shutil.copy(sfile, dfile)
-
+    if sfile != dfile:
+        shutil.copy(sfile, dfile)
 
 
 ## Telescope configuration

@@ -2,11 +2,11 @@ config:
     ## Actions to perform
     beamtransfers:      Yes                     # Calculate beamtransfers?
     kltransform:        Yes                     # Find KL-modes of telescope?
-    psfisher:           No                      # Estimate power spectrum errors
-    projections:        Yes                     # Project through sky maps
+    psfisher:           Yes                     # Estimate power spectrum errors
+    projections:        No                      # Project through sky maps
 
     ## Directory to store output in/
-    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/simulations/"
+    output_directory:   "/Users/richard/science/cylinder_simulation/scripts/testsimulations/"
 
     ## Cluster configuration (ignored unless on a cluster)
     name:               kljob1                  # PBS jobname
@@ -22,7 +22,7 @@ config:
 telescope:
     # Type of telescope to use
     type:               UnpolarisedCylinder
-    
+
     # Frequency channels
     num_freq:           5
     freq_lower:         400.0
@@ -40,6 +40,7 @@ kltransform:
     # List of each transform to perform
     -   type:           KLTransform             # Type of KL transform
         name:           kl                      # Name of KL transform object (used for later referencing)
+        use_thermal:    Yes
 
     -   type:           DoubleKL
         name:           dk

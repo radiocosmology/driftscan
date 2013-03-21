@@ -10,10 +10,10 @@ import healpy
 
 from cosmoutils import hputil
 
-from cylsim import cylinder
-from cylsim import beamtransfer
-from cylsim import kltransform
-from cylsim import mpiutil
+from drift.telescope import cylinder
+from drift.core import beamtransfer
+from drift.core import kltransform
+from drift.util import mpiutil
 from mpi4py import MPI
 
 ## Read arguments in.
@@ -29,7 +29,7 @@ args = parser.parse_args()
 bt = beamtransfer.BeamTransfer(args.teldir)
 #klt = kltransform.KLTransform(bt, subdir=args.evsubdir)
 cyl = bt.telescope
-ntel = cyl.nbase * cyl.nfreq * cyl.num_pol_telescope
+ntel = bt.ntel * bt.nfreq
 mmax = cyl.mmax
 
 cut = args.threshold

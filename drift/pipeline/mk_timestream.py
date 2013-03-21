@@ -6,9 +6,9 @@ import numpy as np
 import h5py
 
 from cosmoutils import hputil
-from cylsim import mpiutil
+from drift.util import mpiutil
 
-import timestream
+from drift.pipeline import timestream
 
 
 
@@ -47,7 +47,7 @@ lm, sm, em = mpiutil.split_local(mmax + 1)
 local_m = range(sm, em)
 
 
-col_vis = np.zeros((tel.nbase * tel.num_pol_telescope, lfreq, 2*mmax+1), dtype=np.complex128)
+col_vis = np.zeros((tel.npairs, lfreq, 2*mmax+1), dtype=np.complex128)
 
 
 
@@ -97,7 +97,7 @@ if projmaps:
 
     # Parallel transpose to get all m's back onto the same processor
     col_vis_tmp = mpiutil.transpose_blocks(row_vis, ((mmax+1), bt.ntel, nfreq))
-    col_vis_tmp = col_vis_tmp.reshape(mmax + 1, 2, tel.nbase * tel.num_pol_telescope, lfreq)
+    col_vis_tmp = col_vis_tmp.reshape(mmax + 1, 2, tel.npairs, lfreq)
 
 
     # Transpose the local section to make the m's the last axis and unwrap the
@@ -112,7 +112,7 @@ if projmaps:
 
 if args.noise > 0:
 
-    noise_ps = tel.noisepower(np.arange(tel.nbase)[np.newaxis, :], local_freq[:, np.newaxis]).reshape(lfreq, tel.nbase * tel.num_pol_telescope)[:, :, np.newaxis]
+    noise_ps = tel.noisepower(np.arange(tel.nbase)[np.newaxis, :], local_freq[:, np.newaxis]).reshape(lfreq, tel.npairs)[:, :, np.newaxis]
 
     noise_vis = (np.array([1.0, 1.0J]) * np.random.standard_normal(col_vis.shape + (2,))).sum(axis=-1)
     noise_vis *= noise_ps
@@ -123,7 +123,7 @@ if args.noise > 0:
 
 
 vis_stream = np.fft.ifft(col_vis, axis=-1) * (2 * tel.mmax + 1)
-vis_stream = vis_stream.reshape(tel.nbase * tel.num_pol_telescope, lfreq, vis_stream.shape[-1])
+vis_stream = vis_stream.reshape(tel.npairs, lfreq, vis_stream.shape[-1])
 
 
 

@@ -1,7 +1,4 @@
 import numpy as np
-import scipy.linalg as la
-
-import blockla
 
 
 def intpattern(n):
@@ -34,32 +31,40 @@ def cache_last(func):
     return decorated
 
 
-
-
-
-def proj_mblock(hpmap, vec_mblock):
-
-    lmax = vec_mblock.shape[-1] - 1
-    alm = hputil.sphtrans_complex(hpmap, lmax=lmax).T.copy()
-
-    almproj = blockla.multiply_dm_v(vec_mblock, blockla.multiply_dm_v(vec_mblock, alm), conj=True)
-
-    hpproj = healpy.alm2map(hputil.pack_alm(almproj.T), healpy.npix2nside(hpmap.size))
-
-    return hpproj
-
-
 class ConfigReader(object):
+    """A class for applying attribute values from a supplied dictionary.
 
+    DEPRECATED!! Use routines from drift.util.config instead.
+    """
+    
     @classmethod
     def from_config(cls, config, *args, **kwargs):
+        """Create an instance of the class from the supplied config dictionary.
+
+        Parameters
+        ----------
+        config : dict
+            Dictionary of config options.
+
+        Returns
+        -------
+        obj : cls
+            Instance of the class.
+        """
         c = cls(*args, **kwargs)
         c.read_config(config)
 
         return c
 
     def add_config(self, config_options):
+        """Add the set of configuration options to those understoof by this class.
 
+        Parameters
+        ----------
+        config_options : dict
+            Configuration options supplied like this: 
+            { 'paramkey1' : [ function_to_apply, 'attributename'], 'paramkey2' : ...}
+        """
         if not hasattr(self, '_config_dict'):
             self._config_dict = config_options
         else:
@@ -67,7 +72,13 @@ class ConfigReader(object):
 
 
     def read_config(self, config):
+        """Set attributes from configuration dictionary.
 
+        Parameters
+        ----------
+        config : dict
+            Dictionary of configuration values.
+        """
         if not hasattr(self, '_config_dict'):
             return
 
@@ -80,4 +91,3 @@ class ConfigReader(object):
             print "Setting %s to %s" % (cname, cval)
 
             self.__setattr__(cname, ctype(cval))
-

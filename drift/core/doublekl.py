@@ -3,27 +3,8 @@ import os
 import numpy as np
 import h5py
 
-from cylsim import mpiutil
-from cylsim import kltransform
-from cylsim import blockla
-
-
-def svd_trans(bp, thr=1e-15):
-    u, s, vh = blockla.svd_dm(bp, full_matrices=False)
-
-    ts = s.max() * thr
-    ns = (s > ts).sum()
-
-    ta = np.zeros((ns, bp.shape[0], bp.shape[1]), dtype=np.complex128)
-
-    ci = 0
-    for i in range(bp.shape[0]):
-        lns = (s[i] > ts).sum()
-        ta[ci:(ci+lns), i] = u[i].T.conj()[:lns]
-
-        ci = ci + lns
-
-    return ta.reshape((ns, -1))
+from drift.core import kltransform
+from drift.util import mpiutil, config
 
 
 class DoubleKL(kltransform.KLTransform):
@@ -38,17 +19,7 @@ class DoubleKL(kltransform.KLTransform):
         contaminated.
     """
 
-    foreground_threshold = 100.0
-
-    __config_table_ =   {   'foreground_threshold'  :   [ float,    'foreground_threshold'] }
-
-    def __init__(self, *args, **kwargs):
-
-        super(DoubleKL, self).__init__(*args, **kwargs)
-
-        # Add configuration options                
-        self.add_config(self.__config_table_)
-
+    foreground_threshold = config.Property(proptype=float, default=100.0, key='foreground_threshold')
     
     def _transform_m(self, mi):
 

@@ -4,7 +4,8 @@ import os
 import h5py
 import numpy as np
 
-from cylsim import beamtransfer, util, mpiutil
+from drift.core import beamtransfer
+from drift.util import util, mpiutil
 
 
 class Timestream(object):
@@ -135,7 +136,7 @@ class Timestream(object):
         ntime = 2*mmax+1
 
         # Load in the local frequencies of the time stream
-        tstream = np.zeros((lfreq, tel.nbase * tel.num_pol_telescope, ntime), dtype=np.complex128)
+        tstream = np.zeros((lfreq, tel.npairs, ntime), dtype=np.complex128)
         for lfi, fi in enumerate(range(sfreq, efreq)):
             tstream[lfi] = self.timestream_f(fi)
 
@@ -143,7 +144,7 @@ class Timestream(object):
         row_mmodes = np.fft.fft(tstream, axis=-1)
 
         ## Combine positive and negative m parts.
-        row_mpairs = np.zeros((lfreq, 2, tel.nbase * tel.num_pol_telescope, mmax+1), dtype=np.complex128)
+        row_mpairs = np.zeros((lfreq, 2, tel.npairs, mmax+1), dtype=np.complex128)
 
         row_mpairs[:, 0, ..., 0] = row_mmodes[..., 0]
         for mi in range(1,mmax+1):
@@ -151,7 +152,7 @@ class Timestream(object):
             row_mpairs[:, 1, ..., mi] = row_mmodes[..., -mi].conj()
 
         # Transpose to get the entirety of an m-mode on each process (i.e. all frequencies)
-        col_mmodes = mpiutil.transpose_blocks(row_mpairs, (nfreq, 2, tel.nbase * tel.num_pol_telescope, mmax + 1))
+        col_mmodes = mpiutil.transpose_blocks(row_mpairs, (nfreq, 2, tel.npairs, mmax + 1))
 
         # Transpose the local section to make the m's first
         col_mmodes = np.transpose(col_mmodes, (3, 0, 1, 2))

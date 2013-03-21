@@ -3,7 +3,8 @@ import numpy as np
 from scipy.special import jn
 
 from cosmoutils import coord, units
-from cylsim import telescope, util
+from drift.core import telescope
+from drift.util import util, config
 
 
 def jinc(x):
@@ -44,37 +45,20 @@ def gaussian_beam(angpos, pointing, fwhm):
 class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
 
-    beam_num_u = 10
-    beam_num_v = 10
+    beam_num_u = config.Property(proptype=int, default=10)
+    beam_num_v = config.Property(proptype=int, default=10)
 
 
-    beam_spacing_u = 0.1
-    beam_spacing_v = 0.1
+    beam_spacing_u = config.Property(proptype=float, default=0.1)
+    beam_spacing_v = config.Property(proptype=float, default=0.1)
 
-    beam_size = 0.1
-    beam_pivot = 400.0
+    beam_size = config.Property(proptype=float, default=0.1)
+    beam_pivot = config.Property(proptype=float, default=400.0)
 
-    beam_freq_scale = True
+    beam_freq_scale = config.Property(proptype=bool, default=True)
 
-    square_beam = False
+    square_beam = config.Property(proptype=bool, default=False)
 
-    __config_table_ = { 'beam_num_u'        : [int,     'beam_num_u'],
-                        'beam_num_v'        : [int,     'beam_num_v'],
-                        'beam_spacing_u'    : [float,   'beam_spacing_u'],
-                        'beam_spacing_v'    : [float,   'beam_spacing_v'],
-                        'beam_size'         : [float,   'beam_size'],
-                        'beam_pivot'        : [float,   'beam_pivot'],
-                        'beam_freq_scale'   : [bool,    'beam_freq_scale'],
-                        'square_beam'       : [bool,    'square_beam']
-                      }
-
-    def __init__(self, *args, **kwargs):
-        """Initialise a telescope object.
-        """
-
-        super(FocalPlaneArray, self).__init__(*args, **kwargs)
-
-        self.add_config(self.__config_table_)
 
     @property
     def beam_pointings(self):

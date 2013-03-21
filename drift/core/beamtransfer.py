@@ -134,7 +134,7 @@ class BeamTransfer(object):
 
 
     @util.cache_last
-    def beam_m(self, mi, fi=None, single=False):
+    def beam_m(self, mi, fi=None):
         """Fetch the beam transfer matrix for a given m.
 
         Parameters
@@ -143,14 +143,10 @@ class BeamTransfer(object):
             m-mode to fetch.
         fi : integer
             frequency block to fetch. fi=None (default) returns all.
-        single : boolean, optional
-            When set, fetch only the uncombined beam transfer (that is only
-            positive or negative m). Default is False.
 
         Returns
         -------
-        beam : np.ndarray (nfreq, 2, npairs, npol_tel, npol_sky, lmax+1)
-            If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
+        beam : np.ndarray (nfreq, 2, npairs, npol_sky, lmax+1)
         """
 
         return self._load_beam_m(mi, fi=fi)
@@ -240,7 +236,7 @@ class BeamTransfer(object):
 
         Returns
         -------
-        invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, npairs, npol_tel)
+        invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, npairs)
         """
 
         beam = self.beam_m(mi)
@@ -255,12 +251,11 @@ class BeamTransfer(object):
 
         if self.noise_weight:
             # Reshape to make it easy to multiply baselines by noise level
-            ibeam = ibeam.reshape((-1, self.telescope.npairs, self.telescope.num_pol_telescope))
+            ibeam = ibeam.reshape((-1, self.telescope.npairs))
             ibeam = ibeam * noisew[:, np.newaxis]
 
         shape = (self.nfreq, self.telescope.num_pol_sky,
-                 self.telescope.lmax + 1, self.ntel,
-                 self.telescope.num_pol_telescope)
+                 self.telescope.lmax + 1, self.ntel)
         
         return ibeam.reshape(shape)
 
@@ -339,7 +334,7 @@ class BeamTransfer(object):
 
     @util.cache_last
     def beam_singularvalues(self, mi):
-        """Fetch the beam transfer matrix for a given m.
+        """Fetch the SVD beam transfer matrix for a given m.
 
         Parameters
         ----------
@@ -347,14 +342,10 @@ class BeamTransfer(object):
             m-mode to fetch.
         fi : integer
             frequency block to fetch. fi=None (default) returns all.
-        single : boolean, optional
-            When set, fetch only the uncombined beam transfer (that is only
-            positive or negative m). Default is False.
 
         Returns
         -------
-        beam : np.ndarray (nfreq, 2, npairs, npol_tel, npol_sky, lmax+1)
-            If `single` is set, shape (nfreq, npairs, npol_tel, npol_sky, lmax+1)
+        beam : np.ndarray (nfreq, 2, npairs, npol_sky, lmax+1)
         """
         
         svdfile = h5py.File(self._svdfile(mi), 'r')
@@ -459,11 +450,9 @@ class BeamTransfer(object):
             f.attrs['frequency'] = self.telescope.frequencies[fi]
             f.attrs['cylobj'] = self._telescope_pickle
 
-            dsize = (self.telescope.nbase, self.telescope.num_pol_telescope,
-                     self.telescope.num_pol_sky, self.telescope.lmax+1, 2*self.telescope.mmax+1)
+            dsize = (self.telescope.nbase, self.telescope.num_pol_sky, self.telescope.lmax+1, 2*self.telescope.mmax+1)
 
-            csize = (10, self.telescope.num_pol_telescope,
-                     self.telescope.num_pol_sky, self.telescope.lmax+1, 1)
+            csize = (10, self.telescope.num_pol_sky, self.telescope.lmax+1, 1)
 
             dset = f.create_dataset('beam_freq', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
 
@@ -514,9 +503,8 @@ class BeamTransfer(object):
 
         # Calculate the number of baselines to deal with at any one time. Aim
         # to have a maximum of 4 GB in memory at any one time
-        blsize = (freq_per_rank.max() * self.telescope.num_pol_telescope *
-            self.telescope.num_pol_sky * (self.telescope.lmax+1) *
-            (2*self.telescope.mmax+1) * 16.0)
+        blsize = (freq_per_rank.max() * self.telescope.num_pol_sky *
+                  (self.telescope.lmax+1) * (2*self.telescope.mmax+1) * 16.0)
 
         num_bl_per_chunk = int(4e9 / blsize) # Number of baselines to process in each chunk
         num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
@@ -545,11 +533,9 @@ class BeamTransfer(object):
             ## Create hdf5 file for each m-mode
             f = h5py.File(self._mfile(mi), 'w')
 
-            dsize = (self.telescope.nfreq, 2, self.telescope.nbase,
-                     self.telescope.num_pol_telescope, self.telescope.num_pol_sky, self.telescope.lmax+1)
+            dsize = (self.telescope.nfreq, 2, self.telescope.nbase, self.telescope.num_pol_sky, self.telescope.lmax+1)
 
-            csize = (1, 2, 10, self.telescope.num_pol_telescope,
-                     self.telescope.num_pol_sky, self.telescope.lmax+1)
+            csize = (1, 2, 10, self.telescope.num_pol_sky, self.telescope.lmax+1)
 
             dset = f.create_dataset('beam_m', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
 
@@ -590,7 +576,7 @@ class BeamTransfer(object):
 
                 if mpiutil.rank == m_rank_map[mi]:
                     marray = np.zeros((self.telescope.nfreq, 2, (blend-blstart),
-                       self.telescope.num_pol_telescope, self.telescope.num_pol_sky, self.telescope.lmax+1), dtype=np.complex128)
+                                       self.telescope.num_pol_sky, self.telescope.lmax+1), dtype=np.complex128)
                 else:
                     marray = None
 
@@ -1159,7 +1145,7 @@ class BeamTransfer(object):
     @property
     def ntel(self):
         """Degrees of freedom measured by the telescope (per frequency)"""
-        return 2 * self.telescope.npairs * self.telescope.num_pol_telescope
+        return 2 * self.telescope.npairs
 
     @property
     def nsky(self):

@@ -42,11 +42,11 @@ def map_half_plane(arr):
 
 def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
 
-    mask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=np.bool)
-    mask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=np.bool)
+    tmask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=np.bool)
+    tmask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=np.bool)
 
     # Merge two groups of feed arrays
-    cmask = np.logical_and(mask1, mask2)
+    cmask = np.logical_and(tmask1, tmask2)
     ckeys = _remap_keyarray(keys1 + 1.0J * keys2, mask=cmask)
 
     if mask1 is None and mask2 is None:
@@ -336,12 +336,6 @@ class TransitTelescope(config.Reader):
 
 
     #======= Properties related to polarisation ========
-    
-    @property
-    def num_pol_telescope(self):
-        """The number of polarisation combinations on the telescope. Should be
-        one of 1 (unpolarised), 3 (XX, YY, XY=YX), and (XX, YY, XY, YX)."""
-        return self._npol_tel_
 
     @property
     def num_pol_sky(self):
@@ -384,7 +378,8 @@ class TransitTelescope(config.Reader):
         self._feedmap, self._feedmask = self._get_unique()
         self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
         self._uniquepairs = _get_indices(self._feedmap, mask=self._feedmask)
-        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask * np.tri(self.nfeed))]) # Triangle mask to avoid double counting
+        #self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask * np.tri(self.nfeed))]) # Triangle mask to avoid double counting
+        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask)]) / 2 # Triangle mask to avoid double counting
         
         # Reorder and conjugate baselines such that the default feedpair
         # points W->E (to ensure we use positive-m)
@@ -423,7 +418,11 @@ class TransitTelescope(config.Reader):
         # Create mask of included baselines
         mask = np.logical_and(blen >= self.minlength, blen <= self.maxlength)
 
-        return _remap_keyarray(bl3), mask
+        # Remove the auto correlated baselines between all polarisations
+        if not self.auto_correlations:
+            mask = np.logical_and(blen > 0.0, mask)
+
+        return _remap_keyarray(bl3, mask), mask
 
 
 
@@ -433,7 +432,13 @@ class TransitTelescope(config.Reader):
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
 
-        beam_map = np.zeros(fshape, dtype=np.int)
+        bci, bcj = np.broadcast_arrays(self.beamclass[:, np.newaxis], self.beamclass[np.newaxis, :])
+
+        beam_map = _merge_keyarray(bci, bcj)
+
+        # beam_map[np.tril_indices(self.nfeed, -1)] = beam_map.T[np.tril_indices(self.nfeed, -1)]
+
+        # beam_map = _remap_keyarray(beam_map)
 
         if self.auto_correlations:
             beam_mask = np.ones(fshape, dtype=np.bool)
@@ -525,7 +530,7 @@ class TransitTelescope(config.Reader):
 
         # Generate the array for the Transfer functions
 
-        tshape = bl_indices.shape + (self.num_pol_telescope, self.num_pol_sky, lside+1, 2*lside+1)
+        tshape = bl_indices.shape + (self.num_pol_sky, lside+1, 2*lside+1)
         print "Size: %i elements. Memory %f GB." % (np.prod(tshape), 2*np.prod(tshape) * 8.0 / 2**30)
         tarray = np.zeros(tshape, dtype=np.complex128)
 
@@ -538,10 +543,9 @@ class TransitTelescope(config.Reader):
             trans = self._transfer_single(bl_indices[ind], f_indices[ind], lmax[ind], lside)
 
             ## Iterate over pol combinations and copy into transfer array
-            for pi in range(self.num_pol_telescope):
-                for pj in range(self.num_pol_sky):
-                    islice = (ind + (pi,pj) + (slice(None),slice(None)))
-                    tarray[islice] = trans[pi][pj]
+            for pi in range(self.num_pol_sky):
+                islice = (ind + (pi,) + (slice(None),slice(None)))
+                tarray[islice] = trans[pi]
 
         return tarray
 
@@ -686,6 +690,13 @@ class TransitTelescope(config.Reader):
     def feedpositions(self):
         """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
         return
+
+    # Implement to specify the beams of the telescope
+    @abc.abstractproperty
+    def beamclass(self):
+        """An nfeed array of the class of each beam (identical labels are
+        considered to have identical beams)."""
+        return
     
     # Implement to specify feed positions in the telescope.
     @abc.abstractproperty
@@ -748,7 +759,6 @@ class UnpolarisedTelescope(TransitTelescope):
     """
     __metaclass__ = abc.ABCMeta
 
-    _npol_tel_ = 1
     _npol_sky_ = 1
     
     @abc.abstractmethod
@@ -849,8 +859,125 @@ class PolarisedTelescope(TransitTelescope):
     """
     __metaclass__ = abc.ABCMeta
     
-    _npol_tel_ = 3
     _npol_sky_ = 3
+
+
+
+    def _beam_map_single(self, bl_index, f_index):
+
+        pIQU = [0.5 * np.array([[1.0, 0.0], [0.0, 1.0]]),
+                0.5 * np.array([[1.0, 0.0], [0.0, -1.0]]),
+                0.5 * np.array([[0.0, 1.0], [1.0, 0.0]]) ]
+
+        # Get beam maps for each feed.
+        feedi, feedj = self.uniquepairs[bl_index]
+        beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
+        
+        # Get baseline separation and fringe map.
+        uv = self.baselines[bl_index] / self.wavelengths[f_index]
+        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+
+        powIQU = [ np.sum(beami * np.dot(beamj, polproj), axis=1) * self._horizon for polproj in pIQU]
+        
+        pxarea = (4*np.pi / beami.shape[0])
+
+        om_i = np.sum(np.abs(beami)**2 * self._horizon[:, np.newaxis]) * pxarea
+        om_j = np.sum(np.abs(beamj)**2 * self._horizon[:, np.newaxis]) * pxarea
+
+        omega_A = (om_i * om_j)**0.5
+        
+        cvIQU = [ p * (2 * fringe / omega_A) for p in powIQU ]
+
+        return cvIQU
+
+
+    #===== Implementations of abstract functions =======
+
+    def _transfer_single(self, bl_index, f_index, lmax, lside):
+
+        if self._nside != hputil.nside_for_lmax(lmax):
+            self._init_trans(hputil.nside_for_lmax(lmax))
+
+        bmap = self._beam_map_single(bl_index, f_index)
+
+        btrans = [ pb.conj() for pb in hputil.sphtrans_complex_pol([bm.conj() for bm in bmap], centered = False, lmax = int(lmax), lside=lside) ]
+
+        return btrans
+
+
+    #===================================================
+
+
+class SimpleUnpolarisedTelescope(UnpolarisedTelescope):
+    """A base for a polarised telescope.
+    
+    Again, an abstract class, but the only things that require implementing are
+    the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
+    
+    Abstract Methods
+    ----------------
+    beamx, beamy : methods
+        Routines giving the field pattern for the x and y feeds.
+    """
+
+    __metaclass__ = abc.ABCMeta
+    
+
+    @property
+    def beamclass(self):
+        """Simple beam mode of dual polarisation feeds."""
+        return np.zeros(self._single_feedpositions.shape[0], dtype=np.int)
+
+
+    @abc.abstractproperty
+    def _single_feedpositions(self):
+        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
+        return
+
+    @property
+    def feedpositions(self):
+        return self._single_feedpositions
+
+
+
+
+
+class SimplePolarisedTelescope(PolarisedTelescope):
+    """A base for a polarised telescope.
+    
+    Again, an abstract class, but the only things that require implementing are
+    the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
+    
+    Abstract Methods
+    ----------------
+    beamx, beamy : methods
+        Routines giving the field pattern for the x and y feeds.
+    """
+
+    __metaclass__ = abc.ABCMeta
+    
+
+    @property
+    def beamclass(self):
+        """Simple beam mode of dual polarisation feeds."""
+        nsfeed = self._single_feedpositions.shape[0]
+        return np.concatenate((np.zeros(nsfeed), np.ones(nsfeed))).astype(np.int)
+
+
+    def beam(self, feed, freq):
+        if self.beamclass[feed] == 0:
+            return self.beamx(feed, freq)
+        else:
+            return self.beamy(feed, freq)
+
+    @abc.abstractproperty
+    def _single_feedpositions(self):
+        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
+        return
+
+    @property
+    def feedpositions(self):
+        return np.concatenate((self._single_feedpositions, self._single_feedpositions))
 
 
     @abc.abstractmethod
@@ -888,89 +1015,3 @@ class PolarisedTelescope(TransitTelescope):
             Healpix maps (of size [self._nside, 2]) of the field pattern in the
             theta and phi directions.         
         """
-    
-
-
-    def _beam_map_single(self, bl_index, f_index):
-
-        pIQU = [0.5 * np.array([[1.0, 0.0], [0.0, 1.0]]),
-                0.5 * np.array([[1.0, 0.0], [0.0, -1.0]]),
-                0.5 * np.array([[0.0, 1.0], [1.0, 0.0]]) ]
-
-        # Get beam maps for each feed.
-        feedi, feedj = self.uniquepairs[bl_index]
-        beamix, beamiy = self.beamx(feedi, f_index), self.beamy(feedi, f_index)
-        beamjx, beamjy = self.beamx(feedj, f_index), self.beamy(feedj, f_index)
-        
-        # Get baseline separation and fringe map.
-        uv = self.baselines[bl_index] / self.wavelengths[f_index]
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
-
-        powIQU_xx = [ np.sum(beamix * np.dot(beamjx, polproj), axis=1) * self._horizon for polproj in pIQU]
-        powIQU_xy = [ np.sum(beamix * np.dot(beamjy, polproj), axis=1) * self._horizon for polproj in pIQU]
-        powIQU_yy = [ np.sum(beamiy * np.dot(beamjy, polproj), axis=1) * self._horizon for polproj in pIQU]
-        
-        pxarea = (4*np.pi / beamix.shape[0])
-
-        om_ix = np.sum(np.abs(beamix)**2 * self._horizon[:, np.newaxis]) * pxarea
-        om_iy = np.sum(np.abs(beamiy)**2 * self._horizon[:, np.newaxis]) * pxarea
-        om_jx = np.sum(np.abs(beamjx)**2 * self._horizon[:, np.newaxis]) * pxarea
-        om_jy = np.sum(np.abs(beamjy)**2 * self._horizon[:, np.newaxis]) * pxarea
-
-        omega_A_xx = (om_ix * om_jx)**0.5
-        omega_A_xy = (om_ix * om_jy)**0.5
-        omega_A_yy = (om_iy * om_jy)**0.5
-        
-        cvIQUxx = [ p * (2 * fringe / omega_A_xx) for p in powIQU_xx ]
-        cvIQUxy = [ p * (2 * fringe / omega_A_xy) for p in powIQU_xy ]
-        cvIQUyy = [ p * (2 * fringe / omega_A_yy) for p in powIQU_yy ]
-
-        return cvIQUxx, cvIQUxy, cvIQUyy
-
-
-    #===== Implementations of abstract functions =======
-
-    def _transfer_single(self, bl_index, f_index, lmax, lside):
-
-        if self._nside != hputil.nside_for_lmax(lmax):
-            self._init_trans(hputil.nside_for_lmax(lmax))
-
-        bmaps = self._beam_map_single(bl_index, f_index)
-
-        btrans = [ [ pb.conj() for pb in hputil.sphtrans_complex_pol([bm.conj() for bm in bmap], centered = False,
-                                                                     lmax = int(lmax), lside=lside) ] for bmap in bmaps]
-
-        return btrans
-
-
-    #===================================================
-
-    def noisepower(self, bl_indices, f_indices, ndays=None):
-        """Calculate the instrumental noise power spectrum.
-
-        Assume we are still within the regime where the power spectrum is white
-        in `m` modes. 
-        
-        Parameters
-        ----------
-        bl_indices : array_like
-            Indices of baselines to calculate.
-        f_indices : array_like
-            Indices of frequencies to calculate. Must be broadcastable against
-            `bl_indices`.
-        ndays : integer
-            The number of sidereal days observed.
-
-        Returns
-        -------
-        noise_ps : np.ndarray
-            The noise power spectrum.
-        """
-
-        bnoise = TransitTelescope.noisepower(self, bl_indices, f_indices, ndays)
-
-        return bnoise[..., np.newaxis] * np.array([1.0, 0.5, 1.0])
-        
-    #===================================================
-
-

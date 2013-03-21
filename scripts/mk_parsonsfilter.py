@@ -29,7 +29,7 @@ args = parser.parse_args()
 bt = beamtransfer.BeamTransfer(args.teldir)
 #klt = kltransform.KLTransform(bt, subdir=args.evsubdir)
 cyl = bt.telescope
-ntel = cyl.nbase * cyl.nfreq * cyl.num_pol_telescope
+ntel = bt.ntel * bt.nfreq
 mmax = cyl.mmax
 
 cut = args.threshold

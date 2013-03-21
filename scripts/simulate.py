@@ -31,16 +31,16 @@ if 'config' not in yconf:
 outdir = yconf['config']['output_directory']
 
 # Create directory if required
-if mpiutil.rank0 and not os.path.exists(outdir):
-    os.makedirs(outdir)
+if mpiutil.rank0:
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
 
-# Copy config file into output directory (check it's not already there first)
-sfile = os.path.realpath(os.path.abspath(args.configfile.name))
-dfile = os.path.realpath(os.path.abspath(outdir + '/config.yaml'))
+    # Copy config file into output directory (check it's not already there first)
+    sfile = os.path.realpath(os.path.abspath(args.configfile.name))
+    dfile = os.path.realpath(os.path.abspath(outdir + '/config.yaml'))
 
-if sfile != dfile:
-    shutil.copy(sfile, dfile)
-
+    if sfile != dfile:
+        shutil.copy(sfile, dfile)
 
 
 ## Telescope configuration

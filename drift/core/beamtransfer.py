@@ -243,7 +243,7 @@ class BeamTransfer(object):
 
         if self.noise_weight:
             noisew = self.telescope.noisepower(np.arange(self.telescope.npairs), 0).flatten()**(-0.5)
-            beam = beam * noisew[:, np.newaxis, np.newaxis, np.newaxis]
+            beam = beam * noisew[:, np.newaxis, np.newaxis]
 
         beam = beam.reshape((self.nfreq, self.ntel, self.nsky))
 
@@ -252,7 +252,7 @@ class BeamTransfer(object):
         if self.noise_weight:
             # Reshape to make it easy to multiply baselines by noise level
             ibeam = ibeam.reshape((-1, self.telescope.npairs))
-            ibeam = ibeam * noisew[:, np.newaxis]
+            ibeam = ibeam * noisew
 
         shape = (self.nfreq, self.telescope.num_pol_sky,
                  self.telescope.lmax + 1, self.ntel)
@@ -506,7 +506,7 @@ class BeamTransfer(object):
         blsize = (freq_per_rank.max() * self.telescope.num_pol_sky *
                   (self.telescope.lmax+1) * (2*self.telescope.mmax+1) * 16.0)
 
-        num_bl_per_chunk = int(4e9 / blsize) # Number of baselines to process in each chunk
+        num_bl_per_chunk = int(1e9 / blsize) # Number of baselines to process in each chunk
         num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
 
         if mpiutil.rank0:

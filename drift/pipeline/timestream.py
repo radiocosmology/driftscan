@@ -4,7 +4,9 @@ import os
 import h5py
 import numpy as np
 
-from drift.core import beamtransfer
+from cosmoutils import hputil
+
+from drift.core import manager
 from drift.util import util, mpiutil
 
 
@@ -19,7 +21,7 @@ class Timestream(object):
 
     #============ Constructor etc. =====================
 
-    def __init__(self, tsdir, btdir):
+    def __init__(self, tsdir, prodconfig):
         """Create a new Timestream object.
 
         Parameters
@@ -30,7 +32,8 @@ class Timestream(object):
             Directory that the BeamTransfer files are stored in.
         """
         self.directory = os.path.abspath(tsdir)
-        self.beamtransfer_dir = os.path.abspath(btdir)
+        #self.beamtransfer_dir = os.path.abspath(btdir)
+        self.manager = manager.ProductManager.from_config(prodconfig)
     
     #====================================================
 
@@ -42,10 +45,12 @@ class Timestream(object):
     def beamtransfer(self):
         """The BeamTransfer object corresponding to this timestream.
         """
-        if self._beamtransfer is None:
-            self._beamtransfer = beamtransfer.BeamTransfer(self.beamtransfer_dir)
+        # if self._beamtransfer is None:
+        #     self._beamtransfer = beamtransfer.BeamTransfer(self.beamtransfer_dir)
 
-        return self._beamtransfer
+        # return self._beamtransfer
+
+        return self.manager.beamtransfer
 
     @property
     def telescope(self):
@@ -141,7 +146,7 @@ class Timestream(object):
             tstream[lfi] = self.timestream_f(fi)
 
         # FFT to calculate the m-modes for the timestream
-        row_mmodes = np.fft.fft(tstream, axis=-1)
+        row_mmodes = np.fft.fft(tstream, axis=-1) / (2*mmax + 1.0)
 
         ## Combine positive and negative m parts.
         row_mpairs = np.zeros((lfreq, 2, tel.npairs, mmax+1), dtype=np.complex128)
@@ -216,8 +221,161 @@ class Timestream(object):
 
     #======== Make map from uncleaned stream ============
 
-    def mapmake(self):
-        pass
+    def mapmake_full(self, nside, mapname):
+
+        def _make_alm(mi):
+            mmode = self.mmode(mi)
+            sphmode = self.beamtransfer.project_vector_telescope_to_sky(mi, mmode)
+
+            return sphmode
+
+        alm_list = mpiutil.parallel_map(_make_alm, range(self.telescope.mmax + 1))
+
+        if mpiutil.rank0:
+
+            alm = np.zeros((self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
+                            self.telescope.lmax + 1), dtype=np.complex128)
+
+            for mi in range(self.telescope.mmax + 1):
+
+                alm[..., mi] = alm_list[mi]
+
+            skymap = hputil.sphtrans_inv_sky(alm, nside)
+
+            f = h5py.File(self.directory + '/' + mapname, 'w')
+            f.create_dataset('/map', data=skymap)
+            f.close()
+
+
+    def mapmake_svd(self):
+
+        self.generate_mmodes_svd()
+
+        def _make_alm(mi):
+
+            svdmode = self.mmode_svd(mi)
+
+    #====================================================
+
+
+    #========== Project into KL-mode basis ==============
+
+    def set_kltransform(self, klname):
+        self.klname = klname
+
+    def _klfile(self, mi):
+        # Pattern to form the `m` ordered file.
+        return self._mdir(mi) + ('/klmode_%s.hdf5' % self.klname)
+
+
+
+
+    def mmode_kl(self, mi):
+        with h5py.File(self._klfile(mi), 'r') as f:
+            if f['mmode_kl'].shape[0] == 0:
+                return np.zeros((0,), dtype=np.complex128)
+            else:
+                return f['mmode_kl'][:]
+
+
+    def generate_mmodes_kl(self):
+        """Generate the KL modes for the Timestream.
+        """
+
+        kl = self.manager.kltransforms[self.klname]
+        
+        # Iterate over local m's, project mode and save to disk.
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            svdm = self.mmode_svd(mi) #.reshape(self.telescope.nfreq, 2*self.telescope.npairs)
+            #svdm = self.beamtransfer.project_vector_telescope_to_svd(mi, tm)
+
+            klm = kl.project_vector_svd_to_kl(mi, svdm)
+
+            with h5py.File(self._klfile(mi), 'w') as f:
+                f.create_dataset('mmode_kl', data=klm)
+                f.attrs['m'] = mi
+
+
+    def fake_kl_data(self):
+
+        kl = self.manager.kltransforms[self.klname]
+
+        # Iterate over local m's, project mode and save to disk.
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            evals = kl.evals_m(mi)
+
+            if evals is None:
+                klmode = np.array([], dtype=np.complex128)
+            else:
+                modeamp = ((kl.evals_m(mi) + 1.0) / 2.0)**0.5
+                klmode = modeamp * (np.array([1.0, 1.0J]) * np.random.standard_normal((modeamp.shape[0], 2))).sum(axis=1)
+            
+
+            with h5py.File(self._klfile(mi), 'w') as f:
+                f.create_dataset('mmode_kl', data=klmode)
+                f.attrs['m'] = mi
+
+
+    #====================================================
+
+
+    #======= Estimate powerspectrum from data ===========
+
+
+    def set_psestimator(self, psname):
+        self.psname = psname
+
+
+    def powerspectrum(self):
+
+        import scipy.linalg as la
+        
+        ps = self.manager.psestimators[self.psname]
+        ps.genbands()
+
+        def _q_estimate(mi):
+
+            return ps.q_estimator(mi, self.mmode_kl(mi))
+
+        qvals = mpiutil.parallel_map(_q_estimate, range(self.telescope.mmax + 1))
+
+        qtotal = np.array(qvals).sum(axis=0)
+
+        fisher, bias = ps.fisher_bias()
+
+        powerspectrum =  np.dot(la.inv(fisher), qtotal - bias)
+
+
+        if mpiutil.rank0:
+            with h5py.File(self.directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname)), 'w') as f:
+
+
+                cv = la.inv(fisher)
+                err = cv.diagonal()**0.5
+                cr = cv / np.outer(err, err)
+
+                f.create_dataset('fisher/', data=fisher)
+#                f.create_dataset('bias/', data=self.bias)
+                f.create_dataset('covariance/', data=cv)
+                f.create_dataset('error/', data=err)
+                f.create_dataset('correlation/', data=cr)
+
+                f.create_dataset('bandpower/', data=ps.bpower)
+                f.create_dataset('bandstart/', data=ps.bstart)
+                f.create_dataset('bandend/', data=ps.bend)
+                f.create_dataset('bandcenter/', data=ps.bcenter)
+                f.create_dataset('psvalues/', data=ps.psvalues)
+
+                f.create_dataset('powerspectrum', data=powerspectrum)
+
+        return powerspectrum
+
+
+
+
+    #====================================================
 
 
     #======== Load and save the Pickle files ============

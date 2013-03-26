@@ -28,17 +28,13 @@ tstream = timestream.Timestream(args.outdir, args.teldir)
 bt = tstream.beamtransfer
 tel = tstream.telescope
 
-## Load file
-f = h5py.File(args.map[0], 'r')
-mapshape = f['map'].shape
-f.close()
 
 lmax = tel.lmax
 mmax = tel.mmax
 nfreq = tel.nfreq
 npol = tel.num_pol_sky
-projmaps = (len(args.map) > 0)
-npix = mapshape[-1]
+
+projmaps = (len(args.map) > 0 if args.map is not None else False)
 
 lfreq, sfreq, efreq = mpiutil.split_local(nfreq)
 local_freq = range(sfreq, efreq)
@@ -53,6 +49,13 @@ col_vis = np.zeros((tel.npairs, lfreq, 2*mmax+1), dtype=np.complex128)
 
 if projmaps:
 
+
+    ## Load file
+    f = h5py.File(args.map[0], 'r')
+    mapshape = f['map'].shape
+    f.close()
+
+    npix = mapshape[-1]
 
     row_map = np.zeros((lfreq,) + mapshape[1:], dtype=np.float64)
 
@@ -112,10 +115,10 @@ if projmaps:
 
 if args.noise > 0:
 
-    noise_ps = tel.noisepower(np.arange(tel.nbase)[np.newaxis, :], local_freq[:, np.newaxis]).reshape(lfreq, tel.npairs)[:, :, np.newaxis]
+    noise_ps = tel.noisepower(np.arange(tel.npairs)[:, np.newaxis], np.array(local_freq)[np.newaxis, :]).reshape(tel.npairs, lfreq)[:, :, np.newaxis]
 
     noise_vis = (np.array([1.0, 1.0J]) * np.random.standard_normal(col_vis.shape + (2,))).sum(axis=-1)
-    noise_vis *= noise_ps
+    noise_vis *= (noise_ps / 2.0)**0.5
 
     col_vis += noise_vis
 

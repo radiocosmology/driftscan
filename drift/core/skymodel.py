@@ -7,7 +7,7 @@ _cr = None
 
 _reionisation = False
 
-_zaverage = 5
+_zaverage = 1
 
 _endpoint = False
 

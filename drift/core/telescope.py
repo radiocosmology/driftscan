@@ -812,7 +812,7 @@ class UnpolarisedTelescope(TransitTelescope):
         # Perform the harmonic transform to get the transfer matrix (conj is correct - see paper)
         btrans = hputil.sphtrans_complex(cvis.conj(), centered = False, lmax = lmax, lside=lside).conj()
 
-        return [ [ btrans ]]
+        return [ btrans ]
 
 
     #===================================================

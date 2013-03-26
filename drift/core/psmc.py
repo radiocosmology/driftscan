@@ -58,6 +58,9 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         evals, evecs = self.kltrans.modes_m(mi)
 
+        if evals is None:
+            return np.zeros((self.nbands + 1 if noise else self.nbands,))
+
         # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
         x0 = (vec.T / (evals + 1.0)).T
 
@@ -186,9 +189,11 @@ class PSMonteCarlo(psestimation.PSEstimation):
             f.close()
 
 
-    def powerspectrum(self, data):
+    def fisher_bias(self):
 
-        pass
+        with h5py.File(self.psdir + '/fisher.hdf5', 'r') as f:
+
+            return f['fisher'][:], f['bias'][:]
         
 
 

@@ -547,6 +547,57 @@ class KLTransform(config.Reader):
 
 
     @util.cache_last
+    def evals_m(self, mi, threshold=None):
+        """Fetch the KL-modes for a particular m.
+
+        This attempts to read in the results from disk, if available and if not
+        will create them.
+
+        Also, it will cache the previous m-mode in memory, so as to avoid disk
+        access in many cases. However *this* is not sensitive to changes in the
+        threshold, be careful.
+
+        Parameters
+        ----------
+        mi : integer
+            m to fetch KL-modes for.
+        threshold : real scalar, optional
+            Returns only KL-modes with S/N greater than threshold. By default
+            return all modes saved in the file (this maybe be a subset already,
+            see `transform_save`).
+
+        Returns
+        -------
+        evals : np.ndarray
+            KL-modes with S/N greater than some threshold. Both evals and evecs
+            are potentially `None`, if there are no modes either in the file, or
+            satisfying S/N > threshold.
+        """
+        
+        # If modes not already saved to disk, create file.
+        if not os.path.exists(self._evfile % mi):
+            modes = self.transform_save(mi)
+        else:
+            f = h5py.File(self._evfile % mi, 'r')
+
+            # If no modes are in the file, return None, None
+            if f['evals'].shape[0] == 0:
+                modes = None
+            else:
+                # Find modes satisfying threshold (if required).
+                evals = f['evals'][:]
+                startind = np.searchsorted(evals, threshold) if threshold is not None else 0
+
+                if startind == evals.size:
+                    modes = None
+                else:
+                    modes = evals[startind:]
+
+            f.close()
+
+        return modes
+
+    @util.cache_last
     def invmodes_m(self, mi, threshold=None):
         """Get the inverse modes.
 
@@ -654,7 +705,7 @@ class KLTransform(config.Reader):
         evals, evecs = self.modes_m(mi, threshold)
 
         if evals is None:
-            return None
+            return np.zeros((0,), dtype=np.complex128)
 
         if vec.shape[0] != evecs.shape[1]:
             raise Exception("Vectors are incompatible.")

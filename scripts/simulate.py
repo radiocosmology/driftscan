@@ -55,8 +55,8 @@ teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelesc
                     'FocalPlane'            : focalplane.FocalPlaneArray,
                     'RestrictedCylinder'    : restrictedcylinder.RestrictedCylinder,
                     'RestrictedPolarisedCylinder'    : restrictedcylinder.RestrictedPolarisedCylinder,
-                    'RestrictedExtra'       : restrictedcylinder.RestrictedExtra,                  
-                    'GradientCylinder'       : exotic_cylinder.GradientCylinder
+                    'CylinderExtra'         : exotic_cylinder.CylinderExtra,                  
+                    'GradientCylinder'      : exotic_cylinder.GradientCylinder
                 }
 
 if teltype not in teltype_dict:

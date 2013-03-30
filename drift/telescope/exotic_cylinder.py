@@ -37,7 +37,6 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
             raise Exception("Cylinder index is invalid.")
 
         nf = self.num_feeds
-        sp = self.feed_spacing
 
         # Parameters for gradient feedspacing
         a = self.wavelengths[-1] / 2.0 if self.min_spacing < 0.0 else self.min_spacing

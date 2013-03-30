@@ -309,7 +309,7 @@ class Timestream(object):
             if evals is None:
                 klmode = np.array([], dtype=np.complex128)
             else:
-                modeamp = ((kl.evals_m(mi) + 1.0) / 2.0)**0.5
+                modeamp = ((evals + 1.0) / 2.0)**0.5
                 klmode = modeamp * (np.array([1.0, 1.0J]) * np.random.standard_normal((modeamp.shape[0], 2))).sum(axis=1)
             
 

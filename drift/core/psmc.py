@@ -36,10 +36,24 @@ class PSMonteCarlo(psestimation.PSEstimation):
     fisher = None
     bias = None
 
+    zero_mean = config.Property(proptype=bool, default=True)
+
 
     def gen_sample(self, mi):
-        """Get a set of random samples from the specified band `bi` for a given
-        `mi`.
+        """Generate a random set of KL-data for this m-mode.
+
+        Found by drawing from the eigenvalue distribution.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to draw from.
+
+        Returns
+        -------
+        x : np.ndarray[nmodes, self.nsamples]
+            The random KL-data. The number of samples is set by the objects
+            attribute.
         """
 
         evals, evecs = self.kltrans.modes_m(mi)
@@ -54,7 +68,25 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
 
     def q_estimator(self, mi, vec, noise=False):
+        """Estimate the q-parameters from given data (see paper).
 
+        Parameters
+        ----------
+        mi : integer
+            The m-mode we are calculating for.
+        vec : np.ndarray[num_kl, num_realisatons]
+            The vector(s) of data we are estimating from. These are KL-mode
+            coefficients.
+        noise : boolean, optional
+            Whether we should project against the noise matrix. Used for
+            estimating the bias by Monte-Carlo. Default is False.
+
+        Returns
+        -------
+        qa : np.ndarray[numbands]
+            Array of q-parameters. If noise=True then the array is one longer,
+            and the last parameter is the projection against the noise.
+        """
 
         evals, evecs = self.kltrans.modes_m(mi)
 
@@ -86,7 +118,10 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
-            qa[-1] = np.sum(x0 * x0.conj(), axis=0)
+            if self.zero_mean:
+                qa[-1] = np.sum((x0 * x0.conj()).T * (evals + 1.0), axis=-1)
+            else:
+                qa[-1] = np.sum(x0 * x0.conj(), axis=0)
 
         return qa
 

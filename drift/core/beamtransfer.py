@@ -1267,14 +1267,14 @@ class BeamTransfer(object):
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
 
-        if not conj:
-            raise Exception("Not implemented non conj yet.")
+        # if not conj:
+        #     raise Exception("Not implemented non conj yet.")
 
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)
 
         # Get the SVD beam matrix
-        beam = self.beam_svd(mi)
+        beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
         
         # Create the output matrix
         vecf = np.zeros((self.nfreq, 3, self.telescope.lmax + 1,) + vec.shape[1:], dtype=np.complex128)
@@ -1282,7 +1282,11 @@ class BeamTransfer(object):
         for pi in range(npol):
             for fi in self._svd_freq_iter(mi):
 
-                fbeam = beam[fi, :svnum[fi], pi, :].T.conj() # Beam matrix for this frequency and cut
+                if conj:
+                    fbeam = beam[fi, :svnum[fi], pi, :].T.conj() # Beam matrix for this frequency and cut
+                else:
+                    fbeam = beam[fi, pi, :, :svnum[fi]] # Beam matrix for this frequency and cut
+
                 lvec = vec[svbounds[fi]:svbounds[fi+1]] # Matrix section for this frequency
 
                 vecf[fi, pi] += np.dot(fbeam, lvec)

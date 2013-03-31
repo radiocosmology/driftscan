@@ -247,13 +247,34 @@ class Timestream(object):
             f.close()
 
 
-    def mapmake_svd(self):
+    def mapmake_svd(self, nside, mapname):
 
         self.generate_mmodes_svd()
 
         def _make_alm(mi):
 
             svdmode = self.mmode_svd(mi)
+
+            sphmode = self.beamtransfer.project_vector_svd_to_sky(mi, svdmode)
+
+            return sphmode
+
+        alm_list = mpiutil.parallel_map(_make_alm, range(self.telescope.mmax + 1))
+
+        if mpiutil.rank0:
+
+            alm = np.zeros((self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
+                            self.telescope.lmax + 1), dtype=np.complex128)
+
+            for mi in range(self.telescope.mmax + 1):
+
+                alm[..., mi] = alm_list[mi]
+
+            skymap = hputil.sphtrans_inv_sky(alm, nside)
+
+            f = h5py.File(self.directory + '/' + mapname, 'w')
+            f.create_dataset('/map', data=skymap)
+            f.close()
 
     #====================================================
 

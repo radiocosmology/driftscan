@@ -123,7 +123,7 @@ class GmrtArray(telescope.TransitTelescope):
     beamy = beam
 
     @property
-    def feedpositions(self):
+    def _single_feedpositions(self):
         """The set of feed positions in the CMU telescope.
         
         Returns
@@ -141,6 +141,6 @@ class GmrtArray(telescope.TransitTelescope):
 
 
 
-class GmrtUnpolarised(GmrtArray, telescope.UnpolarisedTelescope):
+class GmrtUnpolarised(GmrtArray, telescope.SimpleUnpolarisedTelescope):
     """Unpolarised GMRT class."""
     pass

@@ -112,23 +112,106 @@ def parallel_map(func, glist):
 
 def typemap(dtype):
     """Map a numpy dtype into an MPI_Datatype.
+
+    Parameters
+    ----------
+    dtype : np.dtype
+        The numpy datatype.
+
+    Returns
+    -------
+    mpitype : MPI.Datatype
+        The MPI.Datatype.
     """
     return MPI.__TypeDict__[np.dtype(dtype).char]
 
 
-def split_all(n, comm=MPI.COMM_WORLD):
-    base = (n / comm.size)
-    rem = n % comm.size
+def split_m(n, m):
+    """
+    Split a range (0, n-1) into m sub-ranges of similar length
 
-    part = base * np.ones(comm.size, dtype=np.int) + (np.arange(comm.size) < rem).astype(np.int)
+    Parameters
+    ----------
+    n : integer
+        Length of range to split.
+    m : integer
+        Number of subranges to split into.
+
+    Returns
+    -------
+    num : np.ndarray[m]
+        Number in each sub-range
+    start : np.ndarray[m]
+        Starting of each sub-range.
+    end : np.ndarray[m]
+        End of each sub-range.
+
+    See Also
+    --------
+    `split_all`, `split_local`
+    """
+    base = (n / m)
+    rem = n % m
+
+    part = base * np.ones(m, dtype=np.int) + (np.arange(m) < rem).astype(np.int)
 
     bound = np.cumsum(np.insert(part, 0, 0))
 
-    return np.array([part, bound[:comm.size], bound[1:(comm.size + 1)]])
+    return np.array([part, bound[:m], bound[1:(m + 1)]])
+
+
+def split_all(n, comm=MPI.COMM_WORLD):
+    """
+    Split a range (0, n-1) into sub-ranges for each MPI Process.
+
+    Parameters
+    ----------
+    n : integer
+        Length of range to split.
+    comm : MPI Communicator, optional
+        MPI Communicator to use (default COMM_WORLD).
+
+    Returns
+    -------
+    num : np.ndarray[m]
+        Number for each rank.
+    start : np.ndarray[m]
+        Starting of each sub-range on a given rank.
+    end : np.ndarray[m]
+        End of each sub-range.
+
+    See Also
+    --------
+    `split_all`, `split_local`
+    """
+    return split_m(n, comm.size)
 
 
 def split_local(n, comm=MPI.COMM_WORLD):
+    """
+    Split a range (0, n-1) into sub-ranges for each MPI Process. This returns
+    the parameters only for the current rank.
 
+    Parameters
+    ----------
+    n : integer
+        Length of range to split.
+    comm : MPI Communicator, optional
+        MPI Communicator to use (default COMM_WORLD).
+
+    Returns
+    -------
+    num : integer
+        Number on this rank.
+    start : integer
+        Starting of the sub-range for this rank.
+    end : integer
+        End of rank for this rank.
+
+    See Also
+    --------
+    `split_all`, `split_local`
+    """
     pse = split_all(n, comm=comm)
 
     return pse[:, comm.rank]

@@ -535,7 +535,7 @@ class BeamTransfer(object):
         blsize = (mpiutil.split_all(nf)[0].max() * self.telescope.num_pol_sky *
                   (self.telescope.lmax+1) * (2*self.telescope.mmax+1) * 16.0)
 
-        num_bl_per_chunk = int(1e7 / blsize) # Number of baselines to process in each chunk
+        num_bl_per_chunk = int(3e9 / blsize) # Number of baselines to process in each chunk
         num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
 
         if mpiutil.rank0:

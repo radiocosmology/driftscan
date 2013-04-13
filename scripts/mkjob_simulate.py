@@ -59,6 +59,7 @@ export MXM_LOG_LEVEL=INFO
 
 cd %(pbsdir)s
 export OMP_NUM_THREADS=%(ompnum)i
+export PYTHONPATH=/home/k/krs/jrs65/code/gmrt_simulation:$PYTHONPATH
 
 mpirun --mca btl self,sm,tcp -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s config.yaml &> jobout.log
 """

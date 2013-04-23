@@ -1,8 +1,8 @@
 
 
-import argparse
 import os.path
 import shutil
+import warnings
 
 import yaml
 
@@ -11,11 +11,9 @@ from drift.util import mpiutil
 from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder, exotic_cylinder
 from drift.core import beamtransfer
 
-from drift.core import kltransform, doublekl
+from drift.core import kltransform, doublekl, wiener
 from drift.core import psestimation, psmc
 from drift.core import skymodel
-
-from drift.core import projection
 
 
 
@@ -33,6 +31,7 @@ teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelesc
 ## KLTransform configuration
 kltype_dict =   {   'KLTransform'   : kltransform.KLTransform,
                     'DoubleKL'      : doublekl.DoubleKL,
+                    'Wiener'        : wiener.Wiener
                 }
 
 
@@ -154,10 +153,10 @@ class ProductManager(object):
                     raise Exception("Unsupported PS estimation.")
 
                 if klname not in self.kltransforms:
-                    raise Exception('Desired KL object does not exist.')
-
-
-                self.psestimators[psname] = pstype_dict[pstype].from_config(psentry, self.kltransforms[klname], subdir=psname)
+                    warnings.warn('Desired KL object (name: %s) does not exist.' % klname)
+                    self.psestimators[psname] = None
+                else:
+                    self.psestimators[psname] = pstype_dict[pstype].from_config(psentry, self.kltransforms[klname], subdir=psname)
 
 
 

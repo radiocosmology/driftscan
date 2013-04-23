@@ -956,6 +956,8 @@ class BeamTransfer(object):
 
             matf[svbounds[fi]:svbounds[fi+1], svbounds[fi]:svbounds[fi+1]] = np.dot((fbeam * lmat), fbeam.T.conj())
 
+        svdfile.close()
+
         return matf
 
 
@@ -1052,7 +1054,7 @@ class BeamTransfer(object):
         beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
         
         # Create the output matrix
-        vecf = np.zeros((self.nfreq, 3, self.telescope.lmax + 1,) + vec.shape[1:], dtype=np.complex128)
+        vecf = np.zeros((self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,) + vec.shape[1:], dtype=np.complex128)
 
         for pi in range(npol):
             for fi in self._svd_freq_iter(mi):

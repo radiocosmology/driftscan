@@ -121,7 +121,7 @@ def im21cm_model(lmax, frequencies, npol, cr = None):
                 _cr = corr21cm.EoR21cm()
         cr = _cr    
 
-    cr._freq_window = np.abs(cr.cosmology.comoving_distance(frequencies[0]) - cr.cosmology.comoving_distance(frequencies[1]))
+    #cr._freq_window = np.abs(cr.cosmology.comoving_distance(frequencies[0]) - cr.cosmology.comoving_distance(frequencies[1]))
 
     cv_sg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))
 

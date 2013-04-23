@@ -169,10 +169,9 @@ class Timestream(object):
                 os.makedirs(self._mdir(mi))
 
             # Create the m-file and save the result.
-            f = h5py.File(self._mfile(mi), 'w')
-            f.create_dataset('/mmode', data=col_mmodes[lmi])
-            f.attrs['m'] = mi
-            f.close()
+            with h5py.File(self._mfile(mi), 'w') as f:
+                f.create_dataset('/mmode', data=col_mmodes[lmi])
+                f.attrs['m'] = mi
 
     #====================================================
 
@@ -223,7 +222,11 @@ class Timestream(object):
 
     def mapmake_full(self, nside, mapname):
 
+
         def _make_alm(mi):
+
+            print "Making %i" % mi
+
             mmode = self.mmode(mi)
             sphmode = self.beamtransfer.project_vector_telescope_to_sky(mi, mmode)
 
@@ -242,9 +245,8 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            f = h5py.File(self.directory + '/' + mapname, 'w')
-            f.create_dataset('/map', data=skymap)
-            f.close()
+            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+                f.create_dataset('/map', data=skymap)
 
 
     def mapmake_svd(self, nside, mapname):
@@ -272,21 +274,27 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            f = h5py.File(self.directory + '/' + mapname, 'w')
-            f.create_dataset('/map', data=skymap)
-            f.close()
+            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+                f.create_dataset('/map', data=skymap)
 
     #====================================================
 
 
     #========== Project into KL-mode basis ==============
 
-    def set_kltransform(self, klname):
+    def set_kltransform(self, klname, threshold=None):
+
         self.klname = klname
+
+        if threshold is None:
+            kl = self.manager.kltransforms[self.klname]
+            threshold = kl.threshold
+
+        self.klthreshold = threshold 
 
     def _klfile(self, mi):
         # Pattern to form the `m` ordered file.
-        return self._mdir(mi) + ('/klmode_%s.hdf5' % self.klname)
+        return self._mdir(mi) + ('/klmode_%s_%f.hdf5' % (self.klname, self.klthreshold))
 
 
 
@@ -311,7 +319,7 @@ class Timestream(object):
             svdm = self.mmode_svd(mi) #.reshape(self.telescope.nfreq, 2*self.telescope.npairs)
             #svdm = self.beamtransfer.project_vector_telescope_to_svd(mi, tm)
 
-            klm = kl.project_vector_svd_to_kl(mi, svdm)
+            klm = kl.project_vector_svd_to_kl(mi, svdm, threshold=self.klthreshold)
 
             with h5py.File(self._klfile(mi), 'w') as f:
                 f.create_dataset('mmode_kl', data=klm)
@@ -338,6 +346,47 @@ class Timestream(object):
                 f.create_dataset('mmode_kl', data=klmode)
                 f.attrs['m'] = mi
 
+
+    def mapmake_kl(self, nside, mapname, wiener=False):
+
+
+        kl = self.manager.kltransforms[self.klname]
+
+        if not kl.inverse:
+            raise Exception("Need the inverse to make a meaningful map.")
+
+        def _make_alm(mi):
+            print "Making %i" % mi
+
+            klmode = self.mmode_kl(mi)
+
+            if wiener:
+                evals = kl.evals_m(mi, self.klthreshold)
+
+                if evals is not None:
+                    klmode *= (evals / (1.0 + evals))
+
+            isvdmode = kl.project_vector_kl_to_svd(mi, klmode, threshold=self.klthreshold)
+
+            sphmode = self.beamtransfer.project_vector_svd_to_sky(mi, isvdmode)
+
+            return sphmode
+
+        alm_list = mpiutil.parallel_map(_make_alm, range(self.telescope.mmax + 1))
+
+        if mpiutil.rank0:
+
+            alm = np.zeros((self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1,
+                            self.telescope.lmax + 1), dtype=np.complex128)
+
+            for mi in range(self.telescope.mmax + 1):
+
+                alm[..., mi] = alm_list[mi]
+
+            skymap = hputil.sphtrans_inv_sky(alm, nside)
+
+            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+                f.create_dataset('/map', data=skymap)
 
     #====================================================
 

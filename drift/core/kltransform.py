@@ -85,7 +85,7 @@ def eigh_gen(A, B):
 
             if errno < (A.shape[0]+1):
 
-                print "Matrix probabaly not positive definite due to numerical issues. \
+                print "Matrix probably not positive definite due to numerical issues. \
                 Trying to add a constant diagonal...."
 
                 evb = la.eigvalsh(B)
@@ -616,21 +616,21 @@ class KLTransform(config.Reader):
         invmodes : np.ndarray
         """
 
-        evals, evecs = self.modes_m(mi, threshold)
+        evals = self.evals_m(mi, threshold)
 
-        f = h5py.File(self._evfile % mi, 'r')
-        if 'evinv' in f:
-            inv = f['evinv'][:]
+        with h5py.File(self._evfile % mi, 'r') as f:
+            if 'evinv' in f:
+                inv = f['evinv'][:]
 
-            if threshold != None:
-                nevals = evals.size
-                inv = inv[(-nevals):]
+                if threshold != None:
+                    nevals = evals.size
+                    inv = inv[(-nevals):]
 
-            return inv.T
+                return inv.T
 
-        else:
-            print "Inverse not cached, generating pseudo-inverse."
-            return la.pinv(evecs)
+            else:
+                print "Inverse not cached, generating pseudo-inverse."
+                return la.pinv(self.modes_m(mi, threshold)[1])
 
 
     @util.cache_last
@@ -713,7 +713,7 @@ class KLTransform(config.Reader):
         return np.dot(evecs, vec)
 
 
-    def project_tel_vector_backward(self, mi, vec, threshold=None):
+    def project_vector_kl_to_svd(self, mi, vec, threshold=None):
         """Project a vector in the Eigenbasis back into the telescope space.
 
         Parameters

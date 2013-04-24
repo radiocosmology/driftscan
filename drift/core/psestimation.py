@@ -1,21 +1,19 @@
+"""Estimate powerspectra and forecast constraints from real data.
+"""
 
 import os
-import h5py
+import abc
 import time
 
-from scipy.integrate import quad
-
+import h5py
 import numpy as np
 import scipy.linalg as la
+import scipy.integrate as integrate
 
 from simulations import corr21cm
 
-from drift.core import beamtransfer
-from drift.core import kltransform
 from drift.core import skymodel
 from drift.util import mpiutil, util, config
-
-
 
 
 
@@ -42,7 +40,29 @@ def range_config(lst):
     return np.concatenate(lst2)
 
 
+
 class PSEstimation(config.Reader):
+    """Base class for quadratic powerspectrum estimation.
+
+    See Tegmark 1997 for details.
+
+    Attributes
+    ----------
+    bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ])
+
+    threshold : scalar
+        Threshold for including eigenmodes (default is 0.0, i.e. all modes)
+
+    unit_bands : boolean
+        If True, bands are sections of the exact powerspectrum (such that the
+        fiducial bin amplitude is 1).
+
+    zero_mean : boolean
+        If True (not default), then the fiducial parameters have zero mean.
+    """
+
+    __metaclass__ = abc.ABCMeta
 
 
 
@@ -52,27 +72,30 @@ class PSEstimation(config.Reader):
 
     unit_bands = config.Property(proptype=bool, default=True)
 
+    zero_mean = config.Property(proptype=bool, default=True)
+
 
     clarray = None
 
+    fisher = None
+    bias = None
 
 
-    @property
-    def _cfile(self):
-        # Pattern to form the `m` ordered file.
-        return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
+    def __init__(self, kltrans, subdir="ps"):
+        """Initialise a PS estimator class.
 
-
-    @property
-    def nbands(self):
-        return len(self.bands) - 1
-
-
-    def __init__(self, kltrans, subdir=None):
+        Parameters
+        ----------
+        kltrans : KLTransform
+            The KL Transform filter to use.
+        subdir : string, optional
+            Subdirectory of the KLTransform directory to store results in.
+            Default is 'ps'.
+        """
 
         self.kltrans = kltrans
         self.telescope = kltrans.telescope
-        self.psdir = self.kltrans.evdir + '/' + ("ps" if subdir is None else subdir) + '/'
+        self.psdir = self.kltrans.evdir + '/' + subdir + '/'
         
         if mpiutil.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)
@@ -80,7 +103,32 @@ class PSEstimation(config.Reader):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
-        
+
+    @property
+    def nbands(self):
+        """Number of powerspectrum bands."""
+        return len(self.bands) - 1
+
+
+    def num_evals(self, mi):
+        """Number of eigenvalues for this `m` (and threshold).
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode index.
+
+        Returns
+        -------
+        num_evals : integer
+        """
+
+        evals = self.kltrans.modes_m(mi, threshold=self.threshold)[0]
+
+        return evals.size if evals is not None else 0
+
+
+    #========== Calculate powerspectrum bands ==========
 
     def genbands(self):
 
@@ -100,7 +148,7 @@ class PSEstimation(config.Reader):
             bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
             self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
             
-            self.bpower = np.array([(quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
+            self.bpower = np.array([(integrate.quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
 
         if mpiutil.rank0:
             for i, (pk, bs, be) in enumerate(self.band_pk):
@@ -121,7 +169,20 @@ class PSEstimation(config.Reader):
 
         
     def make_clzz(self, pk):
-        #print "Making C_l(z,z')"
+        """Make an angular powerspectrum from the input matter powerspectrum.
+
+        Uses the lmax and frequencies from the telescope object.
+
+        Parameters
+        ----------
+        pk : function, np.ndarray -> np.ndarray
+            The input powerspectrum (must be vectorized).
+
+        Returns
+        -------
+        aps : np.ndarray[lmax+1, nfreq, nfreq]
+            The angular powerspectrum.
+        """
         crt = corr21cm.Corr21cm(ps=pk, redshift=1.5)
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
@@ -130,16 +191,240 @@ class PSEstimation(config.Reader):
         print "Rank: %i - Finished making band." % mpiutil._rank
         return clzz
 
+    #===================================================
 
-    def num_evals(self, mi):
-        evals = self.kltrans.modes_m(mi, threshold=self.threshold)[0]
 
-        return evals.size if evals is not None else 0
+    #==== Calculate the per-m Fisher matrix/bias =======
+
+    def fisher_bias_m(self, mi):
+        """Generate the Fisher matrix and bias for a specific m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate for. 
+
+        """
+            
+        if self.num_evals(mi) > 0:
+            print "Making fisher (for m=%i)." % mi
+
+            fisher, bias = self._work_fisher_bias_m(mi)
+
+        else:
+            print "No evals (for m=%i), skipping." % mi
+
+            fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
+            bias = np.zeros((self.nbands,), dtype=np.complex128)
+
+        return fisher, bias
+
+    @abc.abstractmethod
+    def _work_fisher_bias_m(self, mi):
+        """Worker routine for calculating the Fisher and bias for a given m.
+
+        This routine should be overriden for a new method of generating the Fisher matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
+
+        Returns
+        -------
+        fisher : np.ndarray[nbands, nbands]
+            Fisher matrix.
+        bias : np.ndarray[nbands]
+            Bias vector.
+        """
+        pass
+
+    #===================================================
+
+
+    #==== Calculate the total Fisher matrix/bias =======
+
+    def generate(self, regen=False):
+        """Calculate the total Fisher matrix and bias and save to a file.
+
+        Parameters
+        ----------
+        regen : boolean, optional
+            Force regeneration if products already exist (default `False`).
+        """
+
+        if mpiutil.rank0:
+            st = time.time()
+            print "======== Starting PS calculation ========"
+
+        ffile = self.psdir +'/fisher.hdf5'
+
+        if os.path.exists(ffile) and not regen:
+            print ("Fisher matrix file: %s exists. Skipping..." % ffile)
+            return
+
+        mpiutil.barrier()
+
+        # Pre-compute all the angular power spectra for the bands
+        self.genbands()
+
+        # Use parallel map to distribute Fisher calculation
+        fisher_bias = mpiutil.parallel_map(self.fisher_bias_m, range(self.telescope.mmax + 1))
+
+        # Unpack into separate lists of the Fisher matrix and bias
+        fisher, bias = zip(*fisher_bias)
+
+        # Sum over all m-modes to get the over all Fisher and bias
+        self.fisher = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here
+        self.bias = np.sum(np.array(bias), axis=0).real # Be careful of the .real here
+
+        # Write out all the PS estimation products
+        if mpiutil.rank0:
+            et = time.time()
+            print "======== Ending PS calculation (time=%f) ========" % (et - st)
+
+            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
+
+            cv = la.inv(self.fisher)
+            err = cv.diagonal()**0.5
+            cr = cv / np.outer(err, err)
+
+            f.create_dataset('fisher/', data=self.fisher)
+            f.create_dataset('bias/', data=self.bias)
+            f.create_dataset('covariance/', data=cv)
+            f.create_dataset('error/', data=err)
+            f.create_dataset('correlation/', data=cr)
+
+
+            f.create_dataset('bandpower/', data=self.bpower)
+            f.create_dataset('bandstart/', data=self.bstart)
+            f.create_dataset('bandend/', data=self.bend)
+            f.create_dataset('bandcenter/', data=self.bcenter)
+            f.create_dataset('psvalues/', data=self.psvalues)
+            f.close()
+
+    #===================================================
+
+
+    def fisher_file(self):
+        """Fetch the h5py file handle for the Fisher matrix.
+
+        Returns
+        -------
+        file : h5py.File
+            File pointing at the hdf5 file with the Fisher matrix.
+        """
+        return h5py.File(self.psdir + 'fisher.hdf5', 'r')
+
+
+    def fisher_bias(self):
+
+        with h5py.File(self.psdir + '/fisher.hdf5', 'r') as f:
+
+            return f['fisher'][:], f['bias'][:]
+        
+    #===================================================
+
+
+    #====== Estimate the q-parameters from data ========
+
+    def q_estimator(self, mi, vec, noise=False):
+        """Estimate the q-parameters from given data (see paper).
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode we are calculating for.
+        vec : np.ndarray[num_kl, num_realisatons]
+            The vector(s) of data we are estimating from. These are KL-mode
+            coefficients.
+        noise : boolean, optional
+            Whether we should project against the noise matrix. Used for
+            estimating the bias by Monte-Carlo. Default is False.
+
+        Returns
+        -------
+        qa : np.ndarray[numbands]
+            Array of q-parameters. If noise=True then the array is one longer,
+            and the last parameter is the projection against the noise.
+        """
+
+        evals, evecs = self.kltrans.modes_m(mi)
+
+        if evals is None:
+            return np.zeros((self.nbands + 1 if noise else self.nbands,))
+
+        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
+        x0 = (vec.T / (evals + 1.0)).T
+
+        # Project back into SVD basis
+        x1 = np.dot(evecs.T.conj(), x0)
+
+        # Project back into sky basis
+        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+
+        # Create empty q vector (length depends on if we're calculating the noise term too)
+        qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec.shape[1:])
+
+        lside = self.telescope.lmax + 1
+
+        # Calculate q_a for each band
+        for bi in range(self.nbands):
+
+            for li in range(lside):
+
+                lvec = x2[:, 0, li]
+
+                qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][0, 0, li], lvec), axis=0) # TT only.
+
+        # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
+        if noise:
+            if self.zero_mean:
+                qa[-1] = np.sum((x0 * x0.conj()).T * (evals + 1.0), axis=-1)
+            else:
+                qa[-1] = np.sum(x0 * x0.conj(), axis=0)
+
+        return qa
+            
+    #===================================================
+
+    
+    
+            
+
+
+
+
+
+
+class PSExact(PSEstimation):
+    """PS Estimation class with exact calculation of the Fisher matrix.
+    """
+
+    @property
+    def _cfile(self):
+        # Pattern to form the `m` ordered cache file.
+        return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
+
 
     
     def makeproj(self, mi, bi):
+        """Project angular powerspectrum band into KL-basis.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode.
+        bi : integer
+            band index.
+
+        Returns
+        -------
+        klcov : np.ndarray[nevals, nevals]
+            Covariance in KL-basis.
+        """
         #print "Projecting to eigenbasis."
-        nevals = self.kltrans.modes_m(mi, threshold=self.threshold)[0].size
+        #nevals = self.kltrans.modes_m(mi, threshold=self.threshold)[0].size
 
         # if nevals < 1000:
         #     return self.kltrans.project_sky_matrix_forward_old(mi, self.clarray[bi], self.threshold)
@@ -151,7 +436,13 @@ class PSEstimation(config.Reader):
 
 
     def cacheproj(self, mi):
+        """Cache projected covariances on disk.
 
+        Parameters
+        ----------
+        mi : integer
+            m-mode.
+        """
 
         ## Don't generate cache for small enough matrices
         if self.num_evals(mi) < 500:
@@ -173,7 +464,13 @@ class PSEstimation(config.Reader):
 
 
     def delproj(self, mi):
+        """Deleted cached covariances from disk.
 
+        Parameters
+        ----------
+        mi : integer
+            m-mode.
+        """
         ## As we don't cache for small matrices, just return
         if self.num_evals(mi) < 500:
             self._bp_cache = []
@@ -187,7 +484,20 @@ class PSEstimation(config.Reader):
                 
 
     def getproj(self, mi, bi):
+        """Fetch cached KL-covariance (either from disk or just calculate if small enough).
 
+        Parameters
+        ----------
+        mi : integer
+            m-mode.
+        bi : integer
+            band index.
+
+        Returns
+        -------
+        klcov : np.ndarray[nevals, nevals]
+            Covariance in KL-basis.
+        """
         fn = self._cfile % (mi, bi)
 
         ## For small matrices or uncached files don't fetch cache, just generate
@@ -204,106 +514,46 @@ class PSEstimation(config.Reader):
 
 
 
-    def fisher_m(self, mi):
-        
-        evals, evecs = self.kltrans.modes_m(mi, self.threshold)
+    def _work_fisher_bias_m(self, mi):
+        """Worker routine for calculating the Fisher and bias for a given m.
 
-        nbands = len(self.bands) - 1
-        fab = np.zeros((nbands, nbands), dtype=np.complex128)
+        This method exactly calculates the quantities by forward projecting
+        the correlations.
 
-        if evals is not None:
-            print "Making fisher (for m=%i)." % mi
-
-            self.cacheproj(mi)
-
-            #c = [self.makeproj(mi, clzz) for clzz in self.clarray]
-            ci = 1.0 / (evals + 1.0)**0.5
-            ci = np.outer(ci, ci)
-
-            for ia in range(nbands):
-                c_a = self.getproj(mi, ia)
-                fab[ia, ia] = np.sum(c_a * c_a.T * ci**2)
-                
-                for ib in range(ia):
-                    c_b = self.getproj(mi, ib)
-                    fab[ia, ib] = np.sum(c_a * c_b.T * ci**2)
-                    fab[ib, ia] = np.conj(fab[ia, ib])
-
-            self.delproj(mi)
-            
-        else:
-            print "No evals (for m=%i), skipping." % mi
-
-        return fab
-
-
-
-    def generate(self, mlist = None, regen=False):
-
-        if mpiutil.rank0:
-            st = time.time()
-            print "======== Starting PS calculation ========"
-
-
-        if mlist is None:
-            mlist = range(self.telescope.mmax + 1)
-
-        ffile = self.psdir +'fisher.hdf5'
-
-        if os.path.exists(ffile) and not regen:
-            print ("Fisher matrix file: %s exists. Skipping..." % ffile)
-            return
-
-        mpiutil.barrier()
-
-        self.genbands()
-
-        # Use parallel map to distribute Fisher calculation
-        fisher = mpiutil.parallel_map(self.fisher_m, mlist)
-
-
-        if mpiutil.rank0:
-            et = time.time()
-            print "======== Ending PS calculation (time=%f) ========" % (et - st)
-
-
-        if mpiutil.rank0:
-
-            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
-
-            f_all = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here.
-            cv = la.inv(f_all)
-            err = cv.diagonal()**0.5
-            cr = cv / np.outer(err, err)
-
-            f.create_dataset('fisher_all/', data=f_all)
-            
-            f.create_dataset('fisher/', data=f_all)
-            f.create_dataset('covariance/', data=cv)
-            f.create_dataset('error/', data=err)
-            f.create_dataset('correlation/', data=cr)
-
-
-            f.create_dataset('bandpower/', data=self.bpower)
-            f.create_dataset('bandstart/', data=self.bstart)
-            f.create_dataset('bandend/', data=self.bend)
-            f.create_dataset('bandcenter/', data=self.bcenter)
-            f.create_dataset('psvalues/', data=self.psvalues)
-            f.close()
-
-    fisher_mpi = generate
-
-
-    def fisher_file(self):
-        """Fetch the h5py file handle for the Fisher matrix.
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
 
         Returns
         -------
-        file : h5py.File
-            File pointing at the hdf5 file with the Fisher matrix.
+        fisher : np.ndarray[nbands, nbands]
+            Fisher matrix.
+        bias : np.ndarray[nbands]
+            Bias vector.
         """
-        return h5py.File(self.psdir + 'fisher.hdf5', 'r')
+        
+        evals = self.kltrans.evals_m(mi, self.threshold)
 
+        fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
+        bias = np.zeros(self.nbands, dtype=np.complex128)
 
+        self.cacheproj(mi)
 
+        ci = 1.0 / (evals + 1.0)**0.5
+        ci = np.outer(ci, ci)
+
+        for ia in range(self.nbands):
+            c_a = self.getproj(mi, ia)
+            fisher[ia, ia] = np.sum(c_a * c_a.T * ci**2)
             
+            for ib in range(ia):
+                c_b = self.getproj(mi, ib)
+                fisher[ia, ib] = np.sum(c_a * c_b.T * ci**2)
+                fisher[ib, ia] = np.conj(fisher[ia, ib])
+
+        self.delproj(mi)
+
+        return fisher, bias
+
+

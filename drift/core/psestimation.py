@@ -21,6 +21,21 @@ def uniform_band(k, kstart, kend):
     return np.where(np.logical_and(k > kstart, k < kend), np.ones_like(k), np.zeros_like(k))
 
 
+def bandfunc_2d(ks, ke, ts, te):
+
+    def band(k, mu):
+
+        #k = (kpar**2 + kperp**2)**0.5
+        theta = np.arccos(mu)
+
+        tb = (theta >= ts) * (theta < te)
+        kb = (k >= ks) * (k < ke)
+
+        return (kb * tb).astype(np.float64)
+
+    return band
+
+
 def range_config(lst):
 
     lst2 = []
@@ -66,7 +81,8 @@ class PSEstimation(config.Reader):
 
 
 
-    bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
+    k_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
+    num_theta = config.Property(proptype=int, default=1)
 
     threshold = config.Property(proptype=float, default=0.0)
 
@@ -107,7 +123,7 @@ class PSEstimation(config.Reader):
     @property
     def nbands(self):
         """Number of powerspectrum bands."""
-        return len(self.bands) - 1
+        return (len(self.k_bands) - 1) * self.num_theta
 
 
     def num_evals(self, mi):
@@ -131,39 +147,49 @@ class PSEstimation(config.Reader):
     #========== Calculate powerspectrum bands ==========
 
     def genbands(self):
+        """Precompute the powerspectrum bands, including the P(k, mu) bands
+        and the angular powerspectrum.
+        """
 
         print "Generating bands..."
    
         cr = corr21cm.Corr21cm()
-
-        bandlims = zip(self.bands[:-1], self.bands[1:])
-
-        # Create band functions and set nominal value of band.
-        if self.unit_bands:
-            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be) * cr.ps_vv(k))
-            self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
-
-            self.bpower = np.ones(len(self.band_pk))
-        else:
-            bandfunc = lambda bs, be: (lambda k: uniform_band(k, bs, be))
-            self.band_pk = [(bandfunc(b_start, b_end), b_start, b_end) for b_start, b_end in bandlims]
-            
-            self.bpower = np.array([(integrate.quad(cr.ps_vv, bs, be)[0] / (be - bs)) for pk, bs, be in self.band_pk])
-
-        if mpiutil.rank0:
-            for i, (pk, bs, be) in enumerate(self.band_pk):
-                print "Band %i: %f to %f. Centre: %g" % (i, bs, be, 0.5*(be+bs))
-
+        cr.ps_2d = False
         
-        # Create array of band limits
-        self.bstart = self.bands[:-1]
-        self.bend = self.bands[1:]
-        self.bcenter = 0.5*(self.bands[1:] + self.bands[:-1])
-        self.psvalues = cr.ps_vv(self.bcenter)
+        # Create the array of band bounds
+        self.theta_bands = np.linspace(0.0, np.pi / 2.0, self.num_theta + 1, endpoint=True)
+
+        # Broadcast the bounds against each other to make the 2D array of bands
+        kb, tb = np.broadcast_arrays(self.k_bands[np.newaxis, :], self.theta_bands[:, np.newaxis])
+
+        # Pull out the start, end and centre of the bands in k, mu directions
+        self.k_start = kb[1:, :-1].flatten()
+        self.k_end = kb[1:, 1:].flatten()
+        self.k_center = 0.5 * (self.k_end + self.k_start)
+
+        self.theta_start = tb[:-1, 1:].flatten()
+        self.theta_end = tb[1:, 1:].flatten()
+        self.theta_center = 0.5 * (self.theta_end + self.theta_start)
+
+
+        bounds = zip(self.k_start, self.k_end, self.theta_start, self.theta_end)
+
+        # Make a list of functions of the band window functions
+        self.band_func = [ bandfunc_2d(*bound) for bound in bounds ]
+
+        # Create a list of functions of the band power functions
+        if self.unit_bands:
+            # Need slightly awkward double lambda because of loop closure scaling.
+            self.band_pk = [ (lambda bandt: (lambda k, mu: cr.ps_vv(k) * bandt(k, mu)))(band) for band in self.band_func]
+            self.band_power = np.ones_like(self.k_start)
+        else:
+            self.band_pk = self.band_func
+            self.band_power = cr.ps_vv(self.k_center)
+
 
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
-            self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band[0]), self.band_pk)
+            self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band), self.band_pk)
             
         print "Done."
 
@@ -184,6 +210,7 @@ class PSEstimation(config.Reader):
             The angular powerspectrum.
         """
         crt = corr21cm.Corr21cm(ps=pk, redshift=1.5)
+        crt.ps_2d = True
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt)
@@ -283,11 +310,11 @@ class PSEstimation(config.Reader):
             et = time.time()
             print "======== Ending PS calculation (time=%f) ========" % (et - st)
 
-            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
-
             cv = la.inv(self.fisher)
             err = cv.diagonal()**0.5
             cr = cv / np.outer(err, err)
+
+            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
 
             f.create_dataset('fisher/', data=self.fisher)
             f.create_dataset('bias/', data=self.bias)
@@ -296,11 +323,19 @@ class PSEstimation(config.Reader):
             f.create_dataset('correlation/', data=cr)
 
 
-            f.create_dataset('bandpower/', data=self.bpower)
-            f.create_dataset('bandstart/', data=self.bstart)
-            f.create_dataset('bandend/', data=self.bend)
-            f.create_dataset('bandcenter/', data=self.bcenter)
-            f.create_dataset('psvalues/', data=self.psvalues)
+            f.create_dataset('band_power/', data=self.band_power)
+
+            f.create_dataset('k_start/', data=self.k_start)
+            f.create_dataset('k_end/', data=self.k_end)
+            f.create_dataset('k_center/', data=self.k_center)
+
+            f.create_dataset('theta_start/', data=self.theta_start)
+            f.create_dataset('theta_end/', data=self.theta_end)
+            f.create_dataset('theta_center/', data=self.theta_center) 
+
+            f.create_dataset('k_bands', data=self.k_bands)
+            f.create_dataset('theta_bands', data=self.theta_bands)                       
+ 
             f.close()
 
     #===================================================
@@ -388,13 +423,9 @@ class PSEstimation(config.Reader):
             
     #===================================================
 
-    
-    
+
+
             
-
-
-
-
 
 
 class PSExact(PSEstimation):

@@ -28,7 +28,7 @@ def bandfunc_2d(ks, ke, ts, te):
         #k = (kpar**2 + kperp**2)**0.5
         theta = np.arccos(mu)
 
-        tb = (theta >= ts) * (theta < te)
+        tb = (theta >= ts) * (theta <= te)
         kb = (k >= ks) * (k < ke)
 
         return (kb * tb).astype(np.float64)

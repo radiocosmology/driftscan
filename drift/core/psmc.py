@@ -1,21 +1,9 @@
-import os
-import time
-
-
 import numpy as np
-import scipy.linalg as la
-import h5py
-
-from drift.core import psestimation
-from drift.util import mpiutil, config
 
 from cosmoutils import nputil
 
-
-
-        
-
-
+from drift.core import psestimation
+from drift.util import config
 
 
 class PSMonteCarlo(psestimation.PSEstimation):
@@ -23,7 +11,8 @@ class PSMonteCarlo(psestimation.PSEstimation):
     Fisher matrix via Monte-Carlo simulations.
 
     This uses the fact that the covariance of the q-estimator is the Fisher
-    matrix to Monte-Carlo the Fisher matrix and the bias.
+    matrix to Monte-Carlo the Fisher matrix and the bias. See Padmanabhan and
+    Pen (2003), and Dillon et al. (2012).
 
     Attributes
     ----------
@@ -32,11 +21,6 @@ class PSMonteCarlo(psestimation.PSEstimation):
     """
     
     nsamples = config.Property(proptype=int, default=500)
-
-    fisher = None
-    bias = None
-
-    zero_mean = config.Property(proptype=bool, default=True)
 
 
     def gen_sample(self, mi):
@@ -67,168 +51,35 @@ class PSMonteCarlo(psestimation.PSEstimation):
         return x
 
 
-    def q_estimator(self, mi, vec, noise=False):
-        """Estimate the q-parameters from given data (see paper).
+
+    def _work_fisher_bias_m(self, mi):
+        """Worker routine for calculating the Fisher and bias for a given m.
+
+        This method estimates both quantities using Monte-Carlo estimation,
+        and the fact that Cov(q_a, q_b) = F_ab.
 
         Parameters
         ----------
         mi : integer
-            The m-mode we are calculating for.
-        vec : np.ndarray[num_kl, num_realisatons]
-            The vector(s) of data we are estimating from. These are KL-mode
-            coefficients.
-        noise : boolean, optional
-            Whether we should project against the noise matrix. Used for
-            estimating the bias by Monte-Carlo. Default is False.
+            m-mode to calculate.
 
         Returns
         -------
-        qa : np.ndarray[numbands]
-            Array of q-parameters. If noise=True then the array is one longer,
-            and the last parameter is the projection against the noise.
+        fisher : np.ndarray[nbands, nbands]
+            Fisher matrix.
+        bias : np.ndarray[nbands]
+            Bias vector.
         """
+        
+        x = self.gen_sample(mi)
+        qa = self.q_estimator(mi, x, noise=True)
+        ft = np.cov(qa)
 
-        evals, evecs = self.kltrans.modes_m(mi)
+        fisher = ft[:self.nbands, :self.nbands]
+        bias = ft[-1, :self.nbands]
 
-        if evals is None:
-            return np.zeros((self.nbands + 1 if noise else self.nbands,))
+        return fisher, bias
 
-        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
-        x0 = (vec.T / (evals + 1.0)).T
-
-        # Project back into SVD basis
-        x1 = np.dot(evecs.T.conj(), x0)
-
-        # Project back into sky basis
-        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
-
-        # Create empty q vector (length depends on if we're calculating the noise term too)
-        qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec.shape[1:])
-
-        lside = self.telescope.lmax + 1
-
-        # Calculate q_a for each band
-        for bi in range(self.nbands):
-
-            for li in range(lside):
-
-                lvec = x2[:, 0, li]
-
-                qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][0, 0, li], lvec), axis=0) # TT only.
-
-        # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
-        if noise:
-            if self.zero_mean:
-                qa[-1] = np.sum((x0 * x0.conj()).T * (evals + 1.0), axis=-1)
-            else:
-                qa[-1] = np.sum(x0 * x0.conj(), axis=0)
-
-        return qa
-
-
-
-    def fisher_m(self, mi, retbias=True):
-
-            
-        fab = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
-
-        if self.num_evals(mi) > 0:
-            print "Making fisher (for m=%i)." % mi
-
-            x = self.gen_sample(mi)
-            qa = self.q_estimator(mi, x, noise=True)
-            ft = np.cov(qa)
-
-            fisher = ft[:self.nbands, :self.nbands]
-            bias = ft[-1, :self.nbands]
-
-        else:
-            print "No evals (for m=%i), skipping." % mi
-
-            fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
-            bias = np.zeros((self.nbands,), dtype=np.complex128)
-
-        if not retbias:
-            return fisher
-        else:
-            return fisher, bias
-
-
-
-
-    def generate(self, mlist = None, regen=False):
-        """Generate the Fisher matrix and bias required for
-        forecasting and powerspectrum estimation.
-
-        Parameters
-        ----------
-        mlist : array_like
-            Restricted set of m's to compute for. If None (default) use all
-            m's.
-
-        regen : boolean
-            If True force recalculation over. Default is False.
-        """
-
-        if mpiutil.rank0:
-            st = time.time()
-            print "======== Starting PS calculation ========"
-
-
-        if mlist is None:
-            mlist = range(self.telescope.mmax + 1)
-
-        ffile = self.psdir +'fisher.hdf5'
-
-        if os.path.exists(ffile) and not regen:
-            print ("Fisher matrix file: %s exists. Skipping..." % ffile)
-            return
-
-        mpiutil.barrier()
-
-        self.genbands()
-
-        # Use parallel map to distribute Fisher calculation
-        fisher_bias = mpiutil.parallel_map(self.fisher_m, mlist)
-
-        # Unpack into separate lists of the Fisher matrix and bias
-        fisher, bias = zip(*fisher_bias)
-
-        # Sum over all m-modes to get the over all Fisher and bias
-        self.fisher = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here
-        self.bias = np.sum(np.array(bias), axis=0).real # Be careful of the .real here
-
-
-        if mpiutil.rank0:
-            et = time.time()
-            print "======== Ending PS calculation (time=%f) ========" % (et - st)
-
-            f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
-
-            cv = la.inv(self.fisher)
-            err = cv.diagonal()**0.5
-            cr = cv / np.outer(err, err)
-
-            f.create_dataset('fisher/', data=self.fisher)
-            f.create_dataset('bias/', data=self.bias)
-            f.create_dataset('covariance/', data=cv)
-            f.create_dataset('error/', data=err)
-            f.create_dataset('correlation/', data=cr)
-
-
-            f.create_dataset('bandpower/', data=self.bpower)
-            f.create_dataset('bandstart/', data=self.bstart)
-            f.create_dataset('bandend/', data=self.bend)
-            f.create_dataset('bandcenter/', data=self.bcenter)
-            f.create_dataset('psvalues/', data=self.psvalues)
-            f.close()
-
-
-    def fisher_bias(self):
-
-        with h5py.File(self.psdir + '/fisher.hdf5', 'r') as f:
-
-            return f['fisher'][:], f['bias'][:]
         
 
 
@@ -296,50 +147,47 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
             self.vec_cache.append(xv7)
 
 
+    def _work_fisher_bias_m(self, mi):
+        """Worker routine for calculating the Fisher and bias for a given m.
 
-    def fisher_m_mc(self, mi):
-        """Calculate the Fisher Matrix by Monte-Carlo.
+        This routine should be overriden for a new method of generating the Fisher matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
+
+        Returns
+        -------
+        fisher : np.ndarray[nbands, nbands]
+            Fisher matrix.
+        bias : np.ndarray[nbands]
+            Bias vector.
         """
-            
-        fab = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
 
-        if self.num_evals(mi) > 0:
-            print "Making fisher (for m=%i)." % mi
-
-            self.gen_vecs(mi)
-
-            ns = self.nsamples
-
-            for ia in range(self.nbands):
-                # Estimate diagonal elements (including bias correction)
-                va = self.vec_cache[ia]
-
-                fab[ia, ia] = np.sum(va * va.conj()) / ns
-
-                # Estimate diagonal elements
-                for ib in range(ia):
-                    vb = self.vec_cache[ib]
-
-                    fab[ia, ib] = np.sum(va * vb.conj()) / ns
-                    fab[ib, ia] = np.conj(fab[ia, ib])
-            
-        else:
-            print "No evals (for m=%i), skipping." % mi
-
-        return fab
-
-
-    def fisher_m(self, mi):
-        """Calculate the Fisher Matrix for a given m.
-
-        Decides whether to use direct evaluation or Monte-Carlo depending on the
-        number of eigenvalues required.
-        """
-        if self.num_evals(mi) < self.nswitch:
-            return super(PSMonteCarlo, self).fisher_m(mi)
-        else:
-            return self.fisher_m_mc(mi)
+        fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
+        bias = np.zeros(self.nbands, dtype=np.complex128)
         
+        self.gen_vecs(mi)
+
+        ns = self.nsamples
+
+        for ia in range(self.nbands):
+            # Estimate diagonal elements (including bias correction)
+            va = self.vec_cache[ia]
+
+            fisher[ia, ia] = np.sum(va * va.conj()) / ns
+
+            # Estimate diagonal elements
+            for ib in range(ia):
+                vb = self.vec_cache[ib]
+
+                fisher[ia, ib] = np.sum(va * vb.conj()) / ns
+                fisher[ib, ia] = np.conj(fisher[ia, ib])
+            
+        return fisher, bias
+
+
 
 
 
@@ -375,7 +223,8 @@ def sim_skyvec(trans, n):
         
 
 def block_root(clzz):
-    """Blah.
+    """Calculate the 'square root' of an angular powerspectrum matrix (with
+    nulls).
     """
 
     trans = np.zeros_like(clzz)

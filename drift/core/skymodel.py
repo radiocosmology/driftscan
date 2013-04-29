@@ -108,7 +108,7 @@ def foreground_model(lmax, frequencies, npol, polfrac=0.5):
 
 
 
-def im21cm_model(lmax, frequencies, npol, cr = None):
+def im21cm_model(lmax, frequencies, npol, cr = None, temponly=True):
 
     nfreq = frequencies.size
 
@@ -123,9 +123,12 @@ def im21cm_model(lmax, frequencies, npol, cr = None):
 
     #cr._freq_window = np.abs(cr.cosmology.comoving_distance(frequencies[0]) - cr.cosmology.comoving_distance(frequencies[1]))
 
-    cv_sg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))
+    cv_t = skysim.clarray(cr.angular_powerspectrum, lmax, frequencies)
 
-    cv_sg[0, 0] = skysim.clarray(cr.angular_powerspectrum, lmax, frequencies)
-
-    return cv_sg
+    if temponly:
+        return cv_t
+    else:
+        cv_sg = np.zeros((npol, npol, lmax+1, nfreq, nfreq))
+        cv_sg[0, 0] = cv_t
+        return cv_sg
 

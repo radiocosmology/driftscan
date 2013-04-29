@@ -1,5 +1,5 @@
 """
-A module to define strictly typed attributes of a class, than can be loaded
+A module to define strictly typed attributes of a class, that can be loaded
 from an input dictionary. This is particularly useful for loading a class from
 a YAML document.
 
@@ -67,7 +67,6 @@ class Property(object):
             If None (default), attempt to use the attribute name from the
             class.
         """
-        import weakref
 
         self.proptype = (lambda x: x) if proptype is None else proptype
         self.default = default

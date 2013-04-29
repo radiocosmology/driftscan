@@ -213,7 +213,7 @@ class PSEstimation(config.Reader):
         crt.ps_2d = True
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
-                                     self.telescope.num_pol_sky, cr = crt)
+                                     self.telescope.num_pol_sky, cr = crt, temponly=True)
         
         print "Rank: %i - Finished making band." % mpiutil._rank
         return clzz
@@ -410,7 +410,7 @@ class PSEstimation(config.Reader):
 
                 lvec = x2[:, 0, li]
 
-                qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][0, 0, li], lvec), axis=0) # TT only.
+                qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][li], lvec), axis=0) # TT only.
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:

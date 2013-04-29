@@ -323,7 +323,8 @@ def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
         #try:
         request.Wait(status=stat)
         #except MPI.Exception:
-        #    print comm.rank, (ir, ic), (ear[ir]-sar[ir], eac[ic]-sac[ic]), shape, recv_buffer[sar[ir]:ear[ir]].shape, recv_buffer.dtype, row_array.dtype
+        #    print comm.rank, (ir, ic), (ear[ir]-sar[ir], eac[ic]-sac[ic]),
+        #shape, recv_buffer[sar[ir]:ear[ir]].shape, recv_buffer.dtype, row_array.dtype
 
         if stat.error != MPI.SUCCESS:
             print "**** ERROR in MPI RECV (r: %i c: %i rank: %i) *****" % (ir, ir, comm.rank)

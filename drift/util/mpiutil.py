@@ -94,6 +94,8 @@ def parallel_map(func, glist):
     # Operate on sublist
     flist = [(ind, func(item)) for ind, item in llist]
 
+    barrier()
+
     # Gather all results onto all ranks
     rlist = _comm.allgather(flist)
 

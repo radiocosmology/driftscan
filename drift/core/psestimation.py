@@ -447,9 +447,9 @@ class PSEstimation(config.Reader):
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
             if self.zero_mean:
-                qa[-1] = np.sum((x0 * x0.conj()).T * (evals + 1.0), axis=-1)
+                qa[-1] = np.sum((x0 * x0.conj()).T.real * (evals + 1.0), axis=-1)
             else:
-                qa[-1] = np.sum(x0 * x0.conj(), axis=0)
+                qa[-1] = np.sum((x0 * x0.conj()).real, axis=0)
 
         return qa
             

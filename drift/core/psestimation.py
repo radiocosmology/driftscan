@@ -15,6 +15,8 @@ from simulations import corr21cm
 from drift.core import skymodel
 from drift.util import mpiutil, util, config
 
+from mpi4py import MPI
+
 
 
 def uniform_band(k, kstart, kend):
@@ -189,7 +191,15 @@ class PSEstimation(config.Reader):
 
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
-            self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band), self.band_pk)
+            #self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band), self.band_pk)
+
+            self.make_clzz_array()
+
+            # if mpiutil.rank0:
+            #     for bi in range(self.nbands):
+            #         cldiff = self.clarray[bi] - self.clarray2[bi]
+
+            #         print (cldiff == 0).all()
             
         print "Done."
 
@@ -217,6 +227,28 @@ class PSEstimation(config.Reader):
         
         print "Rank: %i - Finished making band." % mpiutil._rank
         return clzz
+
+
+    def make_clzz_array(self):
+
+        p_bands, s_bands, e_bands = mpiutil.split_all(self.nbands)
+        p, s, e = mpiutil.split_local(self.nbands)
+
+        self.clarray = np.zeros((self.nbands, self.telescope.lmax + 1,
+                                 self.telescope.nfreq, self.telescope.nfreq), dtype=np.float64)
+
+        for bi in range(s, e):
+            self.clarray[bi] = self.make_clzz(self.band_pk[bi])
+
+        bandsize = (self.telescope.lmax + 1) * self.telescope.nfreq * self.telescope.nfreq
+        sizes = p_bands * bandsize
+        displ = s_bands * bandsize
+
+        MPI.COMM_WORLD.Allgatherv(MPI.IN_PLACE, [self.clarray, sizes, displ, MPI.DOUBLE])
+
+
+
+
 
     #===================================================
 

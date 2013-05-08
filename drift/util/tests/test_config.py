@@ -2,16 +2,16 @@ import unittest
 
 import pickle
 
-from drift.util.config import *
+from drift.util import config
 
 
-class Person(Reader):
-    name = Property(default='Bill', proptype=str)
-    age = Property(default=26, proptype=float, key='ageinyears')
+class Person(config.Reader):
+    name = config.Property(default='Bill', proptype=str)
+    age = config.Property(default=26, proptype=float, key='ageinyears')
 
 
 class PersonWithPet(Person):
-    petname = Property(default='Molly', proptype=str)
+    petname = config.Property(default='Molly', proptype=str)
     petage = 36
 
 

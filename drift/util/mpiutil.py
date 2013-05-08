@@ -1,4 +1,5 @@
 import warnings
+import sys
 
 import numpy as np
 
@@ -27,6 +28,14 @@ try:
         print "MPI process %i of %i." % (_rank, _size)
 
     rank0 = True if _rank == 0 else False
+
+    sys_excepthook = sys.excepthook 
+    
+    def mpi_excepthook(type, value, traceback): 
+        sys_excepthook(type, value, traceback) 
+        MPI.COMM_WORLD.Abort(1)
+
+    sys.excepthook = mpi_excepthook 
     
 except ImportError:
     warnings.warn("Warning: mpi4py not installed.")

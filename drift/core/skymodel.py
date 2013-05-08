@@ -108,7 +108,7 @@ def foreground_model(lmax, frequencies, npol, polfrac=0.5):
 
 
 
-def im21cm_model(lmax, frequencies, npol, cr = None, temponly=True):
+def im21cm_model(lmax, frequencies, npol, cr = None, temponly=False):
 
     nfreq = frequencies.size
 

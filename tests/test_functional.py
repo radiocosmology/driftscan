@@ -20,6 +20,7 @@ sys.path.insert(0, _pkgdir)
 
 from drift.core import manager
 
+
 class TestSimulate(unittest.TestCase):
 
     @classmethod
@@ -108,12 +109,16 @@ class TestSimulate(unittest.TestCase):
         self.assertTrue((bm == bm_saved).all(), msg='Beam matrix (m=14) is incorrect.')
 
 
-    @unittest.expectedFailure
     def test_svd_spectrum(self):
         """Test the SVD spectrum.
         """
+        with h5py.File('saved_products/svdspectrum.hdf5', 'r') as f:
+            svd_saved = f['singularvalues'][:]
 
-        self.fail(msg='SVD spectrum is incorrect.')
+        svd = self.manager.beamtransfer.svd_all()
+
+        self.assertEqual(svd_saved.shape, svd.shape, msg='SVD spectrum shapes not equal.')
+        self.assertTrue((svd == svd_saved).all(), msg='SVD spectrum is incorrect.')
 
 
     def test_svd_mode(self):

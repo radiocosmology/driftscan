@@ -191,9 +191,9 @@ class PSEstimation(config.Reader):
 
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
-            self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band), self.band_pk)
+            #self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band), self.band_pk)
 
-            #self.make_clzz_array()
+            self.make_clzz_array()
 
             # if mpiutil.rank0:
             #     for bi in range(self.nbands):

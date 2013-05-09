@@ -491,7 +491,7 @@ class BeamTransfer(object):
             dset = f.create_dataset('beam_freq', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
 
             # Divide into roughly 5 GB chunks
-            nsections = np.ceil(np.prod(dsize) * 16.0 / 2**30.0 / self._mem_switch)
+            nsections = int(np.ceil(np.prod(dsize) * 16.0 / 2**30.0 / self._mem_switch))
 
             print "Dividing calculation of %f GB array into %i sections." % (np.prod(dsize) * 16.0 / 2**30.0, nsections)
 
@@ -499,7 +499,9 @@ class BeamTransfer(object):
             f_sec = np.array_split(fi * np.ones(self.telescope.npairs, dtype=np.int), nsections)
 
             # Iterate over each section, generating transfers and save them.
-            for b_ind, f_ind in zip(b_sec, f_sec):
+            for si in range(nsections):
+                print "Calculating section %i of %i...." % (si, nsections)
+                b_ind, f_ind = b_sec[si], f_sec[si]
                 tarray = self.telescope.transfer_matrices(b_ind, f_ind)
                 dset[(b_ind[0]):(b_ind[-1]+1), ..., :(self.telescope.mmax+1)] = tarray[..., :(self.telescope.mmax+1)]
                 dset[(b_ind[0]):(b_ind[-1]+1), ..., (-self.telescope.mmax):]  = tarray[..., (-self.telescope.mmax):]

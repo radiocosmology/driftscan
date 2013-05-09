@@ -367,18 +367,16 @@ class BeamTransfer(object):
 
     @util.cache_last
     def beam_singularvalues(self, mi):
-        """Fetch the SVD beam transfer matrix for a given m.
+        """Fetch the vector of beam singular values for a given m.
 
         Parameters
         ----------
         mi : integer
             m-mode to fetch.
-        fi : integer
-            frequency block to fetch. fi=None (default) returns all.
 
         Returns
         -------
-        beam : np.ndarray (nfreq, 2, npairs, npol_sky, lmax+1)
+        beam : np.ndarray (nfreq, svd_len)
         """
         
         svdfile = h5py.File(self._svdfile(mi), 'r')
@@ -486,7 +484,7 @@ class BeamTransfer(object):
 
             dsize = (self.telescope.nbase, self.telescope.num_pol_sky, self.telescope.lmax+1, 2*self.telescope.mmax+1)
 
-            csize = (10, self.telescope.num_pol_sky, self.telescope.lmax+1, 1)
+            csize = (min(10, self.telescope.nbase), self.telescope.num_pol_sky, self.telescope.lmax+1, 1)
 
             dset = f.create_dataset('beam_freq', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
 
@@ -558,7 +556,7 @@ class BeamTransfer(object):
             f = h5py.File(self._mfile(mi), 'w')
 
             dsize = (self.telescope.nfreq, 2, self.telescope.nbase, self.telescope.num_pol_sky, self.telescope.lmax+1)
-            csize = (1, 2, 10, self.telescope.num_pol_sky, self.telescope.lmax+1)
+            csize = (1, 2, min(10, self.telescope.nbase), self.telescope.num_pol_sky, self.telescope.lmax+1)
             f.create_dataset('beam_m', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
 
             # Write a few useful attributes.
@@ -662,17 +660,17 @@ class BeamTransfer(object):
 
             # Create a chunked dataset for writing the SVD beam matrix into.
             dsize_bsvd = (self.telescope.nfreq, svd_len, self.telescope.num_pol_sky, self.telescope.lmax+1)
-            csize_bsvd = (1, 10, self.telescope.num_pol_sky, self.telescope.lmax+1)
+            csize_bsvd = (1, min(10, svd_len), self.telescope.num_pol_sky, self.telescope.lmax+1)
             dset_bsvd = fs.create_dataset('beam_svd', dsize_bsvd, chunks=csize_bsvd, compression='lzf', dtype=np.complex128)
 
             # Create a chunked dataset for writing the inverse SVD beam matrix into.
             dsize_ibsvd = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1, svd_len)
-            csize_ibsvd = (1, self.telescope.num_pol_sky, self.telescope.lmax+1, 10)
+            csize_ibsvd = (1, self.telescope.num_pol_sky, self.telescope.lmax+1, min(10, svd_len))
             dset_ibsvd = fs.create_dataset('invbeam_svd', dsize_ibsvd, chunks=csize_ibsvd, compression='lzf', dtype=np.complex128)
 
             # Create a chunked dataset for the stokes T U-matrix (left evecs)
             dsize_ut = (self.telescope.nfreq, svd_len, self.ntel)
-            csize_ut = (1, 10, self.ntel)
+            csize_ut = (1, min(10, svd_len), self.ntel)
             dset_ut  = fs.create_dataset('beam_ut', dsize_ut, chunks=csize_ut, compression='lzf', dtype=np.complex128)
 
             # Create a dataset for the singular values.

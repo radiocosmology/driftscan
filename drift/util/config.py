@@ -116,7 +116,7 @@ class Property(object):
         if self.key in config:
             val = self.proptype(config[self.key])
             obj.__dict__[self.propname] = val
-            print "Setting attribute %s to %s." % (self.key, val)
+            #print "Setting attribute %s to %s." % (self.key, val)
 
 
     def _set_propname(self, obj):

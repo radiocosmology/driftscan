@@ -72,18 +72,11 @@ class ProductManager(object):
 
         self.directory = yconf['config']['output_directory']
 
-        # Create directory if required
+        if not os.path.isabs(self.directory):
+            self.directory = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(configfile)), self.directory))
+
         if mpiutil.rank0:
-            if not os.path.exists(self.directory):
-                os.makedirs(self.directory)
-
-            # Copy config file into output directory (check it's not already there first)
-            sfile = os.path.realpath(os.path.abspath(configfile))
-            dfile = os.path.realpath(os.path.abspath(self.directory + '/config.yaml'))
-
-            if sfile != dfile:
-                shutil.copy(sfile, dfile)
-
+            print "Product directory:", self.directory
 
         ## Telescope configuration
         if 'telescope' not in yconf:
@@ -187,6 +180,19 @@ class ProductManager(object):
 
 
     def generate(self):
+
+
+        # Create directory if required
+        if mpiutil.rank0:
+            if not os.path.exists(self.directory):
+                os.makedirs(self.directory)
+
+            # Copy config file into output directory (check it's not already there first)
+            sfile = os.path.realpath(os.path.abspath(configfile))
+            dfile = os.path.realpath(os.path.abspath(self.directory + '/config.yaml'))
+
+            if sfile != dfile:
+                shutil.copy(sfile, dfile)
 
         if self.gen_beams:
             self.beamtransfer.generate()

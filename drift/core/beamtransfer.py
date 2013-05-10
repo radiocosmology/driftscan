@@ -8,6 +8,7 @@ import h5py
 from mpi4py import MPI
 
 from drift.util import mpiutil, util, blockla
+from drift.core import kltransform
 
 
 def svd_gen(A, *args, **kwargs):
@@ -721,6 +722,45 @@ class BeamTransfer(object):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
+        # Collect the spectrum into a single file.
+        self._collect_svd_spectrum()
+
+
+
+    def _collect_svd_spectrum(self):
+        """Gather the SVD spectrum into a single file."""
+
+        # The size of the SVD output matrices
+        svd_len = min(self.telescope.lmax+1, self.ntel)
+
+        svd_func = lambda mi: self.beam_singularvalues(mi)
+
+        svdspectrum = kltransform.collect_m_array(range(self.telescope.mmax + 1), svd_func, (self.nfreq, svd_len,), np.float64)
+
+        if mpiutil.rank0:
+
+            with h5py.File(self.directory + '/svdspectrum.hdf5', 'w') as f:
+
+                f.create_dataset('singularvalues', data=svdspectrum)
+
+
+
+    def svd_all(self):
+        """Collects the full SVD spectrum for all m-modes.
+
+        Reads in from file on disk.
+
+        Returns
+        -------
+        svarray : np.ndarray[mmax+1, nfreq, svd_len]
+            The full set of singular values across all m-modes.
+        """
+
+        f = h5py.File(self.directory + "/svdspectrum.hdf5", 'r')
+        svd = f['singularvalues'][:]
+        f.close()
+        
+        return svd
         
     #===================================================
 

@@ -743,6 +743,8 @@ class BeamTransfer(object):
 
                 f.create_dataset('singularvalues', data=svdspectrum)
 
+        mpiutil.barrier()
+
 
 
     def svd_all(self):

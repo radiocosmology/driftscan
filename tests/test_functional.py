@@ -1,3 +1,5 @@
+"""Functional test suite for checking integrity of the analysis product
+generation."""
 
 import argparse
 import tempfile
@@ -18,10 +20,13 @@ sys.path.insert(0, _pkgdir)
 
 from drift.core import manager
 
+
 class TestSimulate(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate the analysis products.
+        """
 
         # parser = argparse.ArgumentParser(description='Test the consistency of 
         # the analysis code.')
@@ -58,22 +63,31 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_return_code(self):
+        """Test that the products exited cleanly.
+        """
         code = self.retval / 256
         self.assertEqual(code, 0, msg=('Exited with non-zero return code %i.' % code))
 
 
     def test_signal_exit(self):
+        """Test that the products exited cleanly.
+        """
         signal = self.retval % 256
         self.assertEqual(signal, 0, msg=('Killed with signal %i' % signal))
 
 
     def test_manager(self):
+        """Check that the product manager code loads properly.
+        """
+
         mfile = self.manager.directory
         tfile = self.testdir + '/testdir'
         self.assertTrue(os.path.samefile(mfile, tfile), msg='Manager does not see same directory.')
 
 
     def test_beam_f(self):
+        """Check the consistency of the f-ordered beams.
+        """
 
         with h5py.File('saved_products/beam_f_2.hdf5', 'r') as f:
             bf_saved = f['beam_freq'][:]
@@ -84,6 +98,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_beam_m(self):
+        """Check the consistency of the m-ordered beams.
+        """
 
         with h5py.File('saved_products/beam_m_14.hdf5', 'r') as f:
             bm_saved = f['beam_m'][:]
@@ -93,12 +109,21 @@ class TestSimulate(unittest.TestCase):
         self.assertTrue((bm == bm_saved).all(), msg='Beam matrix (m=14) is incorrect.')
 
 
-    @unittest.expectedFailure
     def test_svd_spectrum(self):
-        self.fail(msg='SVD spectrum is incorrect.')
+        """Test the SVD spectrum.
+        """
+        with h5py.File('saved_products/svdspectrum.hdf5', 'r') as f:
+            svd_saved = f['singularvalues'][:]
+
+        svd = self.manager.beamtransfer.svd_all()
+
+        self.assertEqual(svd_saved.shape, svd.shape, msg='SVD spectrum shapes not equal.')
+        self.assertTrue((svd == svd_saved).all(), msg='SVD spectrum is incorrect.')
 
 
     def test_svd_mode(self):
+        """Test that the SVD modes are correct.
+        """
 
         with h5py.File('saved_products/svd_m_14.hdf5', 'r') as f:
             svd_saved = f['beam_svd'][:]
@@ -116,6 +141,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_kl_spectrum(self):
+        """Check the KL spectrum (for the foregroundless model).
+        """
 
         with h5py.File('saved_products/evals_kl.hdf5', 'r') as f:
             ev_saved = f['evals'][:]
@@ -127,6 +154,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_kl_mode(self):
+        """Check a KL mode (m=26) for the foregroundless model.
+        """
 
         with h5py.File('saved_products/ev_kl_m_26.hdf5', 'r') as f:
             evecs_saved = f['evecs'][:]
@@ -138,6 +167,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_dk_spectrum(self):
+        """Check the KL spectrum (for the model with foregrounds).
+        """
 
         with h5py.File('saved_products/evals_dk.hdf5', 'r') as f:
             ev_saved = f['evals'][:]
@@ -149,6 +180,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_dk_mode(self):
+        """Check a KL mode (m=26) for the model with foregrounds.
+        """
 
         with h5py.File('saved_products/ev_dk_m_33.hdf5', 'r') as f:
             evecs_saved = f['evecs'][:]
@@ -160,6 +193,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_kl_fisher(self):
+        """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo.
+        """
 
         with h5py.File('saved_products/fisher_kl.hdf5', 'r') as f:
             fisher_saved = f['fisher'][:]
@@ -190,6 +225,8 @@ class TestSimulate(unittest.TestCase):
 
 
     def test_dk_fisher(self):
+        """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo.
+        """
 
         with h5py.File('saved_products/fisher_dk.hdf5', 'r') as f:
             fisher_saved = f['fisher'][:]
@@ -219,10 +256,6 @@ class TestSimulate(unittest.TestCase):
         self.assertTrue((bias_diff < 0.1).all(), msg='DK bias is incorrect.')
 
 
-    @classmethod
-    def tearDownClass(cls):
-        pass
-        #shutil.rmtree(cls.testdir)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -340,8 +340,8 @@ class TransitTelescope(config.Reader):
     @property
     def num_pol_sky(self):
         """The number of polarisation combinations on the sky that we are
-        considering. Should be either 1 (T=I only) or 3 (T, Q, U
-        sensitivity). Circular polarisation (stokes V) is ignored."""
+        considering. Should be either 1 (T=I only), 3 (T, Q, U) or 4 (T, Q, U and V).
+        """
         return self._npol_sky_
 
     #===================================================
@@ -860,15 +860,16 @@ class PolarisedTelescope(TransitTelescope):
     """
     __metaclass__ = abc.ABCMeta
     
-    _npol_sky_ = 3
+    _npol_sky_ = 4
 
 
 
     def _beam_map_single(self, bl_index, f_index):
 
-        pIQU = [0.5 * np.array([[1.0, 0.0], [0.0, 1.0]]),
-                0.5 * np.array([[1.0, 0.0], [0.0, -1.0]]),
-                0.5 * np.array([[0.0, 1.0], [1.0, 0.0]]) ]
+        p_stokes = [ 0.5 * np.array([[1.0,   0.0], [0.0,  1.0]]),
+                     0.5 * np.array([[1.0,   0.0], [0.0, -1.0]]),
+                     0.5 * np.array([[0.0,   1.0], [1.0,  0.0]]),
+                     0.5 * np.array([[0.0, -1.0J], [1.0J, 0.0]]) ]
 
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
@@ -878,7 +879,7 @@ class PolarisedTelescope(TransitTelescope):
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        powIQU = [ np.sum(beami * np.dot(beamj, polproj), axis=1) * self._horizon for polproj in pIQU]
+        pow_stokes = [ np.sum(beami * np.dot(beamj, polproj), axis=1) * self._horizon for polproj in p_stokes]
         
         pxarea = (4*np.pi / beami.shape[0])
 
@@ -887,9 +888,9 @@ class PolarisedTelescope(TransitTelescope):
 
         omega_A = (om_i * om_j)**0.5
         
-        cvIQU = [ p * (2 * fringe / omega_A) for p in powIQU ]
+        cv_stokes = [ p * (2 * fringe / omega_A) for p in pow_stokes ]
 
-        return cvIQU
+        return cv_stokes
 
 
     #===== Implementations of abstract functions =======

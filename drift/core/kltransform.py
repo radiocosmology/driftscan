@@ -161,7 +161,7 @@ class KLTransform(config.Reader):
     @property
     def _evfile(self):
         # Pattern to form the `m` ordered file.
-        return self.evdir + "/ev_m_" + util.intpattern(self.telescope.mmax) + ".hdf5"
+        return self.evdir + "/ev_m_" + util.natpattern(self.telescope.mmax) + ".hdf5"
     
 
     def __init__(self, bt, subdir=None):
@@ -191,7 +191,7 @@ class KLTransform(config.Reader):
 
             npol = self.telescope.num_pol_sky
 
-            if npol != 1 and npol != 3:
+            if npol != 1 and npol != 3 and npol != 4:
                 raise Exception("Can only handle unpolarised only (num_pol_sky \
                                  = 1), or I, Q and U (num_pol_sky = 3).")
 
@@ -219,7 +219,7 @@ class KLTransform(config.Reader):
         if self._cvsg is None:
             npol = self.telescope.num_pol_sky
 
-            if npol != 1 and npol != 3:
+            if npol != 1 and npol != 3 and npol != 4:
                 raise Exception("Can only handle unpolarised only (num_pol_sky \
                                 = 1), or I, Q and U (num_pol_sky = 3).")
         

@@ -4,8 +4,7 @@ import numpy as np
 from cosmoutils import coord
 
 from drift.core import telescope, visibility
-from drift.util import config
-from drift.telescope import cylbeam
+from drift.util import util, config
 
 
 
@@ -44,22 +43,6 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     non_commensurate = config.Property(proptype=bool, default=False)
 
-    e_width = config.Property(proptype=float, default=1.0)
-    h_width = config.Property(proptype=float, default=1.0)    
-    
-    # Fiducial widths
-    _fwhm_e = 0.675 * 2.0 * np.pi / 3.0  # Factor of 0.675 from dipole model
-    _fwhm_h = 2.0 * np.pi / 3.0
-
-    @property
-    def fwhm_e(self):
-        """Full width half max of the E-plane antenna beam."""
-        return self._fwhm_e * self.e_width
-
-    @property
-    def fwhm_h(self):
-        """Full width half max of the H-plane antenna beam."""
-        return self._fwhm_h * self.h_width
 
     ## u-width property override
     @property
@@ -192,8 +175,8 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarise
             complex.
         """
 
-        return cylbeam.beam_amp(self._angpos, self.zenith,
-            self.cylinder_width / self.wavelengths[freq], self.fwhm_h, self.fwhm_h)
+        return visibility.cylinder_beam(self._angpos, self.zenith,
+                                        self.cylinder_width / self.wavelengths[freq])
 
 
 
@@ -201,19 +184,44 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
     """A complete class for an Unpolarised Cylinder telescope.
     """
     
+    # Change the illuminated width in X and Y
+    illumination_x = config.Property(proptype=float, default=1.0)
+    illumination_y = config.Property(proptype=float, default=1.0)
+
+    ortho_pol = config.Property(proptype=bool, default=True)
 
     #@util.cache_last
     def beamx(self, feed, freq):
         
-        return cylbeam.beam_x(self._angpos, self.zenith,
-            self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+        bpat = visibility.cylinder_beam(self._angpos, self.zenith,
+                                        self.illumination_x * self.cylinder_width / self.wavelengths[freq])
 
+        bm = np.zeros_like(self._angpos)
+        if self.ortho_pol:
+            bm[:, 1] = bpat
+        else:
+            thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
+            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            bm[:, 0] = np.dot(thatp, phatz) * bpat
+            bm[:, 1] = np.dot(phatp, phatz) * bpat
+            
+        return bm
 
     #@util.cache_last
     def beamy(self, feed, freq):
 
-        return cylbeam.beam_y(self._angpos, self.zenith,
-            self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+        bpat = visibility.cylinder_beam(self._angpos, self.zenith,
+                                        self.illumination_y * self.cylinder_width / self.wavelengths[freq])
 
+        bm = np.zeros_like(self._angpos)
+        if self.ortho_pol:
+            bm[:, 0] = bpat
+        else:
+            thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
+            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            bm[:, 0] = np.dot(thatp, thatz) * bpat
+            bm[:, 1] = np.dot(phatp, thatz) * bpat
+        
+        return bm
         
         

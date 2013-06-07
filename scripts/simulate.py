@@ -1,6 +1,7 @@
 import argparse
 import os.path
 import shutil
+import re
 
 import yaml
 
@@ -30,17 +31,34 @@ if 'config' not in yconf:
 
 outdir = yconf['config']['output_directory']
 
+cfile = os.path.realpath(os.path.abspath(args.configfile.name))
+args.configfile.close()
+
+outdir_orig = outdir
+if not os.path.isabs(outdir):
+    outdir = os.path.normpath(os.path.join(os.path.dirname(cfile), outdir))
+
+
+
+
 # Create directory if required
 if mpiutil.rank0:
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    # Copy config file into output directory (check it's not already there first)
-    sfile = os.path.realpath(os.path.abspath(args.configfile.name))
-    dfile = os.path.realpath(os.path.abspath(outdir + '/config.yaml'))
+    with open(cfile, 'r') as f:
+        config_contents = f.read()
 
-    if sfile != dfile:
-        shutil.copy(sfile, dfile)
+    # Construct new file path
+    dfile = os.path.join(outdir, 'config.yaml')
+
+    # Rewrite path in config file
+    if outdir_orig != outdir:
+        config_contents = config_contents.replace(outdir_orig, outdir)
+
+    # Write config file into local copy
+    with open(dfile, 'w+') as f:
+        f.write(config_contents)
 
 
 ## Telescope configuration

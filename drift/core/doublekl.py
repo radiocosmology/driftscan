@@ -19,7 +19,7 @@ class DoubleKL(kltransform.KLTransform):
         contaminated.
     """
 
-    foreground_threshold = config.Property(proptype=float, default=100.0, key='foreground_threshold')
+    foreground_threshold = config.Property(proptype=float, default=100.0)
     
     def _transform_m(self, mi):
 

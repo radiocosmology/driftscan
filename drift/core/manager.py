@@ -11,7 +11,7 @@ from drift.util import mpiutil
 from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder, exotic_cylinder
 from drift.core import beamtransfer
 
-from drift.core import kltransform, doublekl, wiener
+from drift.core import kltransform, doublekl
 from drift.core import psestimation, psmc
 from drift.core import skymodel
 
@@ -31,7 +31,7 @@ teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelesc
 ## KLTransform configuration
 kltype_dict =   {   'KLTransform'   : kltransform.KLTransform,
                     'DoubleKL'      : doublekl.DoubleKL,
-                    'Wiener'        : wiener.Wiener
+#                    'Wiener'        : wiener.Wiener
                 }
 
 

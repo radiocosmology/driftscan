@@ -42,7 +42,7 @@ def horizon(sph_arr, zenith):
     
     proj = coord.sph_dot(sph_arr, zenith)
     
-    return proj * np.signbit(-proj)
+    return np.signbit(-proj)
 
 
 def cylinder_beam(sph_arr, zenith, cylwidth):

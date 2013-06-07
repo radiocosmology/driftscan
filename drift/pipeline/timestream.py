@@ -432,11 +432,11 @@ class Timestream(object):
                 f.create_dataset('error/', data=err)
                 f.create_dataset('correlation/', data=cr)
 
-                f.create_dataset('bandpower/', data=ps.bpower)
-                f.create_dataset('bandstart/', data=ps.bstart)
-                f.create_dataset('bandend/', data=ps.bend)
-                f.create_dataset('bandcenter/', data=ps.bcenter)
-                f.create_dataset('psvalues/', data=ps.psvalues)
+                f.create_dataset('bandpower/', data=ps.band_power)
+                f.create_dataset('k_start/', data=ps.k_start)
+                f.create_dataset('k_end/', data=ps.k_end)
+                f.create_dataset('k_center/', data=ps.k_center)
+                #f.create_dataset('psvalues/', data=ps.psvalues)
 
                 f.create_dataset('powerspectrum', data=powerspectrum)
 

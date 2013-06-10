@@ -8,7 +8,6 @@ import time
 import h5py
 import numpy as np
 import scipy.linalg as la
-import scipy.integrate as integrate
 
 from simulations import corr21cm
 
@@ -23,7 +22,7 @@ def uniform_band(k, kstart, kend):
     return np.where(np.logical_and(k > kstart, k < kend), np.ones_like(k), np.zeros_like(k))
 
 
-def bandfunc_2d(ks, ke, ts, te):
+def bandfunc_2d_polar(ks, ke, ts, te):
 
     def band(k, mu):
 
@@ -36,6 +35,22 @@ def bandfunc_2d(ks, ke, ts, te):
         return (kb * tb).astype(np.float64)
 
     return band
+
+
+def bandfunc_2d_cart(kpar_s, kpar_e, kperp_s, kperp_e):
+
+    def band(k, mu):
+
+        kpar = k * mu
+        kperp = k * (1.0 - mu**2)**0.5
+
+        parb = (kpar >= kpar_s) * (kpar <= kpar_e)
+        perpb = (kperp >= kperp_s) * (kperp < kperp_e)
+
+        return (parb * perpb).astype(np.float64)
+
+    return band
+
 
 
 def range_config(lst):
@@ -65,8 +80,19 @@ class PSEstimation(config.Reader):
 
     Attributes
     ----------
-    bands : np.ndarray
-        Array of band boundaries. e.g. np.array([0.0, 0.5, ])
+    bandtype : {'polar', 'cartesian'}
+        Which types of bands to use (default: polar).
+
+
+    k_bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ]), polar only
+    num_theta: integer
+        Number of theta bands to use (polar only)
+
+    kpar_bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ]), cartesian only
+    kperp_bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ]), cartesian only
 
     threshold : scalar
         Threshold for including eigenmodes (default is 0.0, i.e. all modes)
@@ -82,9 +108,15 @@ class PSEstimation(config.Reader):
     __metaclass__ = abc.ABCMeta
 
 
+    bandtype = config.Property(proptype=str, default='polar')
 
+    # Properties to control polar bands
     k_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
     num_theta = config.Property(proptype=int, default=1)
+
+    # Properties for cartesian bands
+    kpar_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
+    kperp_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
 
     threshold = config.Property(proptype=float, default=0.0)
 
@@ -125,7 +157,7 @@ class PSEstimation(config.Reader):
     @property
     def nbands(self):
         """Number of powerspectrum bands."""
-        return (len(self.k_bands) - 1) * self.num_theta
+        return self.k_center.size
 
 
     def num_evals(self, mi):
@@ -158,48 +190,77 @@ class PSEstimation(config.Reader):
         cr = corr21cm.Corr21cm()
         cr.ps_2d = False
         
-        # Create the array of band bounds
-        self.theta_bands = np.linspace(0.0, np.pi / 2.0, self.num_theta + 1, endpoint=True)
+        # Create different sets of bands depending on whether we're using polar bins or not.
+        if self.bandtype == 'polar':
 
-        # Broadcast the bounds against each other to make the 2D array of bands
-        kb, tb = np.broadcast_arrays(self.k_bands[np.newaxis, :], self.theta_bands[:, np.newaxis])
+            # Create the array of band bounds
+            self.theta_bands = np.linspace(0.0, np.pi / 2.0, self.num_theta + 1, endpoint=True)
 
-        # Pull out the start, end and centre of the bands in k, mu directions
-        self.k_start = kb[1:, :-1].flatten()
-        self.k_end = kb[1:, 1:].flatten()
-        self.k_center = 0.5 * (self.k_end + self.k_start)
+            # Broadcast the bounds against each other to make the 2D array of bands
+            kb, tb = np.broadcast_arrays(self.k_bands[np.newaxis, :], self.theta_bands[:, np.newaxis])
 
-        self.theta_start = tb[:-1, 1:].flatten()
-        self.theta_end = tb[1:, 1:].flatten()
-        self.theta_center = 0.5 * (self.theta_end + self.theta_start)
+            # Pull out the start, end and centre of the bands in k, mu directions
+            self.k_start = kb[1:, :-1].flatten()
+            self.k_end = kb[1:, 1:].flatten()
+            self.k_center = 0.5 * (self.k_end + self.k_start)
 
+            self.theta_start = tb[:-1, 1:].flatten()
+            self.theta_end = tb[1:, 1:].flatten()
+            self.theta_center = 0.5 * (self.theta_end + self.theta_start)
 
-        bounds = zip(self.k_start, self.k_end, self.theta_start, self.theta_end)
+            bounds = zip(self.k_start, self.k_end, self.theta_start, self.theta_end)
 
-        # Make a list of functions of the band window functions
-        self.band_func = [ bandfunc_2d(*bound) for bound in bounds ]
+            # Make a list of functions of the band window functions
+            self.band_func = [ bandfunc_2d_polar(*bound) for bound in bounds ]
+
+            # Create a list of functions of the band power functions
+            if self.unit_bands:
+                # Need slightly awkward double lambda because of loop closure scaling.
+                self.band_pk = [ (lambda bandt: (lambda k, mu: cr.ps_vv(k) * bandt(k, mu)))(band) for band in self.band_func]
+                self.band_power = np.ones_like(self.k_start)
+            else:
+                self.band_pk = self.band_func
+                self.band_power = cr.ps_vv(self.k_center)
+
+        elif self.bandtype == 'cartesian':
+            
+            # Broadcast the bounds against each other to make the 2D array of bands
+            kparb, kperpb = np.broadcast_arrays(self.kpar_bands[np.newaxis, :], self.kperp_bands[:, np.newaxis])
+
+            # Pull out the start, end and centre of the bands in k, mu directions
+            self.kpar_start = kparb[1:, :-1].flatten()
+            self.kpar_end = kparb[1:, 1:].flatten()
+            self.kpar_center = 0.5 * (self.kpar_end + self.kpar_start)
+
+            self.kperp_start = kperpb[:-1, 1:].flatten()
+            self.kperp_end = kperpb[1:, 1:].flatten()
+            self.kperp_center = 0.5 * (self.kperp_end + self.kperp_start)
+
+            bounds = zip(self.kpar_start, self.kpar_end, self.kperp_start, self.kperp_end)
+
+            self.k_center = (self.kpar_center**2 + self.kperp_center**2)**0.5
+
+            # Make a list of functions of the band window functions
+            self.band_func = [ bandfunc_2d_cart(*bound) for bound in bounds ]
+
+        else:
+            raise Exception('Bandtype %s is not supported.' % self.bandtype)
+
 
         # Create a list of functions of the band power functions
         if self.unit_bands:
             # Need slightly awkward double lambda because of loop closure scaling.
             self.band_pk = [ (lambda bandt: (lambda k, mu: cr.ps_vv(k) * bandt(k, mu)))(band) for band in self.band_func]
-            self.band_power = np.ones_like(self.k_start)
+            self.band_power = np.ones_like(self.k_center)
         else:
             self.band_pk = self.band_func
             self.band_power = cr.ps_vv(self.k_center)
 
-
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
-            #self.clarray = mpiutil.parallel_map(lambda band: self.make_clzz(band), self.band_pk)
 
             self.make_clzz_array()
 
-            # if mpiutil.rank0:
-            #     for bi in range(self.nbands):
-            #         cldiff = self.clarray[bi] - self.clarray2[bi]
-
-            #         print (cldiff == 0).all()
             
         print "Done."
 
@@ -347,27 +408,43 @@ class PSEstimation(config.Reader):
             cr = cv / np.outer(err, err)
 
             f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
+            f.attrs['bandtype'] = self.bandtype
 
             f.create_dataset('fisher/', data=self.fisher)
             f.create_dataset('bias/', data=self.bias)
             f.create_dataset('covariance/', data=cv)
-            f.create_dataset('error/', data=err)
+            f.create_dataset('errors/', data=err)
             f.create_dataset('correlation/', data=cr)
 
 
             f.create_dataset('band_power/', data=self.band_power)
 
-            f.create_dataset('k_start/', data=self.k_start)
-            f.create_dataset('k_end/', data=self.k_end)
-            f.create_dataset('k_center/', data=self.k_center)
+            if self.bandtype == 'polar':
+                f.create_dataset('k_start/', data=self.k_start)
+                f.create_dataset('k_end/', data=self.k_end)
+                f.create_dataset('k_center/', data=self.k_center)
 
-            f.create_dataset('theta_start/', data=self.theta_start)
-            f.create_dataset('theta_end/', data=self.theta_end)
-            f.create_dataset('theta_center/', data=self.theta_center) 
+                f.create_dataset('theta_start/', data=self.theta_start)
+                f.create_dataset('theta_end/', data=self.theta_end)
+                f.create_dataset('theta_center/', data=self.theta_center) 
 
-            f.create_dataset('k_bands', data=self.k_bands)
-            f.create_dataset('theta_bands', data=self.theta_bands)                       
- 
+                f.create_dataset('k_bands', data=self.k_bands)
+                f.create_dataset('theta_bands', data=self.theta_bands)                       
+
+            elif self.bandtype == 'cartesian':
+
+                f.create_dataset('kpar_start/', data=self.kpar_start)
+                f.create_dataset('kpar_end/', data=self.kpar_end)
+                f.create_dataset('kpar_center/', data=self.kpar_center)
+
+                f.create_dataset('kperp_start/', data=self.kperp_start)
+                f.create_dataset('kperp_end/', data=self.kperp_end)
+                f.create_dataset('kperp_center/', data=self.kperp_center) 
+
+                f.create_dataset('kpar_bands', data=self.kpar_bands)
+                f.create_dataset('kperp_bands', data=self.kperp_bands)          
+
+
             f.close()
 
     #===================================================

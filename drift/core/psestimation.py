@@ -57,7 +57,7 @@ def range_config(lst):
 
     lst2 = []
 
-    for item in lst:
+    for item in lst[:-1]:
         if isinstance(item, dict):
             
             if item['spacing'] == 'log':
@@ -65,6 +65,17 @@ def range_config(lst):
             elif item['spacing'] == 'linear':
                 item = np.linspace(item['start'], item['stop'], item['num'], endpoint=False)
 
+            item = np.atleast_1d(item)
+
+            lst2.append(item)
+
+    item = lst[-1]
+    if isinstance(item, dict):
+
+        if item['spacing'] == 'log':
+            item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num']+1, endpoint=True)
+        elif item['spacing'] == 'linear':
+            item = np.linspace(item['start'], item['stop'], item['num']+1, endpoint=True)
         item = np.atleast_1d(item)
 
         lst2.append(item)

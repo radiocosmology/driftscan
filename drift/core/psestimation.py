@@ -80,8 +80,19 @@ class PSEstimation(config.Reader):
 
     Attributes
     ----------
-    bands : np.ndarray
-        Array of band boundaries. e.g. np.array([0.0, 0.5, ])
+    bandtype : {'polar', 'cartesian'}
+        Which types of bands to use (default: polar).
+
+
+    k_bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ]), polar only
+    num_theta: integer
+        Number of theta bands to use (polar only)
+
+    kpar_bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ]), cartesian only
+    kperp_bands : np.ndarray
+        Array of band boundaries. e.g. np.array([0.0, 0.5, ]), cartesian only
 
     threshold : scalar
         Threshold for including eigenmodes (default is 0.0, i.e. all modes)

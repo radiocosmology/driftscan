@@ -20,21 +20,22 @@ def svd_func(mi):
 
     print mi
     # Open m beams for reading.
-    fm = h5py.File(bt._mfile(mi), 'r')
 
     sv = np.zeros((bt.nfreq, svd_len), dtype=np.float64)
 
-    for fi in range(bt.nfreq):
+    with h5py.File(bt._mfile(mi), 'r') as fm:
 
-        # Read the positive and negative m beams, and combine into one.
-        bf = fm['beam_m'][fi][:].reshape(bt.ntel, bt.telescope.num_pol_sky * (bt.telescope.lmax+1))
+        for fi in range(bt.nfreq):
 
-        # Weight by noise matrix
-        noisew = bt.telescope.noisepower(np.arange(bt.telescope.npairs), fi).flatten()**(-0.5)
-        noisew = np.concatenate([noisew, noisew])
-        bf = bf * noisew[:, np.newaxis]
+            # Read the positive and negative m beams, and combine into one.
+            bf = fm['beam_m'][fi][:].reshape(bt.ntel, bt.telescope.num_pol_sky * (bt.telescope.lmax+1))
 
-        sv[fi] = la.svdvals(bf)
+            # Weight by noise matrix
+            noisew = bt.telescope.noisepower(np.arange(bt.telescope.npairs), fi).flatten()**(-0.5)
+            noisew = np.concatenate([noisew, noisew])
+            bf = bf * noisew[:, np.newaxis]
+
+            sv[fi] = la.svdvals(bf)
 
     return sv
 

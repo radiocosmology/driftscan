@@ -13,7 +13,7 @@ from drift.util import util, mpiutil
 class Timestream(object):
 
     directory = None
-
+    output_directory = None
     beamtransfer_dir = None
 
 
@@ -32,6 +32,7 @@ class Timestream(object):
             Directory that the BeamTransfer files are stored in.
         """
         self.directory = os.path.abspath(tsdir)
+        self.output_directory = self.directory
         #self.beamtransfer_dir = os.path.abspath(btdir)
         self.manager = manager.ProductManager.from_config(prodconfig)
     
@@ -100,7 +101,7 @@ class Timestream(object):
 
     def _mdir(self, mi):
         # Pattern to form the `m` ordered file.
-        pat = self.directory + "/mmodes/" + util.natpattern(self.telescope.mmax)
+        pat = self.output_directory + "/mmodes/" + util.natpattern(self.telescope.mmax)
         return pat % abs(mi)
 
 
@@ -129,6 +130,8 @@ class Timestream(object):
 
     def generate_mmodes(self):
         """Calculate the m-modes corresponding to the Timestream.
+
+        Perform an MPI transpose for efficiency.
         """
 
         tel = self.telescope
@@ -245,7 +248,7 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
 
 
@@ -274,7 +277,7 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
 
     #====================================================
@@ -385,7 +388,7 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
 
     #====================================================
@@ -419,7 +422,7 @@ class Timestream(object):
 
 
         if mpiutil.rank0:
-            with h5py.File(self.directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname)), 'w') as f:
+            with h5py.File(self.output_directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname)), 'w') as f:
 
 
                 cv = la.inv(fisher)
@@ -465,7 +468,7 @@ class Timestream(object):
     @property
     def _picklefile(self):
         # The filename for the pickled telescope
-        return self.directory + "/timestreamobject.pickle"
+        return self.output_directory + "/timestreamobject.pickle"
 
 
     def save(self):

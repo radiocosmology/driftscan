@@ -467,12 +467,16 @@ class Timestream(object):
                 f.create_dataset('correlation/', data=cr)
 
                 f.create_dataset('bandpower/', data=ps.band_power)
-                f.create_dataset('k_start/', data=ps.k_start)
-                f.create_dataset('k_end/', data=ps.k_end)
-                f.create_dataset('k_center/', data=ps.k_center)
+                #f.create_dataset('k_start/', data=ps.k_start)
+                #f.create_dataset('k_end/', data=ps.k_end)
+                #f.create_dataset('k_center/', data=ps.k_center)
                 #f.create_dataset('psvalues/', data=ps.psvalues)
 
                 f.create_dataset('powerspectrum', data=powerspectrum)
+
+        # Delete cache of bands for memory reasons
+        del ps.clarray
+        ps.clarray = None
 
         return powerspectrum
 

@@ -134,6 +134,12 @@ class Timestream(object):
         Perform an MPI transpose for efficiency.
         """
 
+
+        if os.path.exists(self.output_directory + "/mmodes/COMPLETED_M"):
+            if mpiutil.rank0:
+                print "******* m-files already generated ********"
+            return
+
         tel = self.telescope
         mmax = tel.mmax
         nfreq = tel.nfreq
@@ -176,6 +182,11 @@ class Timestream(object):
                 f.create_dataset('/mmode', data=col_mmodes[lmi])
                 f.attrs['m'] = mi
 
+        if mpiutil.rank0:
+
+            # Make file marker that the m's have been correctly generated:
+            open(self.output_directory + "/mmodes/COMPLETED_M", 'a').close()
+
     #====================================================
 
 
@@ -210,6 +221,10 @@ class Timestream(object):
         
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            if os.path.exists(self._svdfile(mi)):
+                print "File %s exists. Skipping..." % self._svdfile(mi)
+                continue
 
             tm = self.mmode(mi).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
             svdm = self.beamtransfer.project_vector_telescope_to_svd(mi, tm)
@@ -319,6 +334,10 @@ class Timestream(object):
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
+            if os.path.exists(self._klfile(mi)):
+                print "File %s exists. Skipping..." % self._klfile(mi)
+                continue
+
             svdm = self.mmode_svd(mi) #.reshape(self.telescope.nfreq, 2*self.telescope.npairs)
             #svdm = self.beamtransfer.project_vector_telescope_to_svd(mi, tm)
 
@@ -397,6 +416,13 @@ class Timestream(object):
     #======= Estimate powerspectrum from data ===========
 
 
+    @property
+    def _psfile(self):
+        # Pattern to form the `m` ordered file.
+        return self.output_directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname))
+
+
+
     def set_psestimator(self, psname):
         self.psname = psname
 
@@ -405,6 +431,11 @@ class Timestream(object):
 
         import scipy.linalg as la
         
+
+        if os.path.exists(self._psfile):
+            print "File %s exists. Skipping..." % self._psfile
+            return
+
         ps = self.manager.psestimators[self.psname]
         ps.genbands()
 
@@ -422,7 +453,7 @@ class Timestream(object):
 
 
         if mpiutil.rank0:
-            with h5py.File(self.output_directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname)), 'w') as f:
+            with h5py.File(self._psfile, 'w') as f:
 
 
                 cv = la.inv(fisher)

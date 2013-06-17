@@ -187,6 +187,8 @@ class Timestream(object):
             # Make file marker that the m's have been correctly generated:
             open(self.output_directory + "/mmodes/COMPLETED_M", 'a').close()
 
+        mpiutil.barrier()
+
     #====================================================
 
 
@@ -233,6 +235,9 @@ class Timestream(object):
                 f.create_dataset('mmode_svd', data=svdm)
                 f.attrs['m'] = mi
 
+        mpiutil.barrier()
+
+
     #====================================================
 
 
@@ -266,6 +271,8 @@ class Timestream(object):
             with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
 
+        mpiutil.barrier()
+
 
     def mapmake_svd(self, nside, mapname):
 
@@ -294,6 +301,8 @@ class Timestream(object):
 
             with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
+
+        mpiutil.barrier()
 
     #====================================================
 
@@ -347,6 +356,8 @@ class Timestream(object):
                 f.create_dataset('mmode_kl', data=klm)
                 f.attrs['m'] = mi
 
+        mpiutil.barrier()
+
 
     def fake_kl_data(self):
 
@@ -367,6 +378,8 @@ class Timestream(object):
             with h5py.File(self._klfile(mi), 'w') as f:
                 f.create_dataset('mmode_kl', data=klmode)
                 f.attrs['m'] = mi
+
+        mpiutil.barrier()
 
 
     def mapmake_kl(self, nside, mapname, wiener=False):
@@ -409,6 +422,8 @@ class Timestream(object):
 
             with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
+
+        mpiutil.barrier()
 
     #====================================================
 
@@ -477,6 +492,8 @@ class Timestream(object):
         # Delete cache of bands for memory reasons
         del ps.clarray
         ps.clarray = None
+
+        mpiutil.barrier()
 
         return powerspectrum
 

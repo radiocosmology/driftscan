@@ -1,4 +1,4 @@
-import numpy as np
+import os.path
 
 from drift.util import config
 from drift.pipeline import timestream
@@ -30,29 +30,36 @@ class PipelineManager(config.Reader):
     """
 
     # Directories
-    timestream_directory = config.Property(type=str, default='')
-    product_directory = config.Property(type=str, default='')
-    output_directory = config.Property(type=str, default='')
+    timestream_directory = config.Property(proptype=str, default='')
+    product_directory = config.Property(proptype=str, default='')
+    output_directory = config.Property(proptype=str, default='')
 
     # Actions to perform
-    generate_modes = config.Property(type=bool, default=True)
-    generate_klmodes = config.Property(type=bool, default=True)
-    generate_powerspectra = config.Property(type=bool, default=True)
+    generate_modes = config.Property(proptype=bool, default=True)
+    generate_klmodes = config.Property(proptype=bool, default=True)
+    generate_powerspectra = config.Property(proptype=bool, default=True)
 
     # Specific products to use.
-    klmodes = config.Property(type=list, default=[])
-    powerspectra = config.Property(type=list, default=[])
+    klmodes = config.Property(proptype=list, default=[])
+    powerspectra = config.Property(proptype=list, default=[])
 
     timestream = None
     manager = None
 
+
+
     def setup(self):
         """Set-up the timestream and manager objects."""
+
+        self.timestream_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.timestream_directory)))
+        self.product_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.product_directory)))
+        self.output_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.output_directory)))
 
         self.timestream = timestream.Timestream(self.timestream_directory, self.product_directory)
         self.manager = self.timestream.manager
 
         if self.output_directory != '':
+
             self.timestream.output_directory = self.output_directory
 
 
@@ -60,24 +67,28 @@ class PipelineManager(config.Reader):
         """Generate pipeline outputs."""
 
         if self.generate_modes:
+            print "Generating modes."
 
             self.timestream.generate_mmodes()
             self.timestream.generate_mmodes_svd()            
 
         if self.generate_klmodes:
 
-            for klname in self.klmodes:
+            for klname in self.klmodes:                
+                print "Generating KL filter (%s)" % klname
 
                 self.timestream.set_kltransform(klname)
                 self.timestream.generate_mmodes_kl()
 
 
-        if self.generate_ps:
+        if self.generate_powerspectra:
 
             for ps in self.powerspectra:
 
                 psname = ps['psname']
                 klname = ps['klname']
+
+                print "Estimating powerspectra (%s)" % psname
 
                 self.timestream.set_kltransform(klname)
                 self.timestream.set_psestimator(psname)

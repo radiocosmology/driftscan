@@ -53,13 +53,12 @@ class PipelineManager(config.Reader):
 
         self.timestream_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.timestream_directory)))
         self.product_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.product_directory)))
-        self.output_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.output_directory)))
 
         self.timestream = timestream.Timestream(self.timestream_directory, self.product_directory)
         self.manager = self.timestream.manager
 
         if self.output_directory != '':
-
+            self.output_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.output_directory)))
             self.timestream.output_directory = self.output_directory
 
 
@@ -94,6 +93,8 @@ class PipelineManager(config.Reader):
                 self.timestream.set_psestimator(psname)
 
                 self.timestream.powerspectrum()
+
+
 
     run = generate
 

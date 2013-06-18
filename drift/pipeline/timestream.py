@@ -725,6 +725,8 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, **kwargs):
 
     tstream.save()
 
+    mpiutil.barrier()
+
     return tstream
 
 

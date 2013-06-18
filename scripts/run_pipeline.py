@@ -26,11 +26,13 @@ def run_config(args):
         if 'simulate' not in yconf:
             raise Exception('A `simulate` section is required.')
 
-        sim_conf = yconf['simulate']
+        if os.path.exists(pl.timestream._ffile(0)):
+            print "Looks like timestream already exists. Skipping...."
+        else:
+            sim_conf = yconf['simulate']
 
-        m = manager.ProductManager.from_config(sim_conf['product_directory'])
-
-        timestream.simulate(m, pl.timestream_directory, **sim_conf)
+            m = manager.ProductManager.from_config(sim_conf['product_directory'])
+            timestream.simulate(m, pl.timestream_directory, **sim_conf)
 
     pl.generate()
 

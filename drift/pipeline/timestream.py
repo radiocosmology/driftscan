@@ -13,7 +13,7 @@ from drift.util import util, mpiutil
 class Timestream(object):
 
     directory = None
-
+    output_directory = None
     beamtransfer_dir = None
 
 
@@ -32,6 +32,7 @@ class Timestream(object):
             Directory that the BeamTransfer files are stored in.
         """
         self.directory = os.path.abspath(tsdir)
+        self.output_directory = self.directory
         #self.beamtransfer_dir = os.path.abspath(btdir)
         self.manager = manager.ProductManager.from_config(prodconfig)
     
@@ -74,6 +75,15 @@ class Timestream(object):
         # Pattern to form the `freq` ordered file.
         return self._fdir(fi) + "/timestream.hdf5"
 
+    @property
+    def ntime(self):
+        """Get the number of timesamples."""
+
+        with h5py.File(self._ffile(0), 'r') as f:
+            ntime = f.attrs['ntime']
+
+        return ntime
+
 
     def timestream_f(self, fi):
         """Fetch the timestream for a given frequency.
@@ -100,7 +110,7 @@ class Timestream(object):
 
     def _mdir(self, mi):
         # Pattern to form the `m` ordered file.
-        pat = self.directory + "/mmodes/" + util.natpattern(self.telescope.mmax)
+        pat = self.output_directory + "/mmodes/" + util.natpattern(self.telescope.mmax)
         return pat % abs(mi)
 
 
@@ -129,7 +139,15 @@ class Timestream(object):
 
     def generate_mmodes(self):
         """Calculate the m-modes corresponding to the Timestream.
+
+        Perform an MPI transpose for efficiency.
         """
+
+
+        if os.path.exists(self.output_directory + "/mmodes/COMPLETED_M"):
+            if mpiutil.rank0:
+                print "******* m-files already generated ********"
+            return
 
         tel = self.telescope
         mmax = tel.mmax
@@ -138,10 +156,8 @@ class Timestream(object):
         lfreq, sfreq, efreq = mpiutil.split_local(nfreq)
         lm, sm, em = mpiutil.split_local(mmax + 1)
 
-        ntime = 2*mmax+1
-
         # Load in the local frequencies of the time stream
-        tstream = np.zeros((lfreq, tel.npairs, ntime), dtype=np.complex128)
+        tstream = np.zeros((lfreq, tel.npairs, self.ntime), dtype=np.complex128)
         for lfi, fi in enumerate(range(sfreq, efreq)):
             tstream[lfi] = self.timestream_f(fi)
 
@@ -172,6 +188,13 @@ class Timestream(object):
             with h5py.File(self._mfile(mi), 'w') as f:
                 f.create_dataset('/mmode', data=col_mmodes[lmi])
                 f.attrs['m'] = mi
+
+        if mpiutil.rank0:
+
+            # Make file marker that the m's have been correctly generated:
+            open(self.output_directory + "/mmodes/COMPLETED_M", 'a').close()
+
+        mpiutil.barrier()
 
     #====================================================
 
@@ -208,12 +231,19 @@ class Timestream(object):
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
+            if os.path.exists(self._svdfile(mi)):
+                print "File %s exists. Skipping..." % self._svdfile(mi)
+                continue
+
             tm = self.mmode(mi).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
             svdm = self.beamtransfer.project_vector_telescope_to_svd(mi, tm)
 
             with h5py.File(self._svdfile(mi), 'w') as f:
                 f.create_dataset('mmode_svd', data=svdm)
                 f.attrs['m'] = mi
+
+        mpiutil.barrier()
+
 
     #====================================================
 
@@ -245,8 +275,10 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
+
+        mpiutil.barrier()
 
 
     def mapmake_svd(self, nside, mapname):
@@ -274,8 +306,10 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
+
+        mpiutil.barrier()
 
     #====================================================
 
@@ -316,6 +350,10 @@ class Timestream(object):
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
+            if os.path.exists(self._klfile(mi)):
+                print "File %s exists. Skipping..." % self._klfile(mi)
+                continue
+
             svdm = self.mmode_svd(mi) #.reshape(self.telescope.nfreq, 2*self.telescope.npairs)
             #svdm = self.beamtransfer.project_vector_telescope_to_svd(mi, tm)
 
@@ -324,6 +362,8 @@ class Timestream(object):
             with h5py.File(self._klfile(mi), 'w') as f:
                 f.create_dataset('mmode_kl', data=klm)
                 f.attrs['m'] = mi
+
+        mpiutil.barrier()
 
 
     def fake_kl_data(self):
@@ -345,6 +385,8 @@ class Timestream(object):
             with h5py.File(self._klfile(mi), 'w') as f:
                 f.create_dataset('mmode_kl', data=klmode)
                 f.attrs['m'] = mi
+
+        mpiutil.barrier()
 
 
     def mapmake_kl(self, nside, mapname, wiener=False):
@@ -385,13 +427,22 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.directory + '/' + mapname, 'w') as f:
+            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
                 f.create_dataset('/map', data=skymap)
+
+        mpiutil.barrier()
 
     #====================================================
 
 
     #======= Estimate powerspectrum from data ===========
+
+
+    @property
+    def _psfile(self):
+        # Pattern to form the `m` ordered file.
+        return self.output_directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname))
+
 
 
     def set_psestimator(self, psname):
@@ -402,6 +453,11 @@ class Timestream(object):
 
         import scipy.linalg as la
         
+
+        if os.path.exists(self._psfile):
+            print "File %s exists. Skipping..." % self._psfile
+            return
+
         ps = self.manager.psestimators[self.psname]
         ps.genbands()
 
@@ -419,7 +475,7 @@ class Timestream(object):
 
 
         if mpiutil.rank0:
-            with h5py.File(self.directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname)), 'w') as f:
+            with h5py.File(self._psfile, 'w') as f:
 
 
                 cv = la.inv(fisher)
@@ -433,12 +489,18 @@ class Timestream(object):
                 f.create_dataset('correlation/', data=cr)
 
                 f.create_dataset('bandpower/', data=ps.band_power)
-                f.create_dataset('k_start/', data=ps.k_start)
-                f.create_dataset('k_end/', data=ps.k_end)
-                f.create_dataset('k_center/', data=ps.k_center)
+                #f.create_dataset('k_start/', data=ps.k_start)
+                #f.create_dataset('k_end/', data=ps.k_end)
+                #f.create_dataset('k_center/', data=ps.k_center)
                 #f.create_dataset('psvalues/', data=ps.psvalues)
 
                 f.create_dataset('powerspectrum', data=powerspectrum)
+
+        # Delete cache of bands for memory reasons
+        del ps.clarray
+        ps.clarray = None
+
+        mpiutil.barrier()
 
         return powerspectrum
 
@@ -465,7 +527,7 @@ class Timestream(object):
     @property
     def _picklefile(self):
         # The filename for the pickled telescope
-        return self.directory + "/timestreamobject.pickle"
+        return self.output_directory + "/timestreamobject.pickle"
 
 
     def save(self):
@@ -498,6 +560,172 @@ class Timestream(object):
     #====================================================
 
 
+# kwargs is to absorb any extra params
+def simulate(m, outdir, maps=[], ndays=None, resolution=0, **kwargs):
+    """Create a simulated timestream and save it to disk.
+
+    Parameters
+    ----------
+    m : ProductManager object
+        Products of telescope to simulate.
+    outdir : directoryname
+        Directory that we will save the timestream into.
+    maps : list
+        List of map filenames. The sum of these form the simulated sky.
+    ndays : int, optional
+        Number of days of observation. Setting `ndays = None` (default) uses
+        the default stored in the telescope object; `ndays = 0`, assumes the
+        observation time is infinite so that the noise is zero.
+    resolution : scalar, optional
+        Approximate time resolution in seconds. Setting `resolution = 0`
+        (default) calculates the value from the mmax.
+
+    Returns
+    -------
+    timestream : Timestream
+    """
+
+    ## Read in telescope system
+    bt = m.beamtransfer
+    tel = bt.telescope
+
+
+    lmax = tel.lmax
+    mmax = tel.mmax
+    nfreq = tel.nfreq
+    npol = tel.num_pol_sky
+
+    projmaps = (len(maps) > 0)
+
+    lfreq, sfreq, efreq = mpiutil.split_local(nfreq)
+    local_freq = range(sfreq, efreq)
+
+    lm, sm, em = mpiutil.split_local(mmax + 1)
+
+    # If ndays is not set use the default value.
+    if ndays is None:
+        ndays = tel.ndays
+
+    # Calculate the number of timesamples from the resolution
+    if resolution == 0:
+        # Set the minimum resolution required for the sky.
+        ntime = 2*mmax+1
+    else:
+        # Set the cl
+        ntime = int(np.round(24 * 3600.0 / resolution))
+
+
+    col_vis = np.zeros((tel.npairs, lfreq, ntime), dtype=np.complex128)
+
+    ## If we want to add maps use the m-mode formalism to project a skymap
+    ## into visibility space.
+    
+    if projmaps:
+
+        # Load file to find out the map shapes.
+        with h5py.File(maps[0], 'r') as f:
+            mapshape = f['map'].shape
+
+        # Allocate array to store the local frequencies
+        row_map = np.zeros((lfreq,) + mapshape[1:], dtype=np.float64)
+
+        # Read in and sum up the local frequencies of the supplied maps.
+        for mapfile in maps:
+            with h5py.File(mapfile) as f:
+                row_map += f['map'][sfreq:efreq]
+
+        # Calculate the alm's for the local sections
+        row_alm = hputil.sphtrans_sky(row_map, lmax=lmax).reshape((lfreq, npol * (lmax+1), lmax+1))
+
+        # Perform the transposition to distribute different m's across processes. Neat
+        # tip, putting a shorter value for the number of columns, trims the array at
+        # the same time
+        col_alm = mpiutil.transpose_blocks(row_alm, (nfreq, npol * (lmax+1), mmax+1))
+
+        # Transpose and reshape to shift m index first.
+        col_alm = np.transpose(col_alm, (2, 0, 1)).reshape(lm, nfreq, npol, lmax+1)
+
+        # Create storage for visibility data
+        vis_data = np.zeros((lm, nfreq, bt.ntel), dtype=np.complex128)
+
+        # Iterate over m's local to this process and generate the corresponding
+        # visibilities
+        for mp, mi in enumerate(range(sm, em)):
+            vis_data[mp] = bt.project_vector_sky_to_telescope(mi, col_alm[mp])
+
+        # Rearrange axes such that frequency is last (as we want to divide
+        # frequencies across processors)
+        row_vis = vis_data.transpose((0, 2, 1))#.reshape((lm * bt.ntel, nfreq))
+
+        # Parallel transpose to get all m's back onto the same processor
+        col_vis_tmp = mpiutil.transpose_blocks(row_vis, ((mmax+1), bt.ntel, nfreq))
+        col_vis_tmp = col_vis_tmp.reshape(mmax + 1, 2, tel.npairs, lfreq)
+
+
+        # Transpose the local section to make the m's the last axis and unwrap the
+        # positive and negative m at the same time.
+        col_vis[..., 0] = col_vis_tmp[0, 0]
+        for mi in range(1, mmax+1):
+            col_vis[...,  mi] = col_vis_tmp[mi, 0]
+            col_vis[..., -mi] = col_vis_tmp[mi, 1].conj()  # Conjugate only (not (-1)**m - see paper)
+
+
+        del col_vis_tmp
+
+    ## If we're simulating noise, create a realisation and add it to col_vis
+    if ndays > 0:
+
+        # Fetch the noise powerspectrum
+        noise_ps = tel.noisepower(np.arange(tel.npairs)[:, np.newaxis], np.array(local_freq)[np.newaxis, :], ndays=ndays).reshape(tel.npairs, lfreq)[:, :, np.newaxis]
+
+        # Create and weight complex noise coefficients
+        noise_vis = (np.array([1.0, 1.0J]) * np.random.standard_normal(col_vis.shape + (2,))).sum(axis=-1)
+        noise_vis *= (noise_ps / 2.0)**0.5
+
+        # Add into main noise sims
+        col_vis += noise_vis
+
+        del noise_vis
+
+
+    # Fourier transform m-modes back to get timestream.
+    vis_stream = np.fft.ifft(col_vis, axis=-1) * ntime
+    vis_stream = vis_stream.reshape(tel.npairs, lfreq, ntime)
+
+    # The time samples the visibility is calculated at
+    tphi = np.linspace(0, 2*np.pi, ntime, endpoint=False)
+
+    # Create timestream object
+    tstream = Timestream(outdir, m.directory)
+
+    ## Iterate over the local frequencies and write them to disk.
+    for lfi, fi in enumerate(local_freq):
+
+        # Make directory if required
+        if not os.path.exists(tstream._fdir(fi)):
+            os.makedirs(tstream._fdir(fi))
+
+        # Write file contents
+        with h5py.File(tstream._ffile(fi), 'w') as f:
+
+            # Timestream data
+            f.create_dataset('/timestream', data=vis_stream[:, lfi])
+            f.create_dataset('/phi', data=tphi)
+
+            # Telescope layout data
+            f.create_dataset('/feedmap', data=tel.feedmap)
+            f.create_dataset('/feedconj', data=tel.feedconj)
+            f.create_dataset('/feedmask', data=tel.feedmask)
+            f.create_dataset('/uniquepairs', data=tel.uniquepairs)
+            f.create_dataset('/baselines', data=tel.baselines)
+
+            # Write metadata
+            f.attrs['beamtransfer_path'] = os.path.abspath(bt.directory)
+            f.attrs['ntime'] = ntime
+
+    tstream.save()
+
+    return tstream
 
 
 

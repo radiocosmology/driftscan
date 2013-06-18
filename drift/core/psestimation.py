@@ -117,6 +117,29 @@ def decorrelate_ps(ps, fisher):
     return psd, evm, w
 
 
+def decorrelate_ps_file(fname):
+    """Load and decorrelate the powerspectrum in `fname`.
+
+    Parameters
+    ----------
+    fname : string
+        Name of file to load.
+
+    Returns
+    -------
+    psd : np.narray[nbands]
+        Decorrelated powerspectrum estimate.
+    errors : np.ndarray[nbands]
+        Errors on decorrelated bands.
+    window : np.ndarray[nbands, nbands]
+        Window functions for each band row-wise.
+    """
+    f1 = h5py.File(fname, 'r')
+
+    return decorrelate_ps(f1['powerspectrum'][:], f1['fisher'][:])
+
+
+
 class PSEstimation(config.Reader):
     """Base class for quadratic powerspectrum estimation.
 

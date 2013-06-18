@@ -38,10 +38,16 @@ class PipelineManager(config.Reader):
     generate_modes = config.Property(proptype=bool, default=True)
     generate_klmodes = config.Property(proptype=bool, default=True)
     generate_powerspectra = config.Property(proptype=bool, default=True)
+    generate_maps = config.Property(proptype=bool, default=True)
 
     # Specific products to use.
     klmodes = config.Property(proptype=list, default=[])
     powerspectra = config.Property(proptype=list, default=[])
+    klmaps = config.Property(proptype=list, default=[])
+
+    # Specific map-making options
+    nside = config.Property(proptype=int, default=128)
+    wiener = config.Property(proptype=bool, default=False)
 
     timestream = None
     manager = None
@@ -94,6 +100,16 @@ class PipelineManager(config.Reader):
 
                 self.timestream.powerspectrum()
 
+
+        if self.generate_maps:
+
+            for klname in self.klmaps:                
+                print "Generating KL map (%s)" % klname
+
+                mapfile = 'map_%s.hdf5' % klname
+
+                self.timestream.set_kltransform(klname)
+                self.timestream.mapmake_kl(self.nside, mapfile, wiener=self.wiener)
 
 
     run = generate

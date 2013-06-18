@@ -56,6 +56,8 @@ class ProductManager(object):
     def from_config(cls, configfile):
         c = cls()
 
+        configfile = os.path.normpath(os.path.expandvars(os.path.expanduser(configfile)))
+
         if os.path.isdir(configfile):
             configfile = configfile + '/config.yaml'
 

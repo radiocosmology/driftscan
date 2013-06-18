@@ -7,8 +7,8 @@ import shutil
 
 import yaml
 
-from drift.pipeline import pipeline
-
+from drift.core import manager
+from drift.pipeline import pipeline, timestream
 
 
 def run_config(args):
@@ -20,6 +20,17 @@ def run_config(args):
 
     pl = pipeline.PipelineManager.from_config(conf)
     pl.setup()
+
+    # Simulate timestream if required by the params file
+    if conf['simulate']:
+        if 'simulate' not in yconf:
+            raise Exception('A `simulate` section is required.')
+
+        sim_conf = yconf['simulate']
+
+        m = manager.ProductManager.from_config(sim_conf['product_directory'])
+
+        timestream.simulate(m, pl.timestream_directory, **sim_conf)
 
     pl.generate()
 

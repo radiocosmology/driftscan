@@ -83,6 +83,39 @@ def range_config(lst):
     return np.concatenate(lst2)
 
 
+def decorrelate_ps(ps, fisher):
+    """Decorrelated the powerspectrum estimate.
+
+    Parameters
+    ----------
+    ps : np.ndarray[nbands]
+        Powerspectrum estimate.
+    fisher : np.ndarrays[nbands, nbands]
+        Fisher matrix.
+
+    Returns
+    -------
+    psd : np.narray[nbands]
+        Decorrelated powerspectrum estimate.
+    errors : np.ndarray[nbands]
+        Errors on decorrelated bands.
+    window : np.ndarray[nbands, nbands]
+        Window functions for each band row-wise.
+    """
+    # Factorise the Fisher matrix
+    fh = la.cholesky(fisher, lower=True)
+    fhi = la.inv(fh)
+
+    # Create the mixing matrix, and window functions
+    m = fhi / np.sum(fh.T, axis=1)[:, np.newaxis]
+    w = np.dot(m, fisher)
+
+    # Find the decorrelated powerspectrum and its errors
+    evm = np.dot(m, np.dot(fisher, m.T)).diagonal()**0.5
+    psd = np.dot(w, ps)
+
+    return psd, evm, w
+
 
 class PSEstimation(config.Reader):
     """Base class for quadratic powerspectrum estimation.

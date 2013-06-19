@@ -52,6 +52,8 @@ class PipelineManager(config.Reader):
     timestream = None
     manager = None
 
+    collect_klmodes = config.Property(proptype=bool, default=True)
+
 
 
     def setup(self):
@@ -84,6 +86,9 @@ class PipelineManager(config.Reader):
 
                 self.timestream.set_kltransform(klname)
                 self.timestream.generate_mmodes_kl()
+
+                if self.collect_klmodes:
+                    self.timestream.collect_mmodes_kl()                
 
 
         if self.generate_powerspectra:

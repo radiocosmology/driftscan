@@ -6,7 +6,7 @@ import numpy as np
 
 from cosmoutils import hputil
 
-from drift.core import manager
+from drift.core import manager, kltransform
 from drift.util import util, mpiutil
 
 
@@ -366,6 +366,36 @@ class Timestream(object):
         mpiutil.barrier()
 
 
+    def collect_mmodes_kl(self):
+
+        def evfunc(mi):
+            evf = np.zeros(self.beamtransfer.ndofmax, dtype=np.complex128)
+
+            ev = self.mmode_kl(mi)
+            if ev.size > 0:
+                evf[-ev.size:] = ev
+
+            return evf
+
+        if mpiutil.rank0:
+            print "Creating eigenvalues file (process 0 only)."
+        
+        mlist = range(self.telescope.mmax+1)
+        shape = (self.beamtransfer.ndofmax, )
+        evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.complex128)
+
+        if mpiutil.rank0:
+            fname =  self.output_directory + ("/klmodes_%s_%f.hdf5"% (self.klname, self.klthreshold))
+            if os.path.exists(fname):
+                print "File: %s exists. Skipping..." % (fname)
+                return
+
+            with h5py.File(fname, 'w') as f:
+                f.create_dataset('evals', data=evarray)
+
+
+
+
     def fake_kl_data(self):
 
         kl = self.manager.kltransforms[self.klname]
@@ -391,6 +421,12 @@ class Timestream(object):
 
     def mapmake_kl(self, nside, mapname, wiener=False):
 
+        mapfile = self.output_directory + '/' + mapname
+
+        if os.path.exists(mapfile):
+            if mpiutil.rank0:
+                print "File %s exists. Skipping..."
+            return
 
         kl = self.manager.kltransforms[self.klname]
 
@@ -427,7 +463,7 @@ class Timestream(object):
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
-            with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
+            with h5py.File(mapfile, 'w') as f:
                 f.create_dataset('/map', data=skymap)
 
         mpiutil.barrier()

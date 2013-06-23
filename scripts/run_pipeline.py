@@ -96,7 +96,8 @@ mpirun --mca btl self,sm,tcp -np %(mpiproc)i -npernode %(pernode)i python %(scri
     with open(scriptname, 'w') as f:
         f.write(script)
 
-    os.system('cd %s; qsub jobscript.sh' % pbsdir)
+    if not args.nosubmit:
+        os.system('cd %s; qsub jobscript.sh' % pbsdir)
 
 
 
@@ -112,6 +113,7 @@ parser_run.set_defaults(func=run_config)
 
 parser_queue = subparsers.add_parser('queue', help='Create a jobscript for running the pipeline and add to the PBS queue.')
 parser_queue.add_argument('configfile', type=argparse.FileType('r'), help='Configuration file to use.')
+parser_queue.add_argument('--nosubmit', action='store_true', help='Don\'t submit the job to the queue.')
 parser_queue.set_defaults(func=queue_config)
 
 args = parser.parse_args()

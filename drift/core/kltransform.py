@@ -153,6 +153,8 @@ class KLTransform(config.Reader):
     use_foregrounds = config.Property(proptype=bool, default=True)
     use_polarised = config.Property(proptype=bool, default=True)
 
+    pol_length = config.Property(proptype=float, default=None)
+
     evdir = ""
 
     _cvfg = None
@@ -199,7 +201,7 @@ class KLTransform(config.Reader):
             if self.use_polarised:
                 self._cvfg = skymodel.foreground_model(self.telescope.lmax,
                                                        self.telescope.frequencies,
-                                                       npol)
+                                                       npol, pol_length=self.pol_length)
             else:
                 self._cvfg = skymodel.foreground_model(self.telescope.lmax,
                                                        self.telescope.frequencies,

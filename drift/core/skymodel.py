@@ -9,74 +9,6 @@ _cr = None
 
 _reionisation = False
 
-# _zaverage = 5
-
-# _endpoint = False
-
-
-# def clarray(aps, lmax, zarray, zaverage=None):
-
-#     if zaverage == None:
-#         zaverage = _zaverage
-
-#     if zaverage == 1:
-#         return aps(np.arange(lmax+1)[:, np.newaxis, np.newaxis],
-#                    zarray[np.newaxis, :, np.newaxis], zarray[np.newaxis, np.newaxis, :])
-#     else:
-#         zhalf = np.abs(zarray[1] - zarray[0]) / 2.0
-#         zlen = zarray.size
-#         if _endpoint:
-#             za = (zarray[:, np.newaxis] + np.linspace(-zhalf, zhalf, zaverage)[np.newaxis, :]).flatten()
-#         else:
-#             za = np.linspace(zarray[0] - zhalf, zarray[-1]+ zhalf, zlen * zaverage, endpoint=False) + (zhalf / zaverage)
-
-#         lsections = np.array_split(np.arange(lmax+1), lmax / 50)
-
-#         cla = np.zeros((lmax+1, zlen, zlen), dtype=np.float64)
-
-#         for lsec in lsections:
-#             clt = aps(lsec[:, np.newaxis, np.newaxis],
-#                       za[np.newaxis, :, np.newaxis], za[np.newaxis, np.newaxis, :])
-
-#             cla[lsec] = clt.reshape((-1, zlen, zaverage, zlen, zaverage)).sum(axis=4).sum(axis=2) / zaverage**2
-
-#         return cla
-
-
-
-# def clarray_romb(aps, lmax, zarray, zromb=None):
-
-#     if zromb == None:
-#         zromb = 2
-
-#     if zromb == 0:
-#         return aps(np.arange(lmax+1)[:, np.newaxis, np.newaxis],
-#                    zarray[np.newaxis, :, np.newaxis], zarray[np.newaxis, np.newaxis, :])
-
-#     else:
-#         zhalf = np.abs(zarray[1] - zarray[0]) / 2.0
-#         zlen = zarray.size
-#         zint = 2**zromb + 1
-#         zspace = 2.0*zhalf / 2**zromb
-
-#         za = (zarray[:, np.newaxis] + np.linspace(-zhalf, zhalf, zint)[np.newaxis, :]).flatten()
-
-#         lsections = np.array_split(np.arange(lmax+1), lmax / 50)
-
-#         cla = np.zeros((lmax+1, zlen, zlen), dtype=np.float64)
-
-#         for lsec in lsections:
-#             clt = aps(lsec[:, np.newaxis, np.newaxis],
-#                       za[np.newaxis, :, np.newaxis], za[np.newaxis, np.newaxis, :])
-
-#             clt = clt.reshape(-1, zlen, zint, zlen, zint)
-
-#             clt = scipy.integrate.romb(clt, dx=zspace, axis=4)
-#             clt = scipy.integrate.romb(clt, dx=zspace, axis=2)
-
-#             cla[lsec] = clt
-
-#         return cla
 
 
 class PointSources(foregroundsck.PointSources):
@@ -86,7 +18,7 @@ class PointSources(foregroundsck.PointSources):
     l_0 = 100.0
 
 
-def foreground_model(lmax, frequencies, npol, polfrac=1.0):
+def foreground_model(lmax, frequencies, npol, pol_frac=1.0, pol_length=None):
 
     fsyn = galaxy.FullSkySynchrotron()
     fps = PointSources()
@@ -99,8 +31,12 @@ def foreground_model(lmax, frequencies, npol, polfrac=1.0):
 
     if npol >= 3:
         fpol = galaxy.FullSkyPolarisedSynchrotron()
-        cv_fg[1, 1] = polfrac * skysim.clarray(fpol.angular_powerspectrum, lmax, frequencies)
-        cv_fg[2, 2] = polfrac * skysim.clarray(fpol.angular_powerspectrum, lmax, frequencies)
+
+        if pol_length is not None:
+            fpol.zeta = pol_length
+
+        cv_fg[1, 1] = pol_frac * skysim.clarray(fpol.angular_powerspectrum, lmax, frequencies)
+        cv_fg[2, 2] = pol_frac * skysim.clarray(fpol.angular_powerspectrum, lmax, frequencies)
 
     cv_fg[0, 0] += skysim.clarray(fps.angular_powerspectrum, lmax, frequencies)
     return cv_fg

@@ -82,7 +82,7 @@ class Property(object):
         self._set_propname(obj)
 
         if self.propname not in obj.__dict__:
-            return self.proptype(self.default)
+            return self.proptype(self.default) if self.default is not None else None
         else:
             return obj.__dict__[self.propname]
 

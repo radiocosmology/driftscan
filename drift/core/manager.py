@@ -31,16 +31,45 @@ teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelesc
 ## KLTransform configuration
 kltype_dict =   {   'KLTransform'   : kltransform.KLTransform,
                     'DoubleKL'      : doublekl.DoubleKL,
-#                    'Wiener'        : wiener.Wiener
                 }
 
 
 
 ## Power spectrum estimation configuration
-pstype_dict =   {   'Full'          : psestimation.PSEstimation,
+pstype_dict =   {   'Full'          : psestimation.PSExact,
                     'MonteCarlo'    : psmc.PSMonteCarlo,
                     'MonteCarloAlt'    : psmc.PSMonteCarloAlt
                 }
+
+
+
+def _resolve_class(clstype, clsdict, objtype=''):
+    # If clstype is a dict, try and resolve the class from `module` and
+    # `class` properties. If it's a string try and resolve the class from
+    # either its name and a lookup dictionary.
+
+    if isinstance(clstype, dict):
+        # Lookup custom type
+
+        modname = clstype['module']
+        clsname = clstype['class']
+
+        if 'file' in clstype:
+            import imp
+            module = imp.load_source(modname, clstype['file'])
+        else:
+            module = __import__(modname)
+        cls_ref = module.__dict__[clsname]
+
+
+    elif clstype in clsdict:
+        cls_ref = clsdict[clstype]
+    else:
+        raise Exception("Unsupported %s" % objtype)
+
+    return cls_ref
+
+
 
 class ProductManager(object):
 
@@ -54,16 +83,59 @@ class ProductManager(object):
 
     @classmethod
     def from_config(cls, configfile):
-        c = cls()
 
         configfile = os.path.normpath(os.path.expandvars(os.path.expanduser(configfile)))
+
+        if not os.path.exists(configfile):
+            raise Exception("Configuration file does not exist.")
 
         if os.path.isdir(configfile):
             configfile = configfile + '/config.yaml'
 
+        # Read in config file to fetch output directory
+        with open(configfile) as f:
+            yconf = yaml.safe_load(f)
+
+        outdir = yconf['config']['output_directory']
+
+
+        if mpiutil.rank0:
+
+            # Create directory if required
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
+
+            # Path of directory-local config.yaml file
+            dfile = os.path.join(outdir, 'config.yaml')
+
+            # Rewrite config file to make output path absolute (and put in <outdir>/config.yaml)
+            if not os.path.exists(dfile) or not os.path.samefile(configfile, dfile):
+
+                outdir_orig = outdir
+                # Work out absolute path
+                if not os.path.isabs(outdir):
+                    outdir = os.path.normpath(os.path.join(os.path.dirname(configfile), outdir))
+
+                with open(configfile, 'r') as f:
+                    config_contents = f.read()
+
+                # Rewrite path in config file if not absolute
+                if outdir_orig != outdir:
+                    config_contents = config_contents.replace(outdir_orig, outdir)
+
+                # Write config file into local copy
+                with open(dfile, 'w+') as f:
+                    f.write(config_contents)
+
+
+        # Load config into a new class and return
+        c = cls()
         c.load_config(configfile)
 
         return c
+
+
+
 
 
     def load_config(self, configfile):
@@ -91,10 +163,9 @@ class ProductManager(object):
         teltype = yconf['telescope']['type']
 
 
-        if teltype not in teltype_dict:
-            raise Exception("Unsupported telescope type.")
+        telclass = _resolve_class(teltype, teltype_dict, 'telescope')
 
-        self.telescope = teltype_dict[teltype].from_config(yconf['telescope'])
+        self.telescope = telclass.from_config(yconf['telescope'])
 
 
         if 'reionisation' in yconf['config']:
@@ -123,10 +194,9 @@ class ProductManager(object):
                 kltype = klentry['type']
                 klname = klentry['name']
 
-                if kltype not in kltype_dict:
-                    raise Exception("Unsupported transform.")
+                klclass = _resolve_class(kltype, kltype_dict, 'KL filter')
 
-                kl = kltype_dict[kltype].from_config(klentry, self.beamtransfer, subdir=klname)
+                kl = klclass.from_config(klentry, self.beamtransfer, subdir=klname)
                 self.kltransforms[klname] = kl
 
         if yconf['config']['kltransform']:
@@ -148,57 +218,19 @@ class ProductManager(object):
                 klname = psentry['klname']
                 psname = psentry['name'] if 'name' in psentry else 'ps'
                 
-                if pstype not in pstype_dict:
-                    raise Exception("Unsupported PS estimation.")
+                psclass = _resolve_class(pstype, pstype_dict, 'PS estimator')
 
                 if klname not in self.kltransforms:
                     warnings.warn('Desired KL object (name: %s) does not exist.' % klname)
                     self.psestimators[psname] = None
                 else:
-                    self.psestimators[psname] = pstype_dict[pstype].from_config(psentry, self.kltransforms[klname], subdir=psname)
+                    self.psestimators[psname] = psclass.from_config(psentry, self.kltransforms[klname], subdir=psname)
 
-
-
-        # ## Projections code
-        # if yconf['config']['projections']:
-        #     if 'projections' not in yconf:
-        #         raise Exception('Require a projections section if config: projections is Yes.')
-
-        #     for projentry in yconf['projections']:
-        #         klname = projentry['klname']
-
-        #         # Override default and ensure we copy the original maps
-        #         if 'copy_orig' not in projentry:
-        #             projentry['copy_orig'] = True
-
-        #         for mentry in projentry['maps']:
-        #             if 'stem' not in mentry:
-        #                 raise Exception('No stem in mapentry %s' % mentry['file'])
-
-        #             mentry['stem'] = self.directory + '/projections/' + klname + '/' + mentry['stem'] + '/'
-                
-        #         if klname not in self.kltransforms:
-        #             raise Exception('Desired KL object does not exist.')
-
-        #         proj = projection.Projector.from_config(projentry, self.kltransforms[klname])
-        #         proj.generate()
 
 
 
     def generate(self):
 
-
-        # Create directory if required
-        if mpiutil.rank0:
-            if not os.path.exists(self.directory):
-                os.makedirs(self.directory)
-
-            # Copy config file into output directory (check it's not already there first)
-            sfile = os.path.realpath(os.path.abspath(configfile))
-            dfile = os.path.realpath(os.path.abspath(self.directory + '/config.yaml'))
-
-            if sfile != dfile:
-                shutil.copy(sfile, dfile)
 
         if self.gen_beams:
             self.beamtransfer.generate()

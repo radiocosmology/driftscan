@@ -1,3 +1,5 @@
+import functools
+
 import numpy as np
 
 
@@ -18,6 +20,7 @@ def cache_last(func):
     kw_cache = [None]
     ret_cache = [None]
 
+    @functools.wraps(func)
     def decorated(*args, **kwargs):
 
         if args != arg_cache[0] or kwargs != kw_cache[0]:

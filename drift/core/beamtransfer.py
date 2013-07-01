@@ -11,7 +11,7 @@ from drift.util import mpiutil, util, blockla
 from drift.core import kltransform
 
 
-def svd_gen(A, *args, **kwargs):
+def svd_gen(A, errmsg=None, *args, **kwargs):
     """Find the inverse of A.
 
     If a standard matrix inverse has issues try using the pseudo-inverse.
@@ -28,10 +28,18 @@ def svd_gen(A, *args, **kwargs):
     try:
         res = la.svd(A, *args, **kwargs)
     except la.LinAlgError:
-        sv = la.svdvals(A)
-        At = A + sv[0] * 1e-11 * np.eye(A.shape[0], A.shape[1])
-        res = la.svd(At, *args, **kwargs)
-        print "Matrix SVD did not converge. Regularised."
+        sv = la.svdvals(A)[0]
+        At = A + sv * 1e-10 * np.eye(A.shape[0], A.shape[1])
+        try: 
+            res = la.svd(At, *args, **kwargs)
+        except la.LinAlgError as e:
+            print "Failed completely. %s" % errmsg
+            raise e
+
+        if errmsg is None:
+            print "Matrix SVD did not converge. Regularised."
+        else:
+            print "Matrix SVD did not converge (%s)." % errmsg
 
     return res
 
@@ -699,14 +707,14 @@ class BeamTransfer(object):
                     bf2 = bfr
                 else:
                     ## SVD 1 - coarse projection onto sky-modes
-                    u1, s1, v1 = svd_gen(bfr, full_matrices=False)
+                    u1, s1, v1 = svd_gen(bfr, full_matrices=False, errmsg=("SVD1 m=%i f=%i" % (mi, fi)))
                     cut1 = (s1 >= s1.max() * 1e-10).sum() # >= is so we always include some modes (ie. when all sv = 0)
                     ut1 = u1[:, :cut1].T.conj()
                     bf1 = np.dot(ut1, bfr)
 
                     ## SVD 2 - project onto polarisation null space
                     bfp = bf1.reshape(cut1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 1:].reshape(cut1, -1)
-                    u2, s2, v2 = svd_gen(bfp, full_matrices=True)
+                    u2, s2, v2 = svd_gen(bfp, full_matrices=True, errmsg=("SVD2 m=%i f=%i" % (mi, fi)))
                     cut2 = (s2 > s2.max() * self.polsvcut).sum()
                     ut2 = np.dot(u2[:, cut2:].T.conj(), ut1)
                     bf2 = np.dot(ut2, bfr)
@@ -716,7 +724,7 @@ class BeamTransfer(object):
                 if bf2.shape[0] > 0 and (s1 > 0.0).any():
                     ## SVD 3 - decompose polarisation null space
                     #u3, s3, v3 = svd_gen(bf2, full_matrices=False)
-                    u3, s3, v3 = svd_gen(bf2.reshape(-1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 0], full_matrices=False)
+                    u3, s3, v3 = svd_gen(bf2.reshape(-1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 0], full_matrices=False, errmsg=("SVD3 m=%i f=%i" % (mi, fi)))
                     cut3 = (s3 > s3.max() * self.svcut).sum()                
                     ut3 = np.dot(u3[:, :cut3].T.conj(), ut2)
 

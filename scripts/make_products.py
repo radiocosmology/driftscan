@@ -49,7 +49,7 @@ def queue_config(args):
         os.makedirs(pbsdir)
 
     # Copy config file into output directory (check it's not already there first)
-    sfile = os.path.realpath(os.path.abspath(args.configfile.name))
+    sfile = os.path.realpath(os.path.abspath(args.configfile))
     dfile = os.path.realpath(os.path.abspath(pbsdir + '/config.yaml'))
 
     if sfile != dfile:

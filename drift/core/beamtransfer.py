@@ -44,6 +44,85 @@ def svd_gen(A, errmsg=None, *args, **kwargs):
     return res
 
 
+def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
+
+    if A.shape[0] == 0:
+        return np.array([], dtype=A.dtype).reshape(0, 0), np.array([], dtype=np.float64)
+
+    try:
+        # First try SVD to find matrix image
+        u, s, v = la.svd(A, full_matrices=False)
+
+        image, spectrum = u, s
+
+    except la.LinAlgError as e:
+        # Try QR with pivoting
+        print "SVD1 not converged. %s" % errmsg
+
+        q, r, p = la.qr(A, pivot=True, mode='economy')
+
+        try:
+            # Try applying QR first, then SVD (this seems to help occasionally)
+            u, s, v = la.svd(np.dot(q.T.conj(), A), full_matrices=False)
+
+            image = np.dot(q, u)
+            spectrum = s 
+
+        except la.LinAlgError as e:
+            print "SVD2 not converged. %s" % errmsg
+
+            image = q
+            spectrum = np.abs(r.diagonal())
+
+    if atol is None:
+        cut = (spectrum > spectrum[0] * rtol).sum()
+    else:
+        cut = (spectrum > atol).sum()
+
+    image = image[:, :cut].copy()
+
+    return image, spectrum
+
+
+def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
+
+    if A.shape[0] == 0:
+        return np.array([], dtype=A.dtype).reshape(0, 0), np.array([], dtype=np.float64)
+
+    try:
+        # First try SVD to find matrix nullspace
+        u, s, v = la.svd(A, full_matrices=True)
+
+        nullspace, spectrum = u, s
+
+    except la.LinAlgError as e:
+        # Try QR with pivoting
+        print "SVD1 not converged. %s" % errmsg
+
+        q, r, p = la.qr(A, pivot=True)
+
+        try:
+            # Try applying QR first, then SVD (this seems to help occasionally)
+            u, s, v = la.svd(np.dot(q.T.conj(), A))
+
+            nullspace = np.dot(q, u)
+            spectrum = s 
+
+        except la.LinAlgError as e:
+            print "SVD2 not converged. %s" % errmsg
+
+            nullspace = q
+            spectrum = np.abs(r.diagonal())
+
+    if atol is None:
+        cut = (spectrum >= spectrum[0] * rtol).sum()
+    else:
+        cut = (spectrum >= atol).sum()
+
+    nullspace = nullspace[:, cut:].copy()
+
+    return nullspace, spectrum
+
 
 
 class BeamTransfer(object):
@@ -707,40 +786,35 @@ class BeamTransfer(object):
                     bf2 = bfr
                 else:
                     ## SVD 1 - coarse projection onto sky-modes
-                    u1, s1, v1 = svd_gen(bfr, full_matrices=False, errmsg=("SVD1 m=%i f=%i" % (mi, fi)))
-                    cut1 = (s1 >= s1.max() * 1e-10).sum() # >= is so we always include some modes (ie. when all sv = 0)
-                    ut1 = u1[:, :cut1].T.conj()
+                    u1, s1 = matrix_image(bfr, rtol=1e-10, errmsg=("SVD1 m=%i f=%i" % (mi, fi)))
+
+                    ut1 = u1.T.conj()
                     bf1 = np.dot(ut1, bfr)
 
                     ## SVD 2 - project onto polarisation null space
-                    bfp = bf1.reshape(cut1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 1:].reshape(cut1, -1)
-                    u2, s2, v2 = svd_gen(bfp, full_matrices=True, errmsg=("SVD2 m=%i f=%i" % (mi, fi)))
-                    cut2 = (s2 > s2.max() * self.polsvcut).sum()
-                    ut2 = np.dot(u2[:, cut2:].T.conj(), ut1)
+                    bfp = bf1.reshape(bf1.shape[0], self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 1:]
+                    bfp = bfp.reshape(bf1.shape[0], (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1))
+                    u2, s2 = matrix_nullspace(bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i f=%i" % (mi, fi)))
+
+                    ut2 = np.dot(u2.T.conj(), ut1)
                     bf2 = np.dot(ut2, bfr)
 
                 # Check to ensure polcut hasn't thrown away all modes. If it
                 # has, just leave datasets blank.
                 if bf2.shape[0] > 0 and (s1 > 0.0).any():
+
                     ## SVD 3 - decompose polarisation null space
-                    #u3, s3, v3 = svd_gen(bf2, full_matrices=False)
-                    u3, s3, v3 = svd_gen(bf2.reshape(-1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 0], full_matrices=False, errmsg=("SVD3 m=%i f=%i" % (mi, fi)))
-                    cut3 = (s3 > s3.max() * self.svcut).sum()                
-                    ut3 = np.dot(u3[:, :cut3].T.conj(), ut2)
+                    bft = bf2.reshape(-1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 0]
+
+                    u3, s3 = matrix_image(bft, rtol=0.0, errmsg=("SVD3 m=%i f=%i" % (mi, fi)))
+                    ut3 = np.dot(u3.T.conj(), ut2)
 
                     # Final products
-                    nmodes = cut3
+                    nmodes = ut3.shape[0]
                     ut = ut3
                     sig = s3[:nmodes]
                     beam = np.dot(ut3, bfr)
                     ibeam = la.pinv(beam)
-                # else:
-                #     # Zero'd products if polcut has killed all modes.
-                #     nmodes = 0
-                #     ut = np.zeros((0, self.ntel), dtype=np.complex128)
-                #     sig = np.zeros((0,), dtype=np.complex128)
-                #     beam = np.zeros((0, self.telescope.num_pol_sky, self.telescope.lmax + 1), dtype=np.complex128)
-                #     ibeam = np.zeros((self.telescope.num_pol_sky, self.telescope.lmax + 1, 0), dtype=np.complex128)
 
                     # Save out the evecs (for transforming from the telescope frame into the SVD basis)
                     dset_ut[fi, :nmodes] = (ut * noisew[np.newaxis, :])

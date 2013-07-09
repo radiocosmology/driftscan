@@ -9,7 +9,7 @@ import h5py
 import numpy as np
 import scipy.linalg as la
 
-from simulations import corr21cm
+from cora.signal import corr21cm
 
 from drift.core import skymodel
 from drift.util import mpiutil, util, config

@@ -6,7 +6,7 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
-from cosmoutils import hputil
+from cora.util import hputil
 
 from drift.util import mpiutil, util, config
 from drift.core import skymodel

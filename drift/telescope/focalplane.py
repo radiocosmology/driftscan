@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.special import jn
 
-from cosmoutils import coord, units
+from cora.util import coord, units
 from drift.core import telescope
 from drift.util import util, config
 

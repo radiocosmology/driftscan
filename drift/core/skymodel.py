@@ -2,8 +2,10 @@ import numpy as np
 
 import scipy.integrate
 
-from simulations import foregroundsck, corr21cm, skysim, galaxy
-from cosmoutils import units
+from cora.core import skysim
+from cora.signal import corr21cm
+from cora.foreground import gaussianfg, galaxy
+from cora.util import units
 
 _cr = None
 
@@ -11,7 +13,7 @@ _reionisation = False
 
 
 
-class PointSources(foregroundsck.PointSources):
+class PointSources(gaussianfg.PointSources):
     """Scale up point source amplitude to a higher S_{cut} = 0.1 Jy"""
     A = 3.55e-5
     nu_0 = 408.0

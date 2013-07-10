@@ -16,7 +16,12 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
     data = [ (mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist) ]
 
+    mpiutil.barrier()
+
     p_all = mpiutil.world.gather(data, root=0)
+
+    mpiutil.barrier() # Not sure if this barrier really does anything,
+                      # but hoping to stop collect breaking
 
     marrays = None
     if mpiutil.rank0:
@@ -30,7 +35,10 @@ def collect_m_arrays(mlist, func, shapes, dtype):
                     if result[si] is not None:
                         marrays[si][mi] = result[si]
 
+    mpiutil.barrier()
+
     return marrays
+
 
 def collect_m_array(mlist, func, shape, dtype):
 
@@ -205,7 +213,7 @@ class KLTransform(config.Reader):
             else:
                 self._cvfg = skymodel.foreground_model(self.telescope.lmax,
                                                        self.telescope.frequencies,
-                                                       npol, polfrac=0.0)
+                                                       npol, pol_frac=0.0)
                 
         return self._cvfg
 

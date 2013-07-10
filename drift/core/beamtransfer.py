@@ -59,7 +59,7 @@ def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
         # Try QR with pivoting
         print "SVD1 not converged. %s" % errmsg
 
-        q, r, p = la.qr(A, pivot=True, mode='economy')
+        q, r, p = la.qr(A, pivoting=True, mode='economic')
 
         try:
             # Try applying QR first, then SVD (this seems to help occasionally)
@@ -99,7 +99,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
         # Try QR with pivoting
         print "SVD1 not converged. %s" % errmsg
 
-        q, r, p = la.qr(A, pivot=True)
+        q, r, p = la.qr(A, pivoting=True, mode='full')
 
         try:
             # Try applying QR first, then SVD (this seems to help occasionally)

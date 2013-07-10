@@ -245,7 +245,7 @@ class ProductManager(object):
 
             for psname, psobj in self.psestimators.items():
                 psobj.generate()
-
+                psobj.delbands()
 
         if mpiutil.rank0:
             print "========================================"

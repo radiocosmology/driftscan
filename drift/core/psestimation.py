@@ -375,6 +375,11 @@ class PSEstimation(config.Reader):
         MPI.COMM_WORLD.Allgatherv(MPI.IN_PLACE, [self.clarray, sizes, displ, MPI.DOUBLE])
 
 
+    def delbands(self):
+        """Delete power spectrum bands to save memory."""
+
+        self.clarray = None
+
 
 
 

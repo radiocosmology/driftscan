@@ -8,7 +8,7 @@ import numpy as np
 import h5py
 import healpy
 
-from cosmoutils import hputil
+from cora.util import hputil
 
 from drift.telescope import cylinder
 from drift.core import beamtransfer

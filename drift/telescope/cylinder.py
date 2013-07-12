@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from cosmoutils import coord
+from cora.util import coord
 
 from drift.core import telescope, visibility
 from drift.util import config

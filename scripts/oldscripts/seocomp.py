@@ -1,7 +1,7 @@
 import numpy as np
 import healpy
 
-from cosmoutils import coord
+from cora.util import coord
 
 
 from drift.telescope import cylinder

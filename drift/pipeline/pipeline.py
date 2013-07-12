@@ -40,6 +40,8 @@ class PipelineManager(config.Reader):
     generate_powerspectra = config.Property(proptype=bool, default=True)
     generate_maps = config.Property(proptype=bool, default=True)
 
+    no_m_zero = config.Property(proptype=bool, default=True)
+
     # Specific products to use.
     klmodes = config.Property(proptype=list, default=[])
     powerspectra = config.Property(proptype=list, default=[])
@@ -68,6 +70,8 @@ class PipelineManager(config.Reader):
         if self.output_directory != '':
             self.output_directory = os.path.normpath(os.path.expandvars(os.path.expanduser(self.output_directory)))
             self.timestream.output_directory = self.output_directory
+
+        self.timestream.no_m_zero = self.no_m_zero
 
 
     def generate(self):

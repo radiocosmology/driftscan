@@ -2,7 +2,7 @@ import abc
 
 import numpy as np
 
-from cosmoutils import hputil, units
+from cora.util import hputil, units
 
 from drift.core import visibility
 from drift.util import util, config

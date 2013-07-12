@@ -182,6 +182,12 @@ class ProductManager(object):
         if 'svcut' in yconf['config']:
             self.beamtransfer.svcut = float(yconf['config']['svcut'])
 
+        ## Set the singular value cut for the *polarisation* beamtransfers
+        if 'polsvcut' in yconf['config']:
+            self.beamtransfer.polsvcut = float(yconf['config']['polsvcut'])
+
+
+
         if yconf['config']['beamtransfers']:
             self.gen_beams = True
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from cosmoutils import coord, cubicspline
+from cora.util import coord, cubicspline
 
 
 def polpattern(angpos, dipole):

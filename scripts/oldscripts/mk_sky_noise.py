@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import h5py
 
-from cosmoutils import hputil
+from cora.util import hputil
 from drift.core import beamtransfer
 from drift.util import mpiutil
 

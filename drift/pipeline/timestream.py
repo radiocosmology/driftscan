@@ -4,7 +4,7 @@ import os
 import h5py
 import numpy as np
 
-from cosmoutils import hputil
+from cora.util import hputil
 
 from drift.core import manager, kltransform
 from drift.util import util, mpiutil

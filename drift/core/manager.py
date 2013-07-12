@@ -178,9 +178,22 @@ class ProductManager(object):
         else:
             self.beamtransfer = beamtransfer.BeamTransfer(self.directory + '/bt/', telescope=self.telescope)
 
+        ## Use the full SVD if requested
+        if 'fullsvd' in yconf['config'] and yconf['config']['fullsvd']:
+            self.beamtransfer = beamtransfer.BeamTransferFullSVD(self.directory + '/bt/', telescope=self.telescope)    
+        else:
+            self.beamtransfer = beamtransfer.BeamTransfer(self.directory + '/bt/', telescope=self.telescope)
+
         ## Set the singular value cut for the beamtransfers
         if 'svcut' in yconf['config']:
             self.beamtransfer.svcut = float(yconf['config']['svcut'])
+
+        ## Set the singular value cut for the *polarisation* beamtransfers
+        if 'polsvcut' in yconf['config']:
+            self.beamtransfer.polsvcut = float(yconf['config']['polsvcut'])
+
+
+
 
         if yconf['config']['beamtransfers']:
             self.gen_beams = True

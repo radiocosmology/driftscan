@@ -3,7 +3,7 @@ import os, os.path
 import numpy as np
 from scipy.special import jn
 
-from cosmoutils import coord
+from cora.util import coord
 from drift.core import telescope
 from drift.util import config
 

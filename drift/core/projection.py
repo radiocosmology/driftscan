@@ -5,7 +5,7 @@ import numpy as np
 import h5py
 import healpy
 
-from cosmoutils import hputil
+from cora.util import hputil
 
 from drift.core import kltransform
 from drift.util import mpiutil, util, config

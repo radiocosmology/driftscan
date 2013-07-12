@@ -4,7 +4,7 @@ import os
 import h5py
 import numpy as np
 
-from cosmoutils import hputil
+from cora.util import hputil
 
 from drift.core import manager, kltransform
 from drift.util import util, mpiutil
@@ -477,7 +477,7 @@ class Timestream(object):
     @property
     def _psfile(self):
         # Pattern to form the `m` ordered file.
-        return self.output_directory + ('/ps_%s_%s.hdf5' % (self.klname, self.psname))
+        return self.output_directory + ('/ps_%s.hdf5' % self.psname)
 
 
 
@@ -662,16 +662,21 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, **kwargs):
         with h5py.File(maps[0], 'r') as f:
             mapshape = f['map'].shape
 
-        # Allocate array to store the local frequencies
-        row_map = np.zeros((lfreq,) + mapshape[1:], dtype=np.float64)
+        if lfreq > 0:
 
-        # Read in and sum up the local frequencies of the supplied maps.
-        for mapfile in maps:
-            with h5py.File(mapfile) as f:
-                row_map += f['map'][sfreq:efreq]
+            # Allocate array to store the local frequencies
+            row_map = np.zeros((lfreq,) + mapshape[1:], dtype=np.float64)
+            
+            # Read in and sum up the local frequencies of the supplied maps.
+            for mapfile in maps:
+                with h5py.File(mapfile) as f:
+                    row_map += f['map'][sfreq:efreq]
+                    
+            # Calculate the alm's for the local sections
+            row_alm = hputil.sphtrans_sky(row_map, lmax=lmax).reshape((lfreq, npol * (lmax+1), lmax+1))
 
-        # Calculate the alm's for the local sections
-        row_alm = hputil.sphtrans_sky(row_map, lmax=lmax).reshape((lfreq, npol * (lmax+1), lmax+1))
+        else:
+            row_alm = np.zeros((lfreq, npol * (lmax+1), lmax+1), dtype=np.complex128)
 
         # Perform the transposition to distribute different m's across processes. Neat
         # tip, putting a shorter value for the number of columns, trims the array at

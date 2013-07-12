@@ -1,6 +1,6 @@
 import numpy as np
 
-from cosmoutils import nputil
+from cora.util import nputil
 
 from drift.core import psestimation
 from drift.util import config

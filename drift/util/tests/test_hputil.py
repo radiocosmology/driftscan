@@ -1,5 +1,5 @@
 
-from cosmoutils import hputil
+from cora.util import hputil
 
 import numpy as np
 

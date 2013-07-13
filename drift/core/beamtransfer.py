@@ -1324,8 +1324,11 @@ class BeamTransferTempSVD(BeamTransfer):
                 noisew = np.concatenate([noisew, noisew])
                 bf = bf * noisew[:, np.newaxis, np.newaxis]
 
+                # Get the T-mode only beam matrix
+                bft = bf[:, 0, :]
+
                 # Perform the SVD to find the left evecs
-                u, sig, v = svd_gen(bf, full_matrices=False)
+                u, sig, v = svd_gen(bft, full_matrices=False)
                 u = u.T.conj() # We only need u^H so just keep that.
 
                 # Save out the evecs (for transforming from the telescope frame into the SVD basis)
@@ -1416,18 +1419,17 @@ class BeamTransferFullSVD(BeamTransfer):
                 noisew = np.concatenate([noisew, noisew])
                 bf = bf * noisew[:, np.newaxis, np.newaxis]
 
-                # Get the T-mode only beam matrix
-                bft = bf[:, 0, :]
+                bf = bf.reshape(self.ntel, -1)
 
                 # Perform the SVD to find the left evecs
-                u, sig, v = svd_gen(bft, full_matrices=False)
+                u, sig, v = svd_gen(bf, full_matrices=False)
                 u = u.T.conj() # We only need u^H so just keep that.
 
                 # Save out the evecs (for transforming from the telescope frame into the SVD basis)
                 dset_ut[fi] = (u * noisew[np.newaxis, :])
 
                 # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
-                bsvd = np.dot(u, bf.reshape(self.ntel, -1))
+                bsvd = np.dot(u, bf)
                 dset_bsvd[fi] = bsvd.reshape(self.svd_len, self.telescope.num_pol_sky, self.telescope.lmax + 1)
 
                 # Find the pseudo-inverse of the beam matrix and save to disk.

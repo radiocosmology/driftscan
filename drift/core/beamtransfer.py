@@ -1258,7 +1258,7 @@ class BeamTransfer(object):
 
     @property
     def ndofmax(self):
-        return min(self.ntel, self.telescope.lmax+1) * self.nfreq
+        return self.svd_len * self.nfreq
 
     def ndof(self, mi):
         """The number of degrees of freedom at a given m."""
@@ -1458,7 +1458,6 @@ class BeamTransferFullSVD(BeamTransfer):
     def svd_len(self):
         """The size of the SVD output matrices."""
         return min((self.telescope.lmax+1) * self.telescope.num_pol_sky, self.ntel)
-    
 
 
 

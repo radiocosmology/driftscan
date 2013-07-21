@@ -3,7 +3,7 @@ import numpy as np
 from cora.util import nputil
 
 from drift.core import psestimation
-from drift.util import config
+from drift.util import config, mpiutil
 
 
 class PSMonteCarlo(psestimation.PSEstimation):
@@ -23,7 +23,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
     nsamples = config.Property(proptype=int, default=500)
 
 
-    def gen_sample(self, mi):
+    def gen_sample(self, mi, nsamples=None):
         """Generate a random set of KL-data for this m-mode.
 
         Found by drawing from the eigenvalue distribution.
@@ -40,13 +40,15 @@ class PSMonteCarlo(psestimation.PSEstimation):
             attribute.
         """
 
+        nsamples = self.nsamples if nsamples is None else nsamples
+
         evals, evecs = self.kltrans.modes_m(mi)
 
         # Calculate C**(1/2), this is the weight to generate a draw from C
         w = (evals + 1.0)**0.5
     
         # Calculate x
-        x = nputil.complex_std_normal((evals.shape[0], self.nsamples)) * w[:, np.newaxis] 
+        x = nputil.complex_std_normal((evals.shape[0], nsamples)) * w[:, np.newaxis] 
 
         return x
 
@@ -71,8 +73,16 @@ class PSMonteCarlo(psestimation.PSEstimation):
             Bias vector.
         """
         
-        x = self.gen_sample(mi)
-        qa = self.q_estimator(mi, x, noise=True)
+        qa = np.zeros((self.nbands + 1, self.nsamples))
+
+        # Split calculation into subranges to save on memory usage
+        num, starts, ends = mpiutil.split_m(self.nsamples, (self.nsamples / 1000) + 1)
+
+        for n, s, e in zip(num, starts, ends):
+
+            x = self.gen_sample(mi, n)
+            qa[:, s:e] = self.q_estimator(mi, x, noise=True)
+
         ft = np.cov(qa)
 
         fisher = ft[:self.nbands, :self.nbands]

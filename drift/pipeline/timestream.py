@@ -604,7 +604,7 @@ class Timestream(object):
 
 
 # kwargs is to absorb any extra params
-def simulate(m, outdir, maps=[], ndays=None, resolution=0, **kwargs):
+def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
     """Create a simulated timestream and save it to disk.
 
     Parameters
@@ -631,7 +631,6 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, **kwargs):
     ## Read in telescope system
     bt = m.beamtransfer
     tel = bt.telescope
-
 
     lmax = tel.lmax
     mmax = tel.mmax
@@ -726,9 +725,18 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, **kwargs):
         # Fetch the noise powerspectrum
         noise_ps = tel.noisepower(np.arange(tel.npairs)[:, np.newaxis], np.array(local_freq)[np.newaxis, :], ndays=ndays).reshape(tel.npairs, lfreq)[:, :, np.newaxis]
 
+
+        # Seed random number generator to give consistent noise
+        if seed is not None:
+            np.random.seed(seed)
+
         # Create and weight complex noise coefficients
         noise_vis = (np.array([1.0, 1.0J]) * np.random.standard_normal(col_vis.shape + (2,))).sum(axis=-1)
         noise_vis *= (noise_ps / 2.0)**0.5
+
+        # Reset RNG
+        if seed is not None:
+            np.random.seed()
 
         # Add into main noise sims
         col_vis += noise_vis

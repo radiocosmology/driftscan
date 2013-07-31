@@ -223,7 +223,10 @@ class Timestream(object):
         """
 
         with h5py.File(self._svdfile(mi), 'r') as f:
-            return f['mmode_svd'][:]
+            if f['mmode_svd'].shape[0] == 0:
+                return np.zeros((0,), dtype=np.complex128)
+            else:
+                return f['mmode_svd'][:]
 
 
     def generate_mmodes_svd(self):
@@ -601,6 +604,87 @@ class Timestream(object):
             return pickle.load(f)
 
     #====================================================
+
+
+
+def cross_powerspectrum(timestreams, psname, psfile):
+
+    import scipy.linalg as la
+    
+    if os.path.exists(psfile):
+        print "File %s exists. Skipping..." % psfile
+        return
+
+    products = timestreams[0].manager
+
+    ps = products.psestimators[psname]
+    ps.genbands()
+
+    nstream = len(timestreams)
+
+    def _q_estimate(mi):
+
+        qp = np.zeros((nstream, nstream, ps.nbands), dtype=np.float64)
+
+        for ti in range(nstream):
+            for tj in range(ti+1, nstream):
+
+                print "Making m=%i (%i, %i)" % (mi, ti, tj)
+
+                si = timestreams[ti]
+                sj = timestreams[tj]
+
+                qp[ti, tj] = ps.q_estimator(mi, si.mmode_kl(mi), sj.mmode_kl(mi))
+                qp[tj, ti] = qp[ti, tj]
+
+        return qp
+
+    # Determine whether to use m=0 or not
+    mlist = range(1 if timestreams[0].no_m_zero else 0, products.telescope.mmax + 1)
+    qvals = mpiutil.parallel_map(_q_estimate, mlist)
+
+    qtotal = np.array(qvals).sum(axis=0)
+
+    fisher, bias = ps.fisher_bias()
+
+    # Subtract bias and reshape into new array
+    qtotal = (qtotal - bias).reshape(nstream**2, ps.nbands).T
+
+    powerspectrum =  np.dot(la.inv(fisher), qtotal)
+    powerspectrum = powerspectrum.T.reshape(nstream, nstream, ps.nbands)
+
+
+    if mpiutil.rank0:
+        with h5py.File(psfile, 'w') as f:
+
+            cv = la.inv(fisher)
+            err = cv.diagonal()**0.5
+            cr = cv / np.outer(err, err)
+
+            f.create_dataset('fisher/', data=fisher)
+#                f.create_dataset('bias/', data=self.bias)
+            f.create_dataset('covariance/', data=cv)
+            f.create_dataset('error/', data=err)
+            f.create_dataset('correlation/', data=cr)
+
+            f.create_dataset('bandpower/', data=ps.band_power)
+            #f.create_dataset('k_start/', data=ps.k_start)
+            #f.create_dataset('k_end/', data=ps.k_end)
+            #f.create_dataset('k_center/', data=ps.k_center)
+            #f.create_dataset('psvalues/', data=ps.psvalues)
+
+            f.create_dataset('powerspectrum', data=powerspectrum)
+
+    # Delete cache of bands for memory reasons
+    del ps.clarray
+    ps.clarray = None
+
+    mpiutil.barrier()
+
+    return powerspectrum
+
+
+
 
 
 # kwargs is to absorb any extra params

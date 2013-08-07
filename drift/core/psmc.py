@@ -23,7 +23,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
     nsamples = config.Property(proptype=int, default=500)
 
 
-    def gen_sample(self, mi, nsamples=None):
+    def gen_sample(self, mi, nsamples=None, noiseonly=False):
         """Generate a random set of KL-data for this m-mode.
 
         Found by drawing from the eigenvalue distribution.
@@ -45,7 +45,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         evals, evecs = self.kltrans.modes_m(mi)
 
         # Calculate C**(1/2), this is the weight to generate a draw from C
-        w = (evals + 1.0)**0.5
+        w = np.ones_like(evals) if noiseonly else (evals + 1.0)**0.5
     
         # Calculate x
         x = nputil.complex_std_normal((evals.shape[0], nsamples)) * w[:, np.newaxis] 
@@ -81,12 +81,13 @@ class PSMonteCarlo(psestimation.PSEstimation):
         for n, s, e in zip(num, starts, ends):
 
             x = self.gen_sample(mi, n)
-            qa[:, s:e] = self.q_estimator(mi, x, noise=True)
+            qa[:, s:e] = self.q_estimator(mi, x)
 
         ft = np.cov(qa)
 
-        fisher = ft[:self.nbands, :self.nbands]
-        bias = ft[-1, :self.nbands]
+        fisher = np.cov(qa) #ft[:self.nbands, :self.nbands]
+        #bias = ft[-1, :self.nbands]
+        bias = qa.mean(axis=1) #[:self.nbands]
 
         return fisher, bias
 

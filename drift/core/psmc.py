@@ -73,7 +73,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
             Bias vector.
         """
         
-        qa = np.zeros((self.nbands + 1, self.nsamples))
+        qa = np.zeros((self.nbands, self.nsamples))
 
         # Split calculation into subranges to save on memory usage
         num, starts, ends = mpiutil.split_m(self.nsamples, (self.nsamples / 1000) + 1)

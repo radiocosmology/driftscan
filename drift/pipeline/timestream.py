@@ -812,7 +812,8 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
 
         # Seed random number generator to give consistent noise
         if seed is not None:
-            np.random.seed(seed)
+            # Must include rank such that we don't have massive power deficit from correlated noise
+            np.random.seed(seed + mpiutil.rank) 
 
         # Create and weight complex noise coefficients
         noise_vis = (np.array([1.0, 1.0J]) * np.random.standard_normal(col_vis.shape + (2,))).sum(axis=-1)

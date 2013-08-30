@@ -13,28 +13,16 @@ from drift.pipeline import pipeline, timestream
 
 def run_config(args):
 
-    yconf = yaml.safe_load(args.configfile)
-
-
-    conf = yconf['config']
-
-    pl = pipeline.PipelineManager.from_config(conf)
-    pl.setup()
-
-    # Simulate timestream if required by the params file
-    if conf['simulate']:
-        if 'simulate' not in yconf:
-            raise Exception('A `simulate` section is required.')
-
-        if os.path.exists(pl.timestream._ffile(0)):
-            print "Looks like timestream already exists. Skipping...."
-        else:
-            sim_conf = yconf['simulate']
-
-            m = manager.ProductManager.from_config(sim_conf['product_directory'])
-            timestream.simulate(m, pl.timestream_directory, **sim_conf)
-
+    pl = pipeline.PipelineManager.from_configfile(args.configfile)
+    pl.simulate()
     pl.generate()
+
+pipe = None
+def interactive_config(args):
+    global pipe
+    pipe = pipeline.PipelineManager.from_configfile(args.configfile)
+
+
 
 
 def queue_config(args):
@@ -107,8 +95,13 @@ subparsers = parser.add_subparsers(help='Command to run.', title="Commands", met
 
 
 parser_run = subparsers.add_parser('run', help='Run the analysis from the given config file.')
-parser_run.add_argument('configfile', type=argparse.FileType('r'), help='Configuration file to use.')
+parser_run.add_argument('configfile', type=str, help='Configuration file to use.')
 parser_run.set_defaults(func=run_config)
+
+
+parser_interactive = subparsers.add_parser('interactive', help='Interactive analysis with the given config file.')
+parser_interactive.add_argument('configfile', type=str, help='Configuration file to use.')
+parser_interactive.set_defaults(func=interactive_config)
 
 
 parser_queue = subparsers.add_parser('queue', help='Create a jobscript for running the pipeline and add to the PBS queue.')

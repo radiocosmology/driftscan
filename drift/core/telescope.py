@@ -84,8 +84,8 @@ def _get_indices(keyarray, mask=None):
     #upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
     upairs = np.array([np.unravel_index(i1, keyarray.shape) for i1 in wm[ind] ])
 
-    return np.sort(upairs, axis=-1) # Sort to ensure we are in upper triangle
-
+    #return np.sort(upairs, axis=-1) # Sort to ensure we are in upper triangle
+    return upairs
 
 
 #_horizon_const = 0
@@ -376,26 +376,37 @@ class TransitTelescope(config.Reader):
 
         # Get unique pairs, and create mapping arrays
         self._feedmap, self._feedmask = self._get_unique()
-        self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
-        self._uniquepairs = _get_indices(self._feedmap, mask=self._feedmask)
-        #self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask * np.tri(self.nfeed))]) # Triangle mask to avoid double counting
-        self._redundancy = np.bincount(self._feedmap[np.where(self._feedmask)]) / 2 # Triangle mask to avoid double counting
         
+        # Identify conjugate pairs
+        self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
+
         # Reorder and conjugate baselines such that the default feedpair
         # points W->E (to ensure we use positive-m)
         self._make_ew()
+
+        # Sort baselines into order
+        self._sort_pairs()
+
+        # Create mask of included pairs, that are not conjugated
+        tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
+
+        self._uniquepairs = _get_indices(self._feedmap, mask=tmask)
+        self._redundancy = np.bincount(self._feedmap[np.where(tmask)]) # Triangle mask to avoid double counting
         self._baselines = self.feedpositions[self._uniquepairs[:, 0]] - self.feedpositions[self._uniquepairs[:, 1]]
 
 
 
     def _make_ew(self):
         # Reorder baselines pairs, such that the baseline vector always points E (or pure N)
-        for i in range(self.npairs):
-            sep = self.feedpositions[self._uniquepairs[i, 0]] - self.feedpositions[self._uniquepairs[i, 1]]
+        tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
+        uniq = _get_indices(self._feedmap, mask=tmask)
+
+        for i in range(uniq.shape[0]):
+            sep = self.feedpositions[uniq[i, 0]] - self.feedpositions[uniq[i, 1]]
 
             if sep[0] < 0.0 or (sep[0] == 0.0 and sep[1] < 0.0):
                 # Reorder feed pairs and conjugate mapping
-                self._uniquepairs[i, 1], self._uniquepairs[i, 0] = self._uniquepairs[i, 0], self._uniquepairs[i, 1]
+                # self._uniquepairs[i, 1], self._uniquepairs[i, 0] = self._uniquepairs[i, 0], self._uniquepairs[i, 1]
                 self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
 
 
@@ -409,11 +420,10 @@ class TransitTelescope(config.Reader):
 
         # Construct array of baseline separations in complex representation
         bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
-        bl2 = map_half_plane(bl1.reshape(-1, 2)).reshape(bl1.shape)
-        bl3 = np.around(bl2[..., 0] + 1.0J * bl2[..., 1], 7)
+        bl2 = np.around(bl1[..., 0] + 1.0J * bl1[..., 1], 7)
 
         # Construct array of baseline lengths
-        blen = np.sum(bl1**2, -1)**0.5
+        blen = np.sum(bl1**2, axis=-1)**0.5
 
         # Create mask of included baselines
         mask = np.logical_and(blen >= self.minlength, blen <= self.maxlength)
@@ -422,7 +432,7 @@ class TransitTelescope(config.Reader):
         if not self.auto_correlations:
             mask = np.logical_and(blen > 0.0, mask)
 
-        return _remap_keyarray(bl3, mask), mask
+        return _remap_keyarray(bl2, mask), mask
 
 
 
@@ -436,16 +446,13 @@ class TransitTelescope(config.Reader):
 
         beam_map = _merge_keyarray(bci, bcj)
 
-        # beam_map[np.tril_indices(self.nfeed, -1)] = beam_map.T[np.tril_indices(self.nfeed, -1)]
-
-        # beam_map = _remap_keyarray(beam_map)
-
         if self.auto_correlations:
             beam_mask = np.ones(fshape, dtype=np.bool)
         else:
             beam_mask = np.logical_not(np.identity(self.nfeed, dtype=np.bool))
 
         return beam_map, beam_mask
+
 
 
     def _get_unique(self):
@@ -475,9 +482,57 @@ class TransitTelescope(config.Reader):
         base_map, base_mask = self._unique_baselines()
         beam_map, beam_mask = self._unique_beams()
         comb_map, comb_mask = _merge_keyarray(base_map, beam_map, mask1=base_mask, mask2=beam_mask)
-        
+
+        # Take into account conjugation by identifying 
+        comb_map = np.dstack((comb_map, comb_map.T)).min(axis=-1)
+        comb_map = _remap_keyarray(comb_map, comb_mask)
+
         return comb_map, comb_mask
  
+
+    def _sort_pairs(self):
+        """Re-order keys into a desired sort order.
+
+        By default the order is lexicographic in (baseline u, baselines v,
+        beamclass i, beamclass j).
+        """
+
+        # Create mask of included pairs, that are not conjugated
+        tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
+        uniq = _get_indices(self._feedmap, mask=tmask)
+
+        fi, fj = uniq[:, 0], uniq[:, 1]
+
+        # Fetch keys by which to sort (lexicographically)
+        bx = self.feedpositions[fi, 0] - self.feedpositions[fj, 0]
+        by = self.feedpositions[fi, 1] - self.feedpositions[fj, 1]
+        ci = self.beamclass[fi]
+        cj = self.beamclass[fj]
+
+        ## Sort by constructing a numpy array with the keys as fields, and use
+        ## np.argsort to get the indices
+
+        # Create array of keys to sort
+        dt = np.dtype('f8,f8,i4,i4')
+        sort_arr = np.zeros(fi.size, dtype=dt)
+        sort_arr['f0'] = bx
+        sort_arr['f1'] = by
+        sort_arr['f2'] = cj
+        sort_arr['f3'] = ci
+
+        # Get map which sorts
+        sort_ind = np.argsort(sort_arr)
+
+        # Invert mapping
+        sort_ind[sort_ind] = np.arange(sort_ind.size)
+
+        # Remap feedmap entries
+        fm_copy = self._feedmap.copy()
+        wmask = np.where(self._feedmask)
+        fm_copy[wmask] = sort_ind[self._feedmap[wmask]]
+
+        self._feedmap = fm_copy
+
 
     #===================================================
 

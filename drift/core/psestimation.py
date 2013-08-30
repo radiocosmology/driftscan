@@ -191,6 +191,7 @@ class PSEstimation(config.Reader):
 
     zero_mean = config.Property(proptype=bool, default=True)
 
+    crosspower = False
 
     clarray = None
 
@@ -544,7 +545,7 @@ class PSEstimation(config.Reader):
 
     #====== Estimate the q-parameters from data ========
 
-    def q_estimator(self, mi, vec, noise=False):
+    def q_estimator(self, mi, vec1, vec2=None, noise=False):
         """Estimate the q-parameters from given data (see paper).
 
         Parameters
@@ -571,7 +572,7 @@ class PSEstimation(config.Reader):
             return np.zeros((self.nbands + 1 if noise else self.nbands,))
 
         # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
-        x0 = (vec.T / (evals + 1.0)).T
+        x0 = (vec1.T / (evals + 1.0)).T
 
         # Project back into SVD basis
         x1 = np.dot(evecs.T.conj(), x0)
@@ -579,8 +580,16 @@ class PSEstimation(config.Reader):
         # Project back into sky basis
         x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
 
+        if vec2 is not None:
+            y0 = (vec2.T / (evals + 1.0)).T
+            y1 = np.dot(evecs.T.conj(), x0)
+            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+        else:
+            y0 = x0
+            y2 = x2
+
         # Create empty q vector (length depends on if we're calculating the noise term too)
-        qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec.shape[1:])
+        qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec1.shape[1:])
 
         lside = self.telescope.lmax + 1
 
@@ -589,18 +598,21 @@ class PSEstimation(config.Reader):
 
             for li in range(lside):
 
-                lvec = x2[:, 0, li]
+                lxvec = x2[:, 0, li]
+                lyvec = y2[:, 0, li]                
 
-                qa[bi] += np.sum(lvec.conj() * np.dot(self.clarray[bi][li], lvec), axis=0) # TT only.
+                qa[bi] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li], lxvec), axis=0) # TT only.
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
-            if self.zero_mean:
-                qa[-1] = np.sum((x0 * x0.conj()).T.real * (evals + 1.0), axis=-1)
-            else:
-                qa[-1] = np.sum((x0 * x0.conj()).real, axis=0)
 
-        return qa
+            # If calculating crosspower don't include instrumental noise
+            noisemodes = 0.0 if self.crosspower else 1.0 
+            noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
+
+            qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
+
+        return qa.real
             
     #===================================================
 

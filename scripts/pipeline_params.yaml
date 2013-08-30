@@ -1,23 +1,16 @@
 config:
 
-    timestream_directory: timestream/
-    product_directory: products/
-    output_directory:  outputs/
-
-    simulate: Yes
+    product_directory: ~/science/cylinder_simulation/scripts/polteststream/testproducts2/
 
     generate_modes: Yes
     generate_klmodes: Yes
     generate_powerspectra: Yes
 
-    klmodes: [kl, dk]
+    klmodes: [kl]
 
     powerspectra:
-        -   psname: ps1
-            klname: kl
-        -   psname: ps2
-            klname: dk
-
+         -   psname: ps2
+             klname: kl
 
 
     ## Cluster configuration (ignored unless on a cluster)
@@ -29,22 +22,59 @@ config:
     ppn:                8                       # Processors to require per node
     queue:              batch                   # If set, submit to an alternative queue (e.g debug)
 
+timestreams:
 
-simulate:
+    -   name: ts1
+        directory: ~/science/cylinder_simulation/scripts/polteststream/xtest1/
 
-    # Products used to generate timestream
-    product_directory: products/
+        simulate:
+            # Skymaps to go into timestream
+            maps:
+                - /Users/richard/science/cylinder_simulation/scripts/polteststream/sky21cm.hdf5
+#                - /Users/richard/science/cylinder_simulation/scripts/polteststream/skyfg.hdf5
 
-    # Skymaps to go into timestream
-    maps:
-        - sky21cm.hdf5
-        - skyfg.hdf5
+            product_directory: ~/science/cylinder_simulation/scripts/polteststream/testproducts2/
 
-    # Number of days of observation (controls the noise level).
-    # ndays: 0 is no noise (i.e. ndays=inf) 
-    ndays: 733
+            # Number of days of observation (controls the noise level).
+            # ndays: 0 is no noise (i.e. ndays=inf) 
+            ndays: 0
 
-    # Time resolution (approximate time resolution required)
-    # If time_resolution=0 pick from max m.
-    resolution: 0
+            # Time resolution (approximate time resolution required)
+            # If time_resolution=0 pick from max m.
+            resolution: 0
 
+            seed: 1
+
+
+    -   name: ts2
+        directory: /Users/richard/science/cylinder_simulation/scripts/polteststream/xtest2/
+
+
+        simulate:
+            # Skymaps to go into timestream
+            maps:
+                - /Users/richard/science/cylinder_simulation/scripts/polteststream/sky21cm.hdf5
+#                - /Users/richard/science/cylinder_simulation/scripts/polteststream/skyfg.hdf5
+
+            product_directory: ~/science/cylinder_simulation/scripts/polteststream/testproducts2/
+
+            # Number of days of observation (controls the noise level).
+            # ndays: 0 is no noise (i.e. ndays=inf) 
+            ndays: 0
+
+            # Time resolution (approximate time resolution required)
+            # If time_resolution=0 pick from max m.
+            resolution: 0
+
+            seed: 2
+
+
+
+crosspower:
+
+    -   psname: xp1
+        klname: kl
+
+        timestreams: [ts1, ts2]
+
+        psfile: ~/science/cylinder_simulation/scripts/polteststream/xspec.hdf5

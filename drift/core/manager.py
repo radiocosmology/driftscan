@@ -12,7 +12,7 @@ from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder, exot
 from drift.core import beamtransfer
 
 from drift.core import kltransform, doublekl
-from drift.core import psestimation, psmc
+from drift.core import psestimation, psmc, crosspower
 from drift.core import skymodel
 
 
@@ -38,7 +38,8 @@ kltype_dict =   {   'KLTransform'   : kltransform.KLTransform,
 ## Power spectrum estimation configuration
 pstype_dict =   {   'Full'          : psestimation.PSExact,
                     'MonteCarlo'    : psmc.PSMonteCarlo,
-                    'MonteCarloAlt'    : psmc.PSMonteCarloAlt
+                    'MonteCarloAlt' : psmc.PSMonteCarloAlt,
+                    'Cross'         : crosspower.CrossPower                   
                 }
 
 
@@ -114,7 +115,7 @@ class ProductManager(object):
                 outdir_orig = outdir
                 # Work out absolute path
                 if not os.path.isabs(outdir):
-                    outdir = os.path.normpath(os.path.join(os.path.dirname(configfile), outdir))
+                    outdir = os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(configfile), outdir)))
 
                 with open(configfile, 'r') as f:
                     config_contents = f.read()
@@ -149,6 +150,8 @@ class ProductManager(object):
             raise Exception('Configuration file must have an \'config\' section.')
 
         self.directory = yconf['config']['output_directory']
+        self.directory = os.path.expanduser(self.directory)
+        self.directory = os.path.expandvars(self.directory)
 
         if not os.path.isabs(self.directory):
             self.directory = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(configfile)), self.directory))

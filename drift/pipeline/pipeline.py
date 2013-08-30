@@ -81,7 +81,7 @@ class PipelineManager(config.Reader):
     def load_configfile(self, configfile):
 
 
-        with open(configfile) as f:
+        with open(configfile, 'r') as f:
             yconf = yaml.safe_load(f)
 
         ## Global configuration

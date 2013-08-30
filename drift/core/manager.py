@@ -94,7 +94,7 @@ class ProductManager(object):
             configfile = configfile + '/config.yaml'
 
         # Read in config file to fetch output directory
-        with open(configfile) as f:
+        with open(configfile, 'r') as f:
             yconf = yaml.safe_load(f)
 
         outdir = yconf['config']['output_directory']

@@ -260,7 +260,15 @@ def transpose_blocks(row_array, shape, comm=None):
     """
 
     if not comm:
-        comm=MPI.COMM_WORLD
+        try:
+            comm=MPI.COMM_WORLD
+        except NameError:
+            if row_array.shape == shape:
+                # We are working on a single node and being asked to do the
+                # a trivial transpose.
+                return row_array
+            else:
+                raise
 
     nr = shape[0]
     nc = shape[-1]

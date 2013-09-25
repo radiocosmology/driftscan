@@ -196,8 +196,12 @@ def split_all(n, comm=None):
     `split_all`, `split_local`
     """
     if not comm:
-        comm=MPI.COMM_WORLD
-    return split_m(n, comm.size)
+        try: 
+            comm=MPI.COMM_WORLD
+            m = comm.size
+        except NameError:
+            m = 1
+    return split_m(n, m)
 
 
 def split_local(n, comm=None):
@@ -225,10 +229,14 @@ def split_local(n, comm=None):
     --------
     `split_all`, `split_local`
     """
-    if not comm:
-        comm=MPI.COMM_WORLD
     pse = split_all(n, comm=comm)
-    return pse[:, comm.rank]
+    if not comm:
+        try: 
+            comm=MPI.COMM_WORLD
+            m = comm.rank
+        except NameError:
+            m = 0
+    return pse[:, m]
 
 
 def transpose_blocks(row_array, shape, comm=None):

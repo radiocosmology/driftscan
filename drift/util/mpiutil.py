@@ -171,7 +171,7 @@ def split_m(n, m):
     return np.array([part, bound[:m], bound[1:(m + 1)]])
 
 
-def split_all(n, comm=MPI.COMM_WORLD):
+def split_all(n, comm=None):
     """
     Split a range (0, n-1) into sub-ranges for each MPI Process.
 
@@ -195,10 +195,12 @@ def split_all(n, comm=MPI.COMM_WORLD):
     --------
     `split_all`, `split_local`
     """
+    if not comm:
+        comm=MPI.COMM_WORLD
     return split_m(n, comm.size)
 
 
-def split_local(n, comm=MPI.COMM_WORLD):
+def split_local(n, comm=None):
     """
     Split a range (0, n-1) into sub-ranges for each MPI Process. This returns
     the parameters only for the current rank.
@@ -223,12 +225,13 @@ def split_local(n, comm=MPI.COMM_WORLD):
     --------
     `split_all`, `split_local`
     """
+    if not comm:
+        comm=MPI.COMM_WORLD
     pse = split_all(n, comm=comm)
-
     return pse[:, comm.rank]
 
 
-def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
+def transpose_blocks(row_array, shape, comm=None):
     """
     Take a 2D matrix which is split between processes row-wise and split it
     column wise between processes.
@@ -247,6 +250,9 @@ def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
     col_array : np.ndarray
         Local section of the global array (split column wise).
     """
+
+    if not comm:
+        comm=MPI.COMM_WORLD
 
     nr = shape[0]
     nc = shape[-1]
@@ -341,7 +347,7 @@ def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
     return recv_buffer.reshape(shape[:-1] + (pc,))
 
 
-def allocate_hdf5_dataset(fname, dsetname, shape, dtype, comm=MPI.COMM_WORLD):
+def allocate_hdf5_dataset(fname, dsetname, shape, dtype, comm=None):
     """Create a hdf5 dataset and return its offset and size.
 
     The dataset will be created contiguously and immediately allocated,
@@ -370,6 +376,9 @@ def allocate_hdf5_dataset(fname, dsetname, shape, dtype, comm=MPI.COMM_WORLD):
     """
 
     import h5py
+
+    if not comm:
+        comm=MPI.COMM_WORLD
 
     state = None
 
@@ -438,10 +447,14 @@ def lock_and_write_buffer(obj, fname, offset, size):
     os.close(fd)
 
 
-def parallel_rows_write_hdf5(fname, dsetname, local_data, shape, comm=MPI.COMM_WORLD):
+def parallel_rows_write_hdf5(fname, dsetname, local_data, shape, comm=None):
     """Write out array (distributed across processes row wise) into a HDF5 in parallel.
 
     """
+
+    if not comm:
+        comm=MPI.COMM_WORLD
+
     offset, size = allocate_hdf5_dataset(fname, dsetname, shape, local_data.dtype, comm=comm)
 
     lr, sr, er = split_local(shape[0], comm=comm)

@@ -18,7 +18,10 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
     mpiutil.barrier()
 
-    p_all = mpiutil.world.gather(data, root=0)
+    if mpiutil.rank0 and mpiutil._size == 1:
+        p_all = [data]
+    else:
+        p_all = mpiutil.world.gather(data, root=0)
 
     mpiutil.barrier() # Not sure if this barrier really does anything,
                       # but hoping to stop collect breaking

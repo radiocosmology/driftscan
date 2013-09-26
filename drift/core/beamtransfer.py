@@ -799,7 +799,8 @@ class BeamTransfer(object):
 
                 # Check to ensure polcut hasn't thrown away all modes. If it
                 # has, just leave datasets blank.
-                if bf2.shape[0] > 0 and (s1 > 0.0).any():
+                if (bf2.shape[0] > 0 and self.telescope.num_pol_sky != 1
+                    and (s1 > 0.0).any()):
 
                     ## SVD 3 - decompose polarisation null space
                     bft = bf2.reshape(-1, self.telescope.num_pol_sky, self.telescope.lmax + 1)[:, 0]

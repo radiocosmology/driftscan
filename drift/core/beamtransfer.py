@@ -606,7 +606,7 @@ class BeamTransfer(object):
         ## and transposing between processes, the write out the beams ordered
         ## by m.
 
-        if os.path.exists(self.directory + '/beam_m/COMPLETED'):
+        if os.path.exists(self.directory + '/beam_m/COMPLETED') and not regen:
             if mpiutil.rank0:
                 print "******* m-files already generated ********"
             return

@@ -11,7 +11,7 @@ world = None
 rank0 = True
 
 ## Try to setup MPI and get the comm, rank and size.
-## If not they should end up as rank=0, size=1.
+## If not they should end up as rank=0, size=1.  <- They don't -KM.
 try:
     from mpi4py import MPI
 

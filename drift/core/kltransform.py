@@ -18,7 +18,7 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
     mpiutil.barrier()
 
-    if mpiutil.rank0 and mpiutil._size == 1:
+    if mpiutil.rank0 and mpiutil.size == 1:
         p_all = [data]
     else:
         p_all = mpiutil.world.gather(data, root=0)

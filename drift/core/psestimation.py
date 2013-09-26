@@ -354,7 +354,7 @@ class PSEstimation(config.Reader):
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt, temponly=True)
         
-        print "Rank: %i - Finished making band." % mpiutil._rank
+        print "Rank: %i - Finished making band." % mpiutil.rank
         return clzz
 
 

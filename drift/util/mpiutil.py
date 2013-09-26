@@ -7,11 +7,11 @@ _rank = 0
 _size = 1
 _comm = None
 world = None
-
+rank, size = _rank, _size
 rank0 = True
 
 ## Try to setup MPI and get the comm, rank and size.
-## If not they should end up as rank=0, size=1.  <- They don't -KM.
+## If not they should end up as rank=0, size=1.
 try:
     from mpi4py import MPI
 
@@ -36,6 +36,7 @@ try:
         MPI.COMM_WORLD.Abort(1)
 
     sys.excepthook = mpi_excepthook 
+    
     
 except ImportError:
     warnings.warn("Warning: mpi4py not installed.")

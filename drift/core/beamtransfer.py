@@ -695,7 +695,7 @@ class BeamTransfer(object):
                 mfile['beam_m'][:, :, blstart:blend] = m_array[..., lmi]
                 mfile.close()
 
-            print "rank %i: Done writing chunks to disk." % mpiutil._rank
+            print "rank %i: Done writing chunks to disk." % mpiutil.rank
 
             # Delete the local frequency and m ordered
             # sections. Otherwise we run out of memory on the next

@@ -3,11 +3,10 @@ import sys
 
 import numpy as np
 
-_rank = 0
-_size = 1
+rank = 0
+size = 1
 _comm = None
 world = None
-
 rank0 = True
 
 ## Try to setup MPI and get the comm, rank and size.
@@ -21,13 +20,10 @@ try:
     rank = _comm.Get_rank()
     size = _comm.Get_size()
 
-    _rank = rank if rank else 0
-    _size = size if size else 1
-
     if rank:
-        print "MPI process %i of %i." % (_rank, _size)
+        print "MPI process %i of %i." % (rank, size)
 
-    rank0 = True if _rank == 0 else False
+    rank0 = True if rank == 0 else False
 
     sys_excepthook = sys.excepthook 
     
@@ -36,6 +32,7 @@ try:
         MPI.COMM_WORLD.Abort(1)
 
     sys.excepthook = mpi_excepthook 
+    
     
 except ImportError:
     warnings.warn("Warning: mpi4py not installed.")
@@ -48,7 +45,7 @@ def partition_list_alternate(full_list, i, n):
 
 def partition_list_mpi(full_list):
     """Return the partition of a list specific to the current MPI process."""
-    return partition_list_alternate(full_list, _rank, _size)
+    return partition_list_alternate(full_list, rank, size)
 
 
 def mpirange(*args):
@@ -57,13 +54,13 @@ def mpirange(*args):
     full_list = range(*args)
     
     #if alternate:
-    return partition_list_alternate(full_list, _rank, _size)
+    return partition_list_alternate(full_list, rank, size)
     #else:
-    #    return np.array_split(full_list, _size)[rank_]
+    #    return np.array_split(full_list, size)[rank]
 
 
 def barrier():
-    if _size > 1:
+    if size > 1:
         _comm.Barrier()
 
 
@@ -91,7 +88,7 @@ def parallel_map(func, glist):
     barrier()
 
     # If we're only on a single node, then just perform without MPI
-    if _size == 1 and _rank == 0:
+    if size == 1 and rank == 0:
         return [func(item) for item in glist]
 
     # Pair up each list item with its position.
@@ -171,7 +168,7 @@ def split_m(n, m):
     return np.array([part, bound[:m], bound[1:(m + 1)]])
 
 
-def split_all(n, comm=MPI.COMM_WORLD):
+def split_all(n, comm=None):
     """
     Split a range (0, n-1) into sub-ranges for each MPI Process.
 
@@ -195,10 +192,16 @@ def split_all(n, comm=MPI.COMM_WORLD):
     --------
     `split_all`, `split_local`
     """
-    return split_m(n, comm.size)
+    if not comm:
+        try: 
+            comm=MPI.COMM_WORLD
+            m = comm.size
+        except NameError:
+            m = 1
+    return split_m(n, m)
 
 
-def split_local(n, comm=MPI.COMM_WORLD):
+def split_local(n, comm=None):
     """
     Split a range (0, n-1) into sub-ranges for each MPI Process. This returns
     the parameters only for the current rank.
@@ -224,11 +227,16 @@ def split_local(n, comm=MPI.COMM_WORLD):
     `split_all`, `split_local`
     """
     pse = split_all(n, comm=comm)
+    if not comm:
+        try: 
+            comm=MPI.COMM_WORLD
+            m = comm.rank
+        except NameError:
+            m = 0
+    return pse[:, m]
 
-    return pse[:, comm.rank]
 
-
-def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
+def transpose_blocks(row_array, shape, comm=None):
     """
     Take a 2D matrix which is split between processes row-wise and split it
     column wise between processes.
@@ -247,6 +255,19 @@ def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
     col_array : np.ndarray
         Local section of the global array (split column wise).
     """
+
+    if not comm:
+        try:
+            comm=MPI.COMM_WORLD
+        except NameError:
+            if row_array.shape[:-1] == shape[:-1]:
+                # We are working on a single node and being asked to do the
+                # a trivial transpose.
+                # Note that to mimic the mpi behaviour we have to allow the
+                # last index to be trimmed.
+                return row_array[...,:shape[-1]].copy()
+            else:
+                raise
 
     nr = shape[0]
     nc = shape[-1]
@@ -341,7 +362,7 @@ def transpose_blocks(row_array, shape, comm=MPI.COMM_WORLD):
     return recv_buffer.reshape(shape[:-1] + (pc,))
 
 
-def allocate_hdf5_dataset(fname, dsetname, shape, dtype, comm=MPI.COMM_WORLD):
+def allocate_hdf5_dataset(fname, dsetname, shape, dtype, comm=None):
     """Create a hdf5 dataset and return its offset and size.
 
     The dataset will be created contiguously and immediately allocated,
@@ -370,6 +391,9 @@ def allocate_hdf5_dataset(fname, dsetname, shape, dtype, comm=MPI.COMM_WORLD):
     """
 
     import h5py
+
+    if not comm:
+        comm=MPI.COMM_WORLD
 
     state = None
 
@@ -438,10 +462,14 @@ def lock_and_write_buffer(obj, fname, offset, size):
     os.close(fd)
 
 
-def parallel_rows_write_hdf5(fname, dsetname, local_data, shape, comm=MPI.COMM_WORLD):
+def parallel_rows_write_hdf5(fname, dsetname, local_data, shape, comm=None):
     """Write out array (distributed across processes row wise) into a HDF5 in parallel.
 
     """
+
+    if not comm:
+        comm=MPI.COMM_WORLD
+
     offset, size = allocate_hdf5_dataset(fname, dsetname, shape, local_data.dtype, comm=comm)
 
     lr, sr, er = split_local(shape[0], comm=comm)

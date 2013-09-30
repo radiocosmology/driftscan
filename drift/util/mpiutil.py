@@ -3,11 +3,10 @@ import sys
 
 import numpy as np
 
-_rank = 0
-_size = 1
+rank = 0
+size = 1
 _comm = None
 world = None
-rank, size = _rank, _size
 rank0 = True
 
 ## Try to setup MPI and get the comm, rank and size.
@@ -21,13 +20,10 @@ try:
     rank = _comm.Get_rank()
     size = _comm.Get_size()
 
-    _rank = rank if rank else 0
-    _size = size if size else 1
-
     if rank:
-        print "MPI process %i of %i." % (_rank, _size)
+        print "MPI process %i of %i." % (rank, size)
 
-    rank0 = True if _rank == 0 else False
+    rank0 = True if rank == 0 else False
 
     sys_excepthook = sys.excepthook 
     
@@ -49,7 +45,7 @@ def partition_list_alternate(full_list, i, n):
 
 def partition_list_mpi(full_list):
     """Return the partition of a list specific to the current MPI process."""
-    return partition_list_alternate(full_list, _rank, _size)
+    return partition_list_alternate(full_list, rank, size)
 
 
 def mpirange(*args):
@@ -58,13 +54,13 @@ def mpirange(*args):
     full_list = range(*args)
     
     #if alternate:
-    return partition_list_alternate(full_list, _rank, _size)
+    return partition_list_alternate(full_list, rank, size)
     #else:
-    #    return np.array_split(full_list, _size)[rank_]
+    #    return np.array_split(full_list, size)[rank]
 
 
 def barrier():
-    if _size > 1:
+    if size > 1:
         _comm.Barrier()
 
 
@@ -92,7 +88,7 @@ def parallel_map(func, glist):
     barrier()
 
     # If we're only on a single node, then just perform without MPI
-    if _size == 1 and _rank == 0:
+    if size == 1 and rank == 0:
         return [func(item) for item in glist]
 
     # Pair up each list item with its position.

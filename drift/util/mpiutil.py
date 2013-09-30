@@ -264,10 +264,12 @@ def transpose_blocks(row_array, shape, comm=None):
         try:
             comm=MPI.COMM_WORLD
         except NameError:
-            if row_array.shape == shape:
+            if row_array.shape[:-1] == shape[:-1]:
                 # We are working on a single node and being asked to do the
                 # a trivial transpose.
-                return row_array
+                # Note that to mimic the mpi behaviour we have to allow the
+                # last index to be trimmed.
+                return row_array[...,:shape[-1]].copy()
             else:
                 raise
 

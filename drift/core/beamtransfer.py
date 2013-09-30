@@ -5,7 +5,6 @@ import time
 import numpy as np
 import scipy.linalg as la
 import h5py
-from mpi4py import MPI
 
 from drift.util import mpiutil, util, blockla
 from drift.core import kltransform

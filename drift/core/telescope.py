@@ -524,7 +524,8 @@ class TransitTelescope(config.Reader):
         sort_ind = np.argsort(sort_arr)
 
         # Invert mapping
-        sort_ind[sort_ind] = np.arange(sort_ind.size)
+        tmp_sort_ind = sort_ind.copy()
+        sort_ind[tmp_sort_ind] = np.arange(sort_ind.size)
 
         # Remap feedmap entries
         fm_copy = self._feedmap.copy()

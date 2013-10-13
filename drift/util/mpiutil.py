@@ -192,12 +192,8 @@ def split_all(n, comm=None):
     --------
     `split_all`, `split_local`
     """
-    if not comm:
-        try: 
-            comm=MPI.COMM_WORLD
-            m = comm.size
-        except NameError:
-            m = 1
+    m = size if comm is None else comm.size
+    
     return split_m(n, m)
 
 
@@ -227,12 +223,8 @@ def split_local(n, comm=None):
     `split_all`, `split_local`
     """
     pse = split_all(n, comm=comm)
-    if not comm:
-        try: 
-            comm=MPI.COMM_WORLD
-            m = comm.rank
-        except NameError:
-            m = 0
+    m = rank if comm is None else comm.rank
+    
     return pse[:, m]
 
 

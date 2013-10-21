@@ -1,7 +1,8 @@
 
 import numpy as np
 
-from drift.telescope import cylinder
+from drift.core import telescope
+from drift.telescope import cylinder, cylbeam
 from drift.util import config
 
 
@@ -75,6 +76,110 @@ class CylinderExtra(cylinder.UnpolarisedCylinderTelescope):
 
         return pos2
 
+
+
+class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
+    """A base for a polarised telescope.
+    
+    Again, an abstract class, but the only things that require implementing are
+    the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
+    
+    Abstract Methods
+    ----------------
+    beamx, beamy : methods
+        Routines giving the field pattern for the x and y feeds.
+    """
+
+    npert = 2
+
+    @property
+    def beamclass(self):
+        """Simple beam mode of dual polarisation feeds."""
+        nsfeed = self._single_feedpositions.shape[0]
+
+        # Evens are X feed for each pert, Odds are Y feed
+        beamclass = [ bc * np.ones(nsfeed) for bc in range(2*self.npert) ]
+
+        return np.concatenate(beamclass).astype(np.int)
+
+
+    @property
+    def feedpositions(self):
+        beampos = [ self._single_feedpositions for bc in range(2*self.npert)]
+        return np.concatenate(beampos)
+
+
+    def beamx(self, feed, freq):
+        """Beam for the x polarisation feed.
+        
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
+
+        Returns
+        -------
+        beam : np.ndarray
+            Healpix maps (of size [self._nside, 2]) of the field pattern in the
+            theta and phi directions.         
+        """
+        beampert = int(self.beamclass[feed] / 2)
+
+        if beampert == 0:
+
+            return cylbeam.beam_x(self._angpos, self.zenith,
+                self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+
+        elif beampert == 1:
+
+            beam0 = cylbeam.beam_x(self._angpos, self.zenith, 
+                self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+
+            beam1 = cylbeam.beam_x(self._angpos, self.zenith, 
+                self.cylinder_width / self.wavelengths[freq], self.fwhm_e * 1.01, self.fwhm_h)
+
+            dbeam = (beam1 - beam0) / (0.01 * self.fwhm_e)
+
+            return dbeam
+
+
+    def beamy(self, feed, freq):
+        """Beam for the x polarisation feed.
+        
+        Parameters
+        ----------
+        feed : integer
+            Index for the feed.
+        freq : integer
+            Index for the frequency.
+
+        Returns
+        -------
+        beam : np.ndarray
+            Healpix maps (of size [self._nside, 2]) of the field pattern in the
+            theta and phi directions.         
+        """
+
+        beampert = int(self.beamclass[feed] / 2)
+
+        if beampert == 0:
+
+            return cylbeam.beam_y(self._angpos, self.zenith,
+                self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+
+        elif beampert == 1:
+
+            beam0 = cylbeam.beam_y(self._angpos, self.zenith, 
+                self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+
+            beam1 = cylbeam.beam_y(self._angpos, self.zenith, 
+                self.cylinder_width / self.wavelengths[freq], self.fwhm_e * 1.01, self.fwhm_h)
+
+            dbeam = (beam1 - beam0) / (0.01 * self.fwhm_e)
+
+            return dbeam
         
 
 

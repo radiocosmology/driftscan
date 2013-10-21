@@ -564,8 +564,8 @@ class BeamTransfer(object):
             f = h5py.File(self._ffile(fi), 'w')
 
             # Set a few useful attributes.
-            f.attrs['baselines'] = self.telescope.baselines
-            f.attrs['baseline_indices'] = np.arange(self.telescope.npairs)
+            # f.attrs['baselines'] = self.telescope.baselines
+            # f.attrs['baseline_indices'] = np.arange(self.telescope.npairs)
             f.attrs['frequency_index'] = fi
             f.attrs['frequency'] = self.telescope.frequencies[fi]
             f.attrs['cylobj'] = self._telescope_pickle
@@ -648,7 +648,7 @@ class BeamTransfer(object):
             f.create_dataset('beam_m', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
 
             # Write a few useful attributes.
-            f.attrs['baselines'] = self.telescope.baselines
+            # f.attrs['baselines'] = self.telescope.baselines
             f.attrs['m'] = mi
             f.attrs['frequencies'] = self.telescope.frequencies
             f.attrs['cylobj'] = self._telescope_pickle

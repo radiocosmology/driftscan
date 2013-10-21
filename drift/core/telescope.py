@@ -1023,7 +1023,7 @@ class SimplePolarisedTelescope(PolarisedTelescope):
 
 
     def beam(self, feed, freq):
-        if self.beamclass[feed] == 0:
+        if self.beamclass[feed] % 2 == 0:
             return self.beamx(feed, freq)
         else:
             return self.beamy(feed, freq)
@@ -1040,7 +1040,7 @@ class SimplePolarisedTelescope(PolarisedTelescope):
 
     @abc.abstractmethod
     def beamx(self, feed, freq):
-        """Beam for the x polarisation feed.
+        """Beam for the X polarisation feed.
         
         Parameters
         ----------
@@ -1058,7 +1058,7 @@ class SimplePolarisedTelescope(PolarisedTelescope):
 
     @abc.abstractmethod
     def beamy(self, feed, freq):
-        """Beam for the x polarisation feed.
+        """Beam for the Y polarisation feed.
         
         Parameters
         ----------

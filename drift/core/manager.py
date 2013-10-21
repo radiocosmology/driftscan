@@ -59,7 +59,8 @@ def _resolve_class(clstype, clsdict, objtype=''):
             import imp
             module = imp.load_source(modname, clstype['file'])
         else:
-            module = __import__(modname)
+            import importlib
+            module = importlib.import_module(modname)
         cls_ref = module.__dict__[clsname]
 
 

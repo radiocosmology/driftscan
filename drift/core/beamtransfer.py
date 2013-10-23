@@ -840,7 +840,7 @@ class BeamTransfer(object):
             bl_ind = fbmap[1, fb_ind]
 
             # Create array to hold local matrix section
-            fb_array = np.zeros((loc_num, 2, self.telescope.num_pol_sky, self.telescope.lmax+1, 2*self.telescope.mmax+1), dtype=np.complex128)
+            fb_array = np.zeros((loc_num, 2, self.telescope.num_pol_sky, self.telescope.lmax+1, self.telescope.mmax+1), dtype=np.complex128)
 
             if loc_num > 0:
 
@@ -854,8 +854,12 @@ class BeamTransfer(object):
 
                 fb_array[:, 0, ..., 0] = tarray[..., 0]
 
+                del tarray
+
             # Perform an in memory MPI transpose to get the m-ordered array
             m_array = mpiutil.transpose_blocks(fb_array, (fbnum, 2, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.mmax + 1))
+
+            del fb_array
 
             # Write out the current set of chunks into the m-files.
             for lmi, mi in enumerate(range(sm, em)):
@@ -868,6 +872,8 @@ class BeamTransfer(object):
                         fi = fbmap[0, fbi]
                         bi = fbmap[1, fbi]
                         mfile['beam_m'][fi, :, bi] = m_array[fbi, ..., lmi]
+
+            del m_array
 
         et = time.time()
         if mpiutil.rank0:

@@ -909,18 +909,19 @@ class BeamTransfer(object):
             Telescope vector to return.
         """
 
-        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
-        
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
-        for fi in range(self.nfreq):
-            #vecf[fi] = np.dot(beam[fi], vec[..., fi, :].reshape(self.nsky))
-            vecf[fi] = np.dot(beam[fi], vec[fi].reshape(self.nsky))
+        with h5py.File(self._mfile(mi), 'r') as mfile:
+            mfile = h5py.File(self._mfile(mi), 'r')
+
+            for fi in range(self.nfreq):
+                beamf = mfile['beam_m'][fi][:].reshape((self.ntel, self.nsky))
+                vecf[fi] = np.dot(beamf, vec[fi].reshape(self.nsky))
 
         return vecf
 
     project_vector_forward = project_vector_sky_to_telescope
-    
+
 
     def project_vector_telescope_to_sky(self, mi, vec):
         """Invert a vector from the telescope space onto the sky. This is the
@@ -940,7 +941,7 @@ class BeamTransfer(object):
         """
 
         ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
-        
+
         vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
         vec = vec.reshape((self.nfreq, self.ntel))
 

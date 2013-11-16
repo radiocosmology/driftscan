@@ -211,6 +211,12 @@ class PipelineManager(config.Reader):
                     tsobj.set_kltransform(klname)
                     tsobj.mapmake_kl(self.nside, mapfile, wiener=self.wiener)
 
+    
+                print "Generating SVD map (%s)" % tsname
+                mapfile = 'map_svd.hdf5'
+
+                tsobj.mapmake_svd(self.nside, mapfile)
+
 
 
 

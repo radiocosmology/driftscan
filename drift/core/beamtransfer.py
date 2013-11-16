@@ -912,7 +912,6 @@ class BeamTransfer(object):
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
         with h5py.File(self._mfile(mi), 'r') as mfile:
-            mfile = h5py.File(self._mfile(mi), 'r')
 
             for fi in range(self.nfreq):
                 beamf = mfile['beam_m'][fi][:].reshape((self.ntel, self.nsky))

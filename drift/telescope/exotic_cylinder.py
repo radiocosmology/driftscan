@@ -180,6 +180,27 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             dbeam = (beam1 - beam0) / (0.01 * self.fwhm_e)
 
             return dbeam
-        
 
+
+
+class CylinderShift(cylinder.UnpolarisedCylinderTelescope):
+
+    shift = config.Property(proptype=int, default=)
+
+
+    def feed_positions_cylinder(self, cylinder_index):
+
+        pos = super(CylinderExtra, self).feed_positions_cylinder(cylinder_index)
+
+
+        nextra = self.extra_feeds.shape[0]
+
+        pos2 = np.zeros((pos.shape[0] + nextra, 2), dtype=np.float64)
+
+        pos2[nextra:] = pos
+
+        pos2[:nextra, 0] = cylinder_index * self.cylinder_spacing
+        pos2[:nextra, 1] = self.extra_feeds
+
+        return pos2
 

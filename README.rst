@@ -1,27 +1,26 @@
-====================================
-Cylinder Radio Telescope Simulations
-====================================
+=============================
+Drift Scan Telescope Analysis
+=============================
 
-This is a Python project for simulating the performance of cylinder radio
-telescopes such as CHIME, but it is also suited to analysing other types of
-intensity mapping experiments.
-
+This is a Python project for simulating and analysing the transit radio
+telescopes, with a particular focus on 21cm Cosmology.
 
 Installation
 ============
 
-The primary dependency of this project is the `simulations_21cm` package. This
-can be fetched from `here <http://github.com/jrs65/simulations_21cm>`_. In
-addition to its dependencies we also require an installation of `h5py
+The primary dependency of this project is the `cora` package. This can be
+fetched from `here <http://github.com/jrs65/cora>`_. In addition to its
+dependencies we also require an installation of `h5py
 <http://h5py.alfven.org/>`_ for storing results in `hdf5` files.
 
-You'll need to place this directory in your python module search path, for it to
-run the scripts correctly. This can be done by::
+This package is installable by the usual methods, either the standard ::
 
-    > export PYTHONPATH=$PYTHONPATH:"/<path>/<to>/cylinder_simulation"
+    > python setup.py install [--user]
 
-As with the `simulations_21cm` package it is very highly recommended that you
-use optimized versions of `Numpy` and `Scipy`.
+or to develop the package ::
 
+    > python setup.py develop [--user]
 
+It should also be installable directly with `pip` using the command::
 
+	> pip install [-e] git+ssh://git@github.com/CITA/driftscan

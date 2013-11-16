@@ -1,21 +1,21 @@
-import os.path
+#!/usr/bin/env python
+
 import argparse
-import shutil
-
-import yaml
-
-from drift.core import manager
 
 
 products = None
 
 
 def run_config(args):
+    from drift.core import manager
+
     m = manager.ProductManager.from_config(args.configfile)
     m.generate()
 
 
 def interactive_config(args):
+    from drift.core import manager
+
     global products
     products = manager.ProductManager.from_config(args.configfile)
 
@@ -25,6 +25,10 @@ def interactive_config(args):
 
 
 def queue_config(args):
+
+    import os.path
+    import shutil
+    import yaml
 
     with open(args.configfile, 'r') as f:
         yconf = yaml.safe_load(f)

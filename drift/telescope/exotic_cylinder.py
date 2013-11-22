@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from drift.core import telescope
@@ -185,7 +184,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
 class CylinderShift(cylinder.UnpolarisedCylinderTelescope):
 
-    shift = config.Property(proptype=int, default=)
+    shift = config.Property(proptype=float, default=0.0)
 
 
     def feed_positions_cylinder(self, cylinder_index):

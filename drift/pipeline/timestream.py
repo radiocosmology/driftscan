@@ -759,7 +759,7 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
             
             # Read in and sum up the local frequencies of the supplied maps.
             for mapfile in maps:
-                with h5py.File(mapfile) as f:
+                with h5py.File(mapfile, 'r') as f:
                     row_map += f['map'][sfreq:efreq]
                     
             # Calculate the alm's for the local sections

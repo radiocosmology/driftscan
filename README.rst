@@ -9,7 +9,7 @@ Installation
 ============
 
 The primary dependency of this project is the `cora` package. This can be
-fetched from `here <http://github.com/jrs65/cora>`_. In addition to its
+fetched from `here <http://github.com/radiocosmology/cora>`_. In addition to its
 dependencies we also require an installation of `h5py
 <http://h5py.alfven.org/>`_ for storing results in `hdf5` files.
 

@@ -476,9 +476,16 @@ class PSEstimation(config.Reader):
             et = time.time()
             print "======== Ending PS calculation (time=%f) ========" % (et - st)
 
-            cv = la.inv(self.fisher)
-            err = cv.diagonal()**0.5
-            cr = cv / np.outer(err, err)
+            # Check to see ensure that Fisher matrix isn't all zeros.
+            if not (self.fisher == 0).all():
+                # Generate derived quantities (covariance, errors..)
+                cv = la.inv(self.fisher)
+                err = cv.diagonal()**0.5
+                cr = cv / np.outer(err, err)
+            else:
+                cv = np.zeros_like(self.fisher)
+                err = cv.diagonal()
+                cr = np.zeros_like(self.fisher)
 
             f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
             f.attrs['bandtype'] = self.bandtype

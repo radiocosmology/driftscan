@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Cylinder Simulation documentation build configuration file, created by
-# sphinx-quickstart on Tue Aug 23 12:10:23 2011.
+# Py21cm documentation build configuration file, created by
+# sphinx-quickstart on Wed Jul  3 18:21:11 2013.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #
@@ -25,7 +25,13 @@ import sys, os
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath', 'numpydoc']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath', 'sphinx.ext.mathjax',
+              'numpydoc', 'sphinx.ext.autosummary']
+
+numpydoc_show_class_members = False
+import glob
+autosummary_generate = glob.glob("*.rst")
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -40,8 +46,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Cylinder Simulation'
-copyright = u'2011, Richard Shaw'
+project = u'driftscan'
+copyright = u'2014, J. Richard Shaw'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -64,7 +70,7 @@ release = '0.1'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = []
+exclude_patterns = ['_build']
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 #default_role = None
@@ -86,12 +92,27 @@ pygments_style = 'sphinx'
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
 
+# If true, keep warnings as "system message" paragraphs in the built documents.
+#keep_warnings = False
+
 
 # -- Options for HTML output ---------------------------------------------------
 
+
+html_theme = 'default'
+
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+if not on_rtd:
+    try:
+        import sphinx_rtd_theme
+        html_theme = "sphinx_rtd_theme"
+        html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+    except ImportError:
+        pass
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+# html_theme = 'redcloud'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -99,7 +120,7 @@ html_theme = 'default'
 #html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
-#html_theme_path = []
+# html_theme_path = ['cloud']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -164,22 +185,27 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'CylinderSimulationdoc'
+htmlhelp_basename = 'driftscan'
 
 
 # -- Options for LaTeX output --------------------------------------------------
 
-# The paper size ('letter' or 'a4').
-#latex_paper_size = 'letter'
+latex_elements = {
+# The paper size ('letterpaper' or 'a4paper').
+#'papersize': 'letterpaper',
 
 # The font size ('10pt', '11pt' or '12pt').
-#latex_font_size = '10pt'
+#'pointsize': '10pt',
+
+# Additional stuff for the LaTeX preamble.
+#'preamble': '',
+}
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'CylinderSimulation.tex', u'Cylinder Simulation Documentation',
-   u'Richard Shaw', 'manual'),
+  ('index', 'driftscan.tex', u'driftscan Documentation',
+   u'J. Richard Shaw', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -196,9 +222,6 @@ latex_documents = [
 # If true, show URL addresses after external links.
 #latex_show_urls = False
 
-# Additional stuff for the LaTeX preamble.
-#latex_preamble = ''
-
 # Documents to append as an appendix to all manuals.
 #latex_appendices = []
 
@@ -211,6 +234,33 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'cylindersimulation', u'Cylinder Simulation Documentation',
-     [u'Richard Shaw'], 1)
+    ('index', 'driftscan', u'driftscan Documentation',
+     [u'J. Richard Shaw'], 1)
 ]
+
+# If true, show URL addresses after external links.
+#man_show_urls = False
+
+
+# -- Options for Texinfo output ------------------------------------------------
+
+# Grouping the document tree into Texinfo files. List of tuples
+# (source start file, target name, title, author,
+#  dir menu entry, description, category)
+texinfo_documents = [
+  ('index', 'driftscan', u'driftscan Documentation',
+   u'J. Richard Shaw', 'driftscan', 'Analysis package for transit radio interferometers.',
+   'Miscellaneous'),
+]
+
+# Documents to append as an appendix to all manuals.
+#texinfo_appendices = []
+
+# If false, no module index is generated.
+#texinfo_domain_indices = True
+
+# How to display URL addresses: 'footnote', 'no', or 'inline'.
+#texinfo_show_urls = 'footnote'
+
+# If true, do not generate a @detailmenu in the "Top" node's menu.
+#texinfo_no_detailmenu = False

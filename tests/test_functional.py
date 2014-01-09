@@ -21,6 +21,7 @@ sys.path.insert(0, _pkgdir)
 from drift.core import manager
 
 
+
 class TestSimulate(unittest.TestCase):
 
     @classmethod
@@ -42,13 +43,13 @@ class TestSimulate(unittest.TestCase):
         shutil.copy('testparams.yaml', cls.testdir + '/params.yaml')
 
         import multiprocessing
-        nproc = multiprocessing.cpu_count() / 2
+        nproc = max(multiprocessing.cpu_count() / 2, 1)
 
         cmd = """
                  cd %s
                  export OMP_NUM_THREADS=1
                  export PYTHONPATH=%s:$PYTHONPATH
-                 mpirun -np %i python %s/simulate.py params.yaml &> output.log
+                 mpirun -np %i python %s/drift-makeproducts run params.yaml &> output.log
               """
 
         cmd = cmd % (cls.testdir, _pkgdir, nproc, _scriptdir)
@@ -57,6 +58,7 @@ class TestSimulate(unittest.TestCase):
 
         print "Generating products:", cmd
         cls.retval = os.system(cmd)
+        #cls.retval = 0
         print "Done."
 
         cls.manager = manager.ProductManager.from_config(cls.testdir + '/params.yaml')

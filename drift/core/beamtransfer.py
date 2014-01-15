@@ -1,3 +1,20 @@
+"""
+========================================================
+Beam Transfer Matrices (:mod:`~drift.core.beamtransfer`)
+========================================================
+
+A class for calculating and managing Beam Transfer matrices
+
+Classes
+=======
+
+.. autosummary::
+    :toctree: generated/
+
+    BeamTransfer
+
+"""
+
 import pickle
 import os
 import time
@@ -8,6 +25,7 @@ import h5py
 
 from drift.util import mpiutil, util, blockla
 from drift.core import kltransform
+
 
 
 def svd_gen(A, errmsg=None, *args, **kwargs):
@@ -125,12 +143,48 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
 
 
 class BeamTransfer(object):
-    """A class for reading and writing Beam Transfer matrices from disk. In
-    addition this provides methods for projecting vectors and matrices between
-    the sky and the telescope basis.
+    """A class for reading and writing Beam Transfer matrices from disk.
+
+    In addition this provides methods for projecting vectors and matrices
+    between the sky and the telescope basis.
+
+    Parameters
+    ----------
+    directory : string
+        Path of directory to read and write Beam Transfers from.
+    telescope : drift.core.telescope.TransitTelescope, optional
+        Telescope object to use for calculation. If `None` (default), try to
+        load a cached version from the given directory.
+
+    Attributes
+    ----------
+    svcut
+    polsvcut
+    ntel
+    nsky
+    nfreq
+    svd_len
+    ndofmax
+
+
+    Methods
+    -------
+    ndof
+    beam_m
+    invbeam_m
+    beam_svd
+    beam_ut
+    invbeam_svd
+    beam_singularvalues
+    generate
+    project_vector_sky_to_telescope
+    project_vector_telescope_to_sky
+    project_vector_sky_to_svd
+    project_vector_svd_to_sky
+    project_vector_telescope_to_svd
+    project_matrix_sky_to_telescope
+    project_matrix_sky_to_svd
     """
-
-
 
     _mem_switch = 3.0 # Rough chunks (in GB) to divide calculation into.
 
@@ -178,6 +232,7 @@ class BeamTransfer(object):
     def _telescope_pickle(self):
         # The pickled telescope object
         return pickle.dumps(self.telescope)
+
 
     def __init__(self, directory, telescope=None):
 
@@ -1120,6 +1175,23 @@ class BeamTransfer(object):
 
 
     def project_vector_telescope_to_svd(self, mi, vec):
+        """Map a vector from the telescope space into the SVD basis.
+
+        This projection may be lose information about the sky, depending on
+        the polarisation filtering.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Telescope data vector packed as [freq, baseline, polarisation]
+
+        Returns
+        -------
+        svec : np.ndarray[svdnum]
+            SVD vector to return.
+        """
 
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)

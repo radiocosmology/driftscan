@@ -12,10 +12,18 @@ focus on compact arrays searching for cosmological 21cm emission.
 Contents:
 
 .. toctree::
-   :maxdepth: 1
+  	:maxdepth: 1
 
-   overview
-   usage
+   	overview
+   	usage
+
+Programming References
+
+.. toctree::
+	:maxdepth: 1
+
+	beamtransfer
+
 
 
 

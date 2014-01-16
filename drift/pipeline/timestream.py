@@ -23,20 +23,19 @@ class Timestream(object):
 
     #============ Constructor etc. =====================
 
-    def __init__(self, tsdir, prodconfig):
+    def __init__(self, tsdir, prodmanager):
         """Create a new Timestream object.
 
         Parameters
         ----------
         tsdir : string
             Directory to create the Timestream in.
-        btdir : string
-            Directory that the BeamTransfer files are stored in.
+        prodmanager : drift.core.manager.ProductManager
+            ProductManager object containing the analysis products.
         """
         self.directory = os.path.abspath(tsdir)
         self.output_directory = self.directory
-        #self.beamtransfer_dir = os.path.abspath(btdir)
-        self.manager = manager.ProductManager.from_config(prodconfig)
+        self.manager = prodmanager
     
     #====================================================
 
@@ -837,7 +836,7 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
     tphi = np.linspace(0, 2*np.pi, ntime, endpoint=False)
 
     # Create timestream object
-    tstream = Timestream(outdir, m.directory)
+    tstream = Timestream(outdir, m)
 
     ## Iterate over the local frequencies and write them to disk.
     for lfi, fi in enumerate(local_freq):

@@ -101,7 +101,9 @@ class PipelineManager(config.Reader):
             name = tsconf['name']
             tsdir = fixpath(tsconf['directory'])
 
-            ts = timestream.Timestream(tsdir, self.product_directory)
+            # Load ProductManager and Timestream
+            pm = manager.ProductManager.from_config(self.product_directory)
+            ts = timestream.Timestream(tsdir, pm)
 
             if 'output_directory' in tsconf:
                 outdir = fixpath(tsconf['output_directory'])
@@ -212,10 +214,12 @@ class PipelineManager(config.Reader):
                     tsobj.mapmake_kl(self.nside, mapfile, wiener=self.wiener)
 
     
-                print "Generating SVD map (%s)" % tsname
-                mapfile = 'map_svd.hdf5'
 
-                tsobj.mapmake_svd(self.nside, mapfile)
+                print "Generating SVD map (%s)" % tsname
+                tsobj.mapmake_svd(self.nside, 'map_svd.hdf5')
+
+                print "Generating full map (%s)" % tsname
+                tsobj.mapmake_full(self.nside, 'map_full.hdf5')
 
 
 

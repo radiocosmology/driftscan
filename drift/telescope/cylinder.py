@@ -44,8 +44,8 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     non_commensurate = config.Property(proptype=bool, default=False)
 
-    e_width = config.Property(proptype=float, default=0.7) # ~ factor of 0.675 from dipole model
-    h_width = config.Property(proptype=float, default=1.0)    
+    e_width = config.Property(proptype=float, default=0.7)  # ~ factor of 0.675 from dipole model
+    h_width = config.Property(proptype=float, default=1.0)
     
     # Fiducial widths
     _fwhm_e = 2.0 * np.pi / 3.0  # Factor of 0.675 from dipole model

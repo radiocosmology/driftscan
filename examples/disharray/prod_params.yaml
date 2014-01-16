@@ -1,0 +1,17 @@
+config:
+    # Only generate Beam Transfers.
+    beamtransfers:      Yes
+    kltransform:        No
+    psfisher:           No
+
+    output_directory:   yamldriver/proddir
+
+telescope:
+    type:
+        # Mechanism to specify a custom class
+        class:  DishArray
+        module: simplearray
+        file:   simplearray.py
+
+    # Set the zenith (config file takes degrees)
+    zenith:     [30.0, 0.0]

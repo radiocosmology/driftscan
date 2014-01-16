@@ -5,7 +5,7 @@ from cora.util import coord, cubicspline
 
 def polpattern(angpos, dipole):
     """Calculate the unit polarisation vectors at each position on the sphere
-    for a dipole direction.a
+    for a dipole direction.
 
     Parameters
     ----------

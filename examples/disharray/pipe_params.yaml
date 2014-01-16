@@ -1,0 +1,29 @@
+config:
+
+    # Specify the location of the Beam Transfer matrices
+    product_directory:  yamldriver/proddir/
+
+    # Tell the pipeline what to do...
+    generate_mmodes:    Yes
+    generate_maps:      Yes
+
+timestreams:
+
+    # Describe the timestreams to analyse
+    -   name:       ts1
+        directory:  yamldriver/timestream/
+
+        # If there is a simulate section in a timestream, then it is
+        # constructed from the input
+        simulate:
+
+            # List of maps to add into the simulation
+            maps:
+                -   simulated_map.hdf5
+
+            # Need to specify again (such that we can simulate with a
+            # different telescope than we use for analysis)
+            product_directory:  yamldriver/proddir/
+
+            # Set the noise level to zero (ndays=0)
+            ndays:  0

@@ -9,7 +9,8 @@ driftscan
 A package for the analysis of transit radio interferometers, with a particular
 focus on compact arrays searching for cosmological 21cm emission.
 
-Contents:
+Contents
+--------
 
 .. toctree::
   	:maxdepth: 1
@@ -18,11 +19,22 @@ Contents:
    	usage
 
 Programming References
+----------------------
 
 .. toctree::
 	:maxdepth: 1
 
 	beamtransfer
+
+Examples
+--------
+
+.. toctree::
+	:maxdepth: 1
+
+	disharray
+
+
 
 
 

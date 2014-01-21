@@ -9,10 +9,11 @@ config:
     beamtransfers:      Yes                     # Calculate beamtransfers?
     kltransform:        Yes                     # Find KL-modes of telescope?
     psfisher:           Yes                     # Estimate power spectrum errors
-    projections:        No                      # Project through sky maps
 
     ## Directory to store output in/
     output_directory:   "testdir"
+
+    polsvcut:           1.0
 
     ## Cluster configuration (ignored unless on a cluster)
     ## This section is interpreted by mkjob_simulate.py to work out the job 
@@ -43,6 +44,8 @@ telescope:
     cylinder_width:     5.0
     num_feeds:          5
     feed_spacing:       0.5
+
+    tsys:               1.0
 
 
 ## KL transform configuration

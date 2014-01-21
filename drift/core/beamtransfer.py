@@ -554,7 +554,6 @@ class BeamTransfer(object):
         self._generate_dirs()
         self._generate_ffiles(regen)
         self._generate_mfiles(regen)
-        self._generate_mfiles2(regen)
         self._generate_svdfiles(regen)
 
         # Save pickled telescope object
@@ -656,128 +655,8 @@ class BeamTransfer(object):
 
 
 
+
     def _generate_mfiles(self, regen=False):
-        ## Generate the m-mode files by reading in the frequency ordered beams
-        ## and transposing between processes, the write out the beams ordered
-        ## by m.
-
-        if os.path.exists(self.directory + '/beam_m/COMPLETED') and not regen:
-            if mpiutil.rank0:
-                print "******* m-files already generated ********"
-            return
-
-        st = time.time()
-
-        nf = self.telescope.nfreq
-        nm = self.telescope.mmax + 1
-        
-        lfreq, sfreq, efreq = mpiutil.split_local(nf)
-        lm, sm, em = mpiutil.split_local(nm)        
-
-        # Calculate the number of baselines to deal with at any one time. Aim
-        # to have a maximum of 4 GB in memory at any one time
-        blsize = (mpiutil.split_all(nf)[0].max() * self.telescope.num_pol_sky *
-                  (self.telescope.lmax+1) * (2*self.telescope.mmax+1) * 16.0)
-
-        num_bl_per_chunk = int(3e9 / blsize) # Number of baselines to process in each chunk
-        num_chunks = int(self.telescope.nbase / num_bl_per_chunk) + 1
-
-        if mpiutil.rank0:
-            print "====================================================="
-            print "  Processing %i frequencies and %i m's" % (nf, nm)
-            print "  Split into groups of %i and %i respectively" % (lfreq, lm)
-            print
-            print "  %i groups of %i baselines (size %f GB)" % (num_chunks, num_bl_per_chunk, blsize * num_bl_per_chunk / 2**30.0)
-            print "====================================================="
-
-        # Iterate over all m's and create the hdf5 files we will write into.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-
-            if os.path.exists(self._mfile(mi)) and not regen:
-                print ("m index %i. File: %s exists. Skipping..." % (mi, (self._mfile(mi))))
-                continue
-            
-            f = h5py.File(self._mfile(mi), 'w')
-
-            dsize = (self.telescope.nfreq, 2, self.telescope.nbase, self.telescope.num_pol_sky, self.telescope.lmax+1)
-            csize = (1, 2, min(10, self.telescope.nbase), self.telescope.num_pol_sky, self.telescope.lmax+1)
-            f.create_dataset('beam_m', dsize, chunks=csize, compression='lzf', dtype=np.complex128)
-
-            # Write a few useful attributes.
-            # f.attrs['baselines'] = self.telescope.baselines
-            f.attrs['m'] = mi
-            f.attrs['frequencies'] = self.telescope.frequencies
-            f.attrs['cylobj'] = self._telescope_pickle
-
-            f.close()
-
-        mpiutil.barrier()
-
-        # Iterate over all chunks performing a cycle of: read frequency data, transpose to m-order data, write m-data.
-        for ci, blrange in enumerate(mpiutil.split_m(self.telescope.nbase, num_chunks).T):
-
-            if mpiutil.rank0:
-                print
-                print "============================================="
-                print "    Starting chunk %i of %i" % (ci + 1, num_chunks)
-                print "============================================="
-                print
-
-            # Unpack baselines range into num, start and end
-            blnum, blstart, blend = blrange
-
-            # Array to load frequency data into
-            freq_array = np.zeros((lfreq, 2, blnum, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.mmax + 1), dtype=np.complex128)
-
-            ## Read frequency data from the disk, and combine the positive and negative m parts.
-            for lfi, fi in enumerate(range(sfreq, efreq)):
-                ff = h5py.File(self._ffile(fi), 'r')
-                fchunk = ff['beam_freq'][blstart:blend][:]
-                ff.close()
-
-                for mi in range(self.telescope.mmax + 1):
-                    freq_array[lfi, 0, ..., mi] = fchunk[..., mi]
-                    freq_array[lfi, 1, ..., mi] = (-1.0)**mi * fchunk[..., -mi].conj()                    
-
-            mpiutil.barrier()
-
-            # Perform an in memory MPI transpose
-            m_array = mpiutil.transpose_blocks(freq_array, (nf, 2, blnum, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.mmax + 1))
-
-            # Write out the current set of chunks into the m-files.
-            for lmi, mi in enumerate(range(sm, em)):
-
-                mfile = h5py.File(self._mfile(mi), 'r+')
-                mfile['beam_m'][:, :, blstart:blend] = m_array[..., lmi]
-                mfile.close()
-
-            print "rank %i: Done writing chunks to disk." % mpiutil.rank
-
-            # Delete the local frequency and m ordered
-            # sections. Otherwise we run out of memory on the next
-            # iteration as there is a brief moment where the chunks
-            # exist for both old and new iterations.
-            del freq_array
-            del m_array
-
-            mpiutil.barrier()
-
-        et = time.time()
-        if mpiutil.rank0:
-
-            # Make file marker that the m's have been correctly generated:
-            open(self.directory + '/beam_m/COMPLETED', 'a').close()
-
-            # Print out timing
-            print "=== MPI transpose took %f s ===" % (et - st)
-
-
-    def _mfile2(self, mi):
-        # Pattern to form the `m` ordered file.
-        return self._mdir(mi) + '/beam2.hdf5'
-
-
-    def _generate_mfiles2(self, regen=False):
 
         if os.path.exists(self.directory + '/beam_m/COMPLETED2') and not regen:
             if mpiutil.rank0:
@@ -805,11 +684,11 @@ class BeamTransfer(object):
         # Iterate over all m's and create the hdf5 files we will write into.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
-            if os.path.exists(self._mfile2(mi)) and not regen:
-                print ("m index %i. File: %s exists. Skipping..." % (mi, (self._mfile2(mi))))
+            if os.path.exists(self._mfile(mi)) and not regen:
+                print ("m index %i. File: %s exists. Skipping..." % (mi, (self._mfile(mi))))
                 continue
 
-            f = h5py.File(self._mfile2(mi), 'w')
+            f = h5py.File(self._mfile(mi), 'w')
 
             dsize = (self.telescope.nfreq, 2, self.telescope.nbase, self.telescope.num_pol_sky, self.telescope.lmax+1)
             csize = (1, 2, min(10, self.telescope.nbase), self.telescope.num_pol_sky, self.telescope.lmax+1)
@@ -865,7 +744,7 @@ class BeamTransfer(object):
             for lmi, mi in enumerate(range(sm, em)):
 
                 # Open up correct m-file
-                with h5py.File(self._mfile2(mi), 'r+') as mfile:
+                with h5py.File(self._mfile(mi), 'r+') as mfile:
 
                     # Lookup where to write Beam Transfers and write into file.
                     for fbi in range(fbstart, fbnum):
@@ -879,7 +758,7 @@ class BeamTransfer(object):
         if mpiutil.rank0:
 
             # Make file marker that the m's have been correctly generated:
-            open(self.directory + '/beam_m/COMPLETED2', 'a').close()
+            open(self.directory + '/beam_m/COMPLETED', 'a').close()
 
             # Print out timing
             print "=== MPI transpose took %f s ===" % (et - st)

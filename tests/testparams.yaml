@@ -45,6 +45,8 @@ telescope:
     num_feeds:          5
     feed_spacing:       0.5
 
+    tsys:               1.0
+
 
 ## KL transform configuration
 ## Set up the KL-filters that will be generated (there can be multiple ones as listed below).

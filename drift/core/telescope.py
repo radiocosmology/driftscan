@@ -8,10 +8,9 @@ from drift.core import visibility
 from drift.util import util, config
 
 
-
 def in_range(arr, min, max):
     """Check if array entries are within the given range.
-    
+
     Parameters
     ----------
     arr : np.ndarray
@@ -19,7 +18,7 @@ def in_range(arr, min, max):
     min, max : scalar or np.ndarray
         Minimum and maximum values to test against. Values can be in arrays
         broadcastable against `arr`.
-    
+
     Returns
     -------
     val : boolean
@@ -27,17 +26,16 @@ def in_range(arr, min, max):
     """
     return (arr >= min).all() and (arr < max).all()
 
+
 def out_of_range(arr, min, max):
     return not in_range(arr, min, max)
 
 
 def map_half_plane(arr):
-    arr = np.where((arr[:,0] < 0.0)[:,np.newaxis], -arr, arr)
-    arr = np.where(np.logical_and(arr[:,0] == 0.0, arr[:,1] < 0.0)[:,np.newaxis], -arr, arr)
-    
+    arr = np.where((arr[:, 0] < 0.0)[:, np.newaxis], -arr, arr)
+    arr = np.where(np.logical_and(arr[:, 0] == 0.0, arr[:, 1] < 0.0)[:, np.newaxis], -arr, arr)
+
     return arr
-
-
 
 
 def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
@@ -58,7 +56,7 @@ def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
 def _remap_keyarray(keyarray, mask=None):
     # Look through an array of keys and attach integer labels to each
     # equivalent classes of keys (also take into account masking).
-    if mask == None:
+    if mask is None:
         mask = np.ones(keyarray.shape, np.bool)
 
     ind = np.where(mask)
@@ -73,7 +71,7 @@ def _remap_keyarray(keyarray, mask=None):
 
 def _get_indices(keyarray, mask=None):
     # Return a pair of indices for each group of equivalent feed pairs
-    if mask == None:
+    if mask is None:
         mask = np.ones(keyarray.shape, np.bool)
 
     wm = np.where(mask.ravel())[0]
@@ -88,8 +86,7 @@ def _get_indices(keyarray, mask=None):
     return upairs
 
 
-#_horizon_const = 0
-def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
+def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     """Get the maximum (l,m) that a baseline is sensitive to.
 
     Parameters
@@ -106,13 +103,14 @@ def max_lm(baselines, wavelengths, uwidth, vwidth = 0.0):
     lmax, mmax : array_like
     """
 
-    umax = (np.abs(baselines[:,0]) + uwidth) / wavelengths
-    vmax = (np.abs(baselines[:,1]) + vwidth)  / wavelengths
+    umax = (np.abs(baselines[:, 0]) + uwidth) / wavelengths
+    vmax = (np.abs(baselines[:, 1]) + vwidth) / wavelengths
 
-    mmax = np.ceil(2 * np.pi * umax).astype(np.int64)# + _horizon_const
-    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)# + _horizon_const
+    mmax = np.ceil(2 * np.pi * umax).astype(np.int64)
+    lmax = np.ceil((mmax**2 + (2*np.pi*vmax)**2)**0.5).astype(np.int64)
 
     return lmax, mmax
+
 
 def latlon_to_sphpol(latlon):
 
@@ -125,7 +123,7 @@ def latlon_to_sphpol(latlon):
 
 class TransitTelescope(config.Reader):
     """Base class for simulating any transit interferometer.
-    
+
     This is an abstract class, and several methods must be implemented before it
     is usable. These are:
 
@@ -138,7 +136,7 @@ class TransitTelescope(config.Reader):
       collection.
 
     The last two are required for supporting polarised beam functions.
-    
+
     Properties
     ----------
     freq_lower, freq_higher : scalar

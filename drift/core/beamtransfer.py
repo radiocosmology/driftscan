@@ -552,7 +552,7 @@ class BeamTransfer(object):
         st = time.time()
 
         self._generate_dirs()
-        self._generate_ffiles(regen)
+        #self._generate_ffiles(regen)
         self._generate_mfiles(regen)
         self._generate_svdfiles(regen)
 

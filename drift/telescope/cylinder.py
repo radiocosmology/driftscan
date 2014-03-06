@@ -1,9 +1,7 @@
 
 import numpy as np
 
-from cora.util import coord
-
-from drift.core import telescope, visibility
+from drift.core import telescope
 from drift.util import config
 from drift.telescope import cylbeam
 
@@ -46,7 +44,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     e_width = config.Property(proptype=float, default=0.7)  # ~ factor of 0.675 from dipole model
     h_width = config.Property(proptype=float, default=1.0)
-    
+
     # Fiducial widths
     _fwhm_e = 2.0 * np.pi / 3.0  # Factor of 0.675 from dipole model
     _fwhm_h = 2.0 * np.pi / 3.0

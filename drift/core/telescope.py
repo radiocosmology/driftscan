@@ -275,7 +275,7 @@ class TransitTelescope(config.Reader):
 
         return self._feedmask
 
-    _feedmap = None
+    _feedconj = None
 
     @property
     def feedconj(self):

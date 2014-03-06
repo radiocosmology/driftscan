@@ -39,6 +39,41 @@ def polpattern(angpos, dipole):
 
 
 
+def rotate_ypr(rot, xhat, yhat, zhat):
+    """Rotate the basis with a yaw, pitch and roll.
+
+    Parameters
+    ----------
+    rot : [yaw, pitch, roll]
+        Angles of rotation in radians.
+    xhat, yhat, zhat: np.ndarray[3]
+        Basis vectors to rotate.
+
+    Returns
+    -------
+    xhat, yhat, zhat : np.ndarray[3]
+        New basis vectors.
+    """
+
+    yaw, pitch, roll = rot
+
+    # Yaw rotation
+    xhat1 = np.cos(yaw) * xhat - np.sin(yaw) * yhat
+    yhat1 = np.sin(yaw) * xhat + np.cos(yaw) * yhat
+    zhat1 = zhat
+
+    # Pitch rotation
+    xhat2 = xhat1
+    yhat2 =  np.cos(pitch) * yhat1 + np.sin(pitch) * zhat1
+    zhat2 = -np.sin(pitch) * yhat1 + np.cos(pitch) * zhat1
+
+    # Roll rotation
+    xhat3 = np.cos(roll) * xhat2 - np.sin(roll) * zhat2
+    yhat3 = yhat2
+    zhat3 = np.sin(roll) * xhat2 + np.cos(roll) * zhat2
+
+    return xhat3, yhat3, zhat3
+
 
 
 def beam_dipole(theta, phi, squint):
@@ -114,7 +149,7 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
 
 
 
-def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y):
+def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     """Beam amplitude across the sky.
 
     Parameters
@@ -125,15 +160,20 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y):
         Position of zenin on spherical polars.
     width : scalar
         Cylinder width in wavelengths.
-    fwhm_x, fwhm_y
+    fwhm_x, fwhm_y : scalar
         Full with at half power in the x and y directions.
+    rot : [yaw, pitch, roll]
+        Rotation to apply to cylinder in yaw, pitch and roll from North.
 
     Returns
     -------
     beam : np.ndarray[npoints]
         Amplitude of beam at each point.
     """
-    yhat, xhat = coord.thetaphi_plane_cart(zenith)
+
+    that, phat = coord.thetaphi_plane_cart(zenith)
+
+    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
 
     xplane = lambda t: beam_exptan(t, fwhm_x)
     yplane = lambda t: beam_exptan(t, fwhm_y)
@@ -149,7 +189,7 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y):
     return (ew_amp * ns_amp * horizon)
 
 
-def beam_x(angpos, zenith, width, fwhm_e, fwhm_h):
+def beam_x(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
     """Beam amplitude across the sky for the X dipole (points E).
 
     Using ExpTan model.
@@ -164,21 +204,25 @@ def beam_x(angpos, zenith, width, fwhm_e, fwhm_h):
         Cylinder width in wavelengths.
     fwhm_e, fwhm_h
         Full with at half power in the E and H planes of the antenna.
+    rot : [yaw, pitch, roll]
+        Rotation to apply to cylinder in yaw, pitch and roll from North.
 
     Returns
     -------
     beam : np.ndarray[npoints, 2]
         Amplitude vector of beam at each point (in thetahat, phihat)
     """
-    xhat = coord.thetaphi_plane_cart(zenith)[1]
+    that, phat = coord.thetaphi_plane_cart(zenith)
+    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
+
     pvec = polpattern(angpos, xhat)
 
-    amp = beam_amp(angpos, zenith, width, fwhm_e, fwhm_h)
+    amp = beam_amp(angpos, zenith, width, fwhm_e, fwhm_h, rot=rot)
 
     return amp[:, np.newaxis] * pvec
 
 
-def beam_y(angpos, zenith, width, fwhm_e, fwhm_h):
+def beam_y(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
     """Beam amplitude across the sky for the Y dipole (points N).
 
     Using ExpTan model.
@@ -200,9 +244,11 @@ def beam_y(angpos, zenith, width, fwhm_e, fwhm_h):
         Amplitude vector of beam at each point (in thetahat, phihat)
     """
     # Reverse as thetahat points south
-    yhat = -1.0 * coord.thetaphi_plane_cart(zenith)[0]
+    that, phat = coord.thetaphi_plane_cart(zenith)
+    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
+
     pvec = polpattern(angpos, yhat)
 
-    amp = beam_amp(angpos, zenith, width, fwhm_h, fwhm_e)
+    amp = beam_amp(angpos, zenith, width, fwhm_h, fwhm_e, rot=rot)
 
     return amp[:, np.newaxis] * pvec

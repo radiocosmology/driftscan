@@ -658,7 +658,7 @@ class BeamTransfer(object):
 
     def _generate_mfiles(self, regen=False):
 
-        if os.path.exists(self.directory + '/beam_m/COMPLETED2') and not regen:
+        if os.path.exists(self.directory + '/beam_m/COMPLETED') and not regen:
             if mpiutil.rank0:
                 print "******* m-files already generated ********"
             return

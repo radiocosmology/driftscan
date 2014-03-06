@@ -163,7 +163,7 @@ class Timestream(object):
             tstream[lfi] = self.timestream_f(fi)
 
         # FFT to calculate the m-modes for the timestream
-        row_mmodes = np.fft.fft(tstream, axis=-1) / (2*mmax + 1.0)
+        row_mmodes = np.fft.fft(tstream, axis=-1) / (2*self.ntime + 1.0)
 
         ## Combine positive and negative m parts.
         row_mpairs = np.zeros((lfreq, 2, tel.npairs, mmax+1), dtype=np.complex128)

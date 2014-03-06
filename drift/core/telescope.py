@@ -185,7 +185,7 @@ class TransitTelescope(config.Reader):
             Position on the Earths surface of the telescope (in degrees).
         """
 
-        self.zenith = [latitude, longitude]
+        self.zenith = latlon_to_sphpol([latitude, longitude])
 
 
 

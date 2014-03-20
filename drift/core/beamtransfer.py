@@ -711,7 +711,7 @@ class BeamTransfer(object):
         for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
 
             if mpiutil.rank0:
-                "Starting chunk %i of %i" % (ci+1, num_chunks)
+                print "Starting chunk %i of %i" % (ci+1, num_chunks)
 
             # Unpack freq-baselines range into num, start and end
             fbnum, fbstart, fbend = fbrange

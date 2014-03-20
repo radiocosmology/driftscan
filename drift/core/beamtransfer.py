@@ -678,6 +678,9 @@ class BeamTransfer(object):
         num_fb_per_chunk = num_fb_per_node * mpiutil.size
         num_chunks = int(np.ceil(1.0 * nfb / num_fb_per_chunk))  # Number of chunks to break the calculation into
 
+        if mpiutil.rank0:
+            print "Splitting into %i chunks...." % num_chunks
+
         # The local m sections
         lm, sm, em = mpiutil.split_local(self.telescope.mmax+1)
 
@@ -707,6 +710,9 @@ class BeamTransfer(object):
         # Iterate over chunks
         for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
 
+            if mpiutil.rank0:
+                "Starting chunk %i of %i" % (ci+1, num_chunks)
+
             # Unpack freq-baselines range into num, start and end
             fbnum, fbstart, fbend = fbrange
 
@@ -735,6 +741,9 @@ class BeamTransfer(object):
 
                 del tarray
 
+            if mpiutil.rank0:
+                print "Transposing and writing chunk."
+
             # Perform an in memory MPI transpose to get the m-ordered array
             m_array = mpiutil.transpose_blocks(fb_array, (fbnum, 2, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.mmax + 1))
 
@@ -747,10 +756,10 @@ class BeamTransfer(object):
                 with h5py.File(self._mfile(mi), 'r+') as mfile:
 
                     # Lookup where to write Beam Transfers and write into file.
-                    for fbi in range(fbstart, fbnum):
+                    for fbl, fbi in enumerate(range(fbstart, fbend)):
                         fi = fbmap[0, fbi]
                         bi = fbmap[1, fbi]
-                        mfile['beam_m'][fi, :, bi] = m_array[fbi, ..., lmi]
+                        mfile['beam_m'][fi, :, bi] = m_array[fbl, ..., lmi]
 
             del m_array
 
@@ -849,8 +858,13 @@ class BeamTransfer(object):
                     u3, s3 = matrix_image(bft, rtol=0.0, errmsg=("SVD3 m=%i f=%i" % (mi, fi)))
                     ut3 = np.dot(u3.T.conj(), ut2)
 
-                    # Final products
                     nmodes = ut3.shape[0]
+
+                    # Skip if nmodes is zero for some reason.
+                    if nmodes == 0:
+                        continue
+
+                    # Final products
                     ut = ut3
                     sig = s3[:nmodes]
                     beam = np.dot(ut3, bfr)

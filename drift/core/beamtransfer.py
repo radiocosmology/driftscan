@@ -763,7 +763,10 @@ class BeamTransfer(object):
 
             del m_array
 
+        mpiutil.barrier()
+
         et = time.time()
+
         if mpiutil.rank0:
 
             # Make file marker that the m's have been correctly generated:
@@ -771,6 +774,7 @@ class BeamTransfer(object):
 
             # Print out timing
             print "=== MPI transpose took %f s ===" % (et - st)
+
 
 
     def _generate_svdfiles(self, regen=False):

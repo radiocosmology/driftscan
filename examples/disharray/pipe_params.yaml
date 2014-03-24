@@ -4,7 +4,7 @@ config:
     product_directory:  yamldriver/proddir/
 
     # Tell the pipeline what to do...
-    generate_mmodes:    Yes
+    generate_modes:    Yes
     generate_maps:      Yes
 
 timestreams:

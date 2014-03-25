@@ -84,7 +84,7 @@ def range_config(lst):
 
 
 def decorrelate_ps(ps, fisher):
-    """Decorrelated the powerspectrum estimate.
+    """Decorrelate the powerspectrum estimate.
 
     Parameters
     ----------

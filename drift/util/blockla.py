@@ -83,21 +83,19 @@ def multiply_dm_v(matrix, vector, conj=False):
 
 
 def multiply_dm_dm(matrix1, matrix2):
-    """Multiply a block diagonal matrix by a blocked vector.
+    """Multiply a block diagonal matrix by another diagonal matrix.
 
     Parameters
     ----------
-    matrix : (nblocks, n, m) np.ndarray
+    matrix1 : (nblocks, n, m) np.ndarray
         An array containing `nblocks` diagonal blocks of size (`n`, `m`).
-    vector : (nblocks, m) np.ndarray
-        An array containing the blocks of the vector, each of length `m`.
-    conj : boolean, optional
-        Whether to multiply by the Hermitian conjugate of the matrix.
+    matrix2 : (nblocks, m, k) np.ndarray
+        An array containing `nblocks` diagonal blocks of size (`m`, `k`).
 
     Returns
     -------
-    newvector : (nblocks, n) np.ndarray
-         An array containing the blocks of the vector, each of length `n`.
+    nmatrix : (nblocks, n, k) np.ndarray
+         An array containing `nblocks` diagonal blocks of size (`n`, `k`).
     """
    
 

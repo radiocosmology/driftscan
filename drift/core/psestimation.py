@@ -57,28 +57,24 @@ def range_config(lst):
 
     lst2 = []
 
-    for item in lst[:-1]:
+    endpoint = False
+    count = 1
+    for item in lst:
         if isinstance(item, dict):
+            if count == len(lst):
+                endpoint = True
+            count += 1
             
             if item['spacing'] == 'log':
-                item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num'], endpoint=False)
+                item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num'], endpoint=endpoint)
             elif item['spacing'] == 'linear':
-                item = np.linspace(item['start'], item['stop'], item['num'], endpoint=False)
+                item = np.linspace(item['start'], item['stop'], item['num'], endpoint=endpoint)
 
             item = np.atleast_1d(item)
 
             lst2.append(item)
-
-    item = lst[-1]
-    if isinstance(item, dict):
-
-        if item['spacing'] == 'log':
-            item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num']+1, endpoint=True)
-        elif item['spacing'] == 'linear':
-            item = np.linspace(item['start'], item['stop'], item['num']+1, endpoint=True)
-        item = np.atleast_1d(item)
-
-        lst2.append(item)
+        else:
+            raise Exception("Require a dict.")
 
     return np.concatenate(lst2)
 

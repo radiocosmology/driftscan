@@ -277,15 +277,6 @@ class PSEstimation(config.Reader):
             # Make a list of functions of the band window functions
             self.band_func = [ bandfunc_2d_polar(*bound) for bound in bounds ]
 
-            # Create a list of functions of the band power functions
-            if self.unit_bands:
-                # Need slightly awkward double lambda because of loop closure scaling.
-                self.band_pk = [ (lambda bandt: (lambda k, mu: cr.ps_vv(k) * bandt(k, mu)))(band) for band in self.band_func]
-                self.band_power = np.ones_like(self.k_start)
-            else:
-                self.band_pk = self.band_func
-                self.band_power = cr.ps_vv(self.k_center)
-
         elif self.bandtype == 'cartesian':
             
             # Broadcast the bounds against each other to make the 2D array of bands

@@ -123,7 +123,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
 
         bt = self.kltrans.beamtransfer
         evals, evecs = self.kltrans.modes_m(mi)
-        nbands = len(self.bands) - 1
+        # nbands = self.nbands - 1
 
         # Set of S/N weightings
         cf = (evals + 1.0)**-0.5
@@ -140,7 +140,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         # Project back into sky basis
         xv3 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, xv2, conj=True, temponly=True)
 
-        for bi in range(nbands):
+        for bi in range(self.nbands):
 
             # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)

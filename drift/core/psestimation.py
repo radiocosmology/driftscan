@@ -311,7 +311,7 @@ class PSEstimation(config.Reader):
             self.band_pk = self.band_func
             self.band_power = cr.ps_vv(self.k_center)
 
-        # Use new parallel map to speed up computaiton of bands
+        # Use new parallel map to speed up computation of bands
         if self.clarray is None:
 
             self.make_clzz_array()
@@ -622,7 +622,7 @@ class PSExact(PSEstimation):
     @property
     def _cfile(self):
         # Pattern to form the `m` ordered cache file.
-        return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
+        return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(self.nbands) + ".hdf5"
 
 
     

@@ -145,7 +145,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
             # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)
             for li in range(self.telescope.lmax + 1):
-                xv4[:, 0, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, 0, li, :]) # TT only.
+                xv4[:, 0, li, :] = np.dot(self.clarray[bi, li, 0, 0], xv3[:, 0, li, :]) # TT only.
 
             # Projection from sky back into SVD basis
             xv5 = self.kltrans.beamtransfer.project_vector_sky_to_svd(mi, xv4, temponly=True)

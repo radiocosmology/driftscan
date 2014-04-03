@@ -83,7 +83,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
             x = self.gen_sample(mi, n)
             qa[:, s:e] = self.q_estimator(mi, x)
 
-        ft = np.cov(qa)
+        # ft = np.cov(qa)
 
         fisher = np.cov(qa) #ft[:self.nbands, :self.nbands]
         #bias = ft[-1, :self.nbands]

@@ -165,7 +165,7 @@ class PSEstimation(config.Reader):
         fiducial bin amplitude is 1).
 
     zero_mean : boolean
-        If True (not default), then the fiducial parameters have zero mean.
+        If True (default), then the fiducial parameters have zero mean.
     """
 
     __metaclass__ = abc.ABCMeta

@@ -39,6 +39,11 @@ class PipelineManager(config.Reader):
     powerspectra : list
         List of powerspectra to apply. Requires entries to be dicts
         like [ { 'psname' : 'ps1', 'klname' : 'dk'}, ...]
+
+    fullmap_fwhm : scalar
+        The full width half max parameter of the Gaussian symmetric beam function in radians to smooth alms before `mapmake_full`.
+    svdmap_fwhm : scalar
+        The full width half max parameter of the Gaussian symmetric beam function in radians to smooth alms before `mapmake_svd`.
     """
 
     # Directories
@@ -59,6 +64,8 @@ class PipelineManager(config.Reader):
     crosspower = []
 
     # Specific map-making options
+    fullmap_fwhm = config.Property(proptype=float, default=0.1)
+    svdmap_fwhm = config.Property(proptype=float, default=0.1)
     nside = config.Property(proptype=int, default=128)
     wiener = config.Property(proptype=bool, default=False)
 
@@ -216,10 +223,10 @@ class PipelineManager(config.Reader):
     
 
                 print "Generating SVD map (%s)" % tsname
-                tsobj.mapmake_svd(self.nside, 'map_svd.hdf5')
+                tsobj.mapmake_svd(self.nside, 'map_svd.hdf5', self.svdmap_fwhm)
 
                 print "Generating full map (%s)" % tsname
-                tsobj.mapmake_full(self.nside, 'map_full.hdf5')
+                tsobj.mapmake_full(self.nside, 'map_full.hdf5', self.fullmap_fwhm)
 
 
 

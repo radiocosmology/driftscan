@@ -2,12 +2,51 @@ import pickle
 import os
 
 import h5py
+import healpy
 import numpy as np
 
 from cora.util import hputil
 
 from drift.core import manager, kltransform
 from drift.util import util, mpiutil
+
+
+def smoothalm(alms, fwhm=0.0, sigma=None, invert=False, mmax=None, verbose=True, inplace=True):
+    """Smooth alm with a Gaussian symmetric beam function.
+
+    Parameters
+    ----------
+    alms : np.ndarray[freq, pol, l, m]
+        The array of alms.
+    fwhm, sigma, invert, mmax, verbose, inplace :
+        See the corresponding paramters of `healpy.sphtfunc.smoothalm`.
+
+    Returns
+    -------
+    alms: np.ndarray[freq, pol, l, m]
+        The array of alms after smoothing with a Gaussian symmetric beam function.
+
+    Notes
+    -----
+    See _[1].
+
+    .. [1] Seon, 2006. Smoothing of an All-Sky Survey Map with a Fisher-Von Mises Function.
+    """
+    nfreq = alms.shape[0]
+    npol = alms.shape[1]
+    lmax = alms.shape[2] -1
+    for fi in range(nfreq):
+        almp = [hputil.pack_alm(alms[fi, ipol]) for ipol in range(npol)]
+        if npol == 1:
+            alms[fi, 0, :, :] = hputil.unpack_alm(healpy.sphtfunc.smoothalm(almp, fwhm=fwhm, sigma=sigma, invert=invert, pol=False, mmax=mmax, verbose=verbose, inplace=inplace), lmax=lmax)
+        elif npol == 3 or npol == 4:
+            alms[fi, :3, :, :] = [hputil.unpack_alm(alm, lmax=lmax) for alm in healpy.sphtfunc.smoothalm(almp[:3], fwhm=fwhm, sigma=sigma, invert=invert, pol=True, mmax=mmax, verbose=verbose, inplace=inplace)]
+            if npol == 4:
+                alms[fi, 3, :, :] = hputil.unpack_alm(healpy.sphtfunc.smoothalm(almp[3], fwhm=fwhm, sigma=sigma, invert=invert, pol=False, mmax=mmax, verbose=verbose, inplace=inplace), lmax=lmax)
+        else:
+            raise Exception('Unexpected npol = %d.' % npol)
+
+    return alms
 
 
 class Timestream(object):
@@ -254,7 +293,7 @@ class Timestream(object):
 
     #======== Make map from uncleaned stream ============
 
-    def mapmake_full(self, nside, mapname):
+    def mapmake_full(self, nside, mapname, fwhm=0.0):
 
 
         def _make_alm(mi):
@@ -277,6 +316,9 @@ class Timestream(object):
 
                 alm[..., mi] = alm_list[mi]
 
+            # Smooth alm with a Gaussian symmetric beam function.
+            alm = smoothalm(alm, fwhm=fwhm)
+
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 
             with h5py.File(self.output_directory + '/' + mapname, 'w') as f:
@@ -285,7 +327,7 @@ class Timestream(object):
         mpiutil.barrier()
 
 
-    def mapmake_svd(self, nside, mapname):
+    def mapmake_svd(self, nside, mapname, fwhm=0.0):
 
         self.generate_mmodes_svd()
 
@@ -307,6 +349,9 @@ class Timestream(object):
             for mi in range(self.telescope.mmax + 1):
 
                 alm[..., mi] = alm_list[mi]
+
+            # Smooth alm with a Gaussian symmetric beam function.
+            alm = smoothalm(alm, fwhm=fwhm)
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
 

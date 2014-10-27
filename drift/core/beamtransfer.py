@@ -1482,6 +1482,135 @@ class BeamTransfer(object):
         return ret
 
 
+    def project_matrix_diagonal_telescope_to_svd_parallel(self, m, dmat, context):
+        """Scalapack version of project_matrix_diagonal_telescope_to_svd().
+
+        Project a diagonal matrix from the telescope basis into the SVD basis.
+
+        This slightly specialised routine is for projecting the noise
+        covariance into the SVD space.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        dmat : np.ndarray
+            Sky matrix packed as [nfreq, ntel]
+        context : scalapy.core.ProcessContext
+            Scalapack context used to construct distibuted matrix
+
+        Returns
+        -------
+        tmat : scalapy.core.DistributedMatrix
+            Covariance in SVD basis.
+        """ 
+
+        import scalapy.core
+
+        ntel = self.ntel
+        mmax = self.telescope.mmax
+        nfreq_global = self.nfreq
+
+        # argument checking
+        assert 0 <= m <= mmax
+        assert dmat.shape == (nfreq_global, ntel)
+        assert isinstance(context, scalapy.core.ProcessContext)
+
+        (svnum, svbounds) = self._svd_num(m)
+        nsvd_global = svbounds[-1]
+        
+        ret = scalapy.core.DistributedMatrix(global_shape = (nsvd_global,nsvd_global), 
+                                             dtype = np.complex128,
+                                             block_shape = (64,64),
+                                             context = context)
+        
+        (row_indices, col_indices) = ret.indices(full=False)
+        (row_indices, col_indices) = (row_indices[:,0], col_indices[0,:])
+
+        (nrows_local, ncols_local) = ret.local_array.shape
+        assert row_indices.shape == (nrows_local,)
+        assert col_indices.shape == (ncols_local,)
+        
+        ret.local_array[:] = 0.
+
+
+        #
+        # The purpose of this next block of code is to compute the following:
+        #
+        #    local_freqs 
+        #      = 1d array containing frequencies which appear in both a row and a column
+        #
+        #    row_freq_delims, col_freq_delims
+        #       = shape (len(local_freqs),2) arrays defining row/col endpoints of each local_freq
+        #
+        #    row_svds, col_svds
+        #       = 1d array of length nrows (or ncols) giving svd index
+        #
+        
+        # Set t = mapping (global matrix index) -> (global frequency index, svd index)
+        t = np.zeros((2,nsvd_global), dtype=np.int32)
+        for i in xrange(nfreq_global):
+            (a,b) = (svbounds[i], svbounds[i+1])
+            t[0,a:b] = i
+            t[1,a:b] = np.arange(b-a, dtype=np.int32)
+            
+        local_freqs = np.intersect1d(t[0,row_indices], t[0,col_indices])
+        nfreq_local = len(local_freqs)
+
+        row_freq_delims = np.zeros((nfreq_local,2), dtype=np.int32)
+        row_freq_delims[:,0] = np.searchsorted(t[0,row_indices], local_freqs, side='left')
+        row_freq_delims[:,1] = np.searchsorted(t[0,row_indices], local_freqs, side='right')
+        row_svds = t[1,row_indices]
+        
+        col_freq_delims = np.zeros((nfreq_local,2), dtype=np.int32)
+        col_freq_delims[:,0] = np.searchsorted(t[0,col_indices], local_freqs, side='left')
+        col_freq_delims[:,1] = np.searchsorted(t[0,col_indices], local_freqs, side='right')
+        col_svds = t[1,col_indices]
+        
+        #
+        # End-to-end check on the above calculation of row_freq_delims, col_freq_delims
+        #
+        for i in xrange(nfreq_local):
+            (a,b) = row_freq_delims[i]
+            (c,d) = (svbounds[local_freqs[i]], svbounds[local_freqs[i]+1])
+            assert np.all(row_indices[a:b] >= c) and np.all(row_indices[a:b] < d)
+            assert (a==0) or (row_indices[a-1] < c)
+            assert (b==nrows_local) or (row_indices[b] >= d)
+
+        for i in xrange(nfreq_local):
+            (a,b) = col_freq_delims[i]
+            (c,d) = (svbounds[local_freqs[i]], svbounds[local_freqs[i]+1])
+            assert np.all(col_indices[a:b] >= c) and np.all(col_indices[a:b] < d)
+            assert (a==0) or (col_indices[a-1] < c)
+            assert (b==ncols_local) or (col_indices[b] >= d)    
+
+        #
+        # Compute output matrix
+        #
+        svdfile = h5py.File(self._svdfile(m), 'r')
+
+        beam = svdfile['beam_ut']
+        assert beam.shape == (nfreq_global, self.svd_len, ntel)
+
+        for fi in xrange(nfreq_local):
+            (a,b) = row_freq_delims[fi]
+            (c,d) = col_freq_delims[fi]
+            fbeam = beam[local_freqs[fi]]
+            
+            row_beam = fbeam[row_svds[a:b], :]
+            col_beam = fbeam[col_svds[c:d], :]
+            lmat = dmat[local_freqs[fi], :]
+
+            assert row_beam.shape == (b-a, ntel)
+            assert col_beam.shape == (d-c, ntel)
+            assert lmat.shape == (ntel,)
+            
+            ret.local_array[a:b,c:d] = np.dot(row_beam*lmat, col_beam.T.conj())
+
+        svdfile.close()
+        return ret
+
+
     #===================================================
 
     #====== Dimensionality of the various spaces =======

@@ -1307,7 +1307,179 @@ class BeamTransfer(object):
         return vecf
 
 
+    @staticmethod
+    def _make_bounds(arr):
+        """Helper method for project_matrix_sky_to_svd_parallel().
 
+        Argument @arr is a sorted list of integers with repeats, e.g. [0,0,3,3,3,3,5,5]
+
+        Returns (ix_list, ix_bounds), where:
+           ix_list = 1D array containing unique entries in arr, e.g. [0,3,5] in above example
+           ix_bounds = 1D array such that ix_bounds[i]:ix_bounds[i+1] delimits i-th repeated
+                        segment in arr, e.g. [0,2,6,8] in above example
+        """
+
+        # Test that input array is sorted
+        assert np.all(arr[1:] >= arr[:-1])
+
+        ix_list = np.unique(arr)
+        ix_bounds = np.concatenate((np.searchsorted(arr,ix_list), [len(arr)]))
+
+        # End-to-end check on result (check is fast, so not factored into testing code)
+        assert len(ix_bounds) == len(ix_list)+1
+        assert (ix_bounds[0], ix_bounds[-1]) == (0, len(arr))
+        for i in xrange(len(ix_list)):
+            (a,b) = (ix_bounds[i], ix_bounds[i+1])
+            assert np.all(arr[a:b] == ix_list[i])
+
+        return (ix_list, ix_bounds)
+
+
+    def project_matrix_sky_to_svd_parallel(self, m, mat, context, temponly=False):
+        """Scalapack version of project_matrix_sky_to_svd(); returns scalapy.core.DistributedMatrix.
+        
+        Project a covariance matrix from sky into SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq]. Must have pol
+            indices even if `temponly=True`.
+        context : scalapy.core.ProcessContext
+            Scalapack context used to construct distibuted matrix
+        temponly: boolean
+            Force projection of temperature (TT) part only (default: False)
+
+        Returns
+        -------
+        tmat : scalapy.core.DistributedMatrix
+            Covariance in SVD basis.
+        """
+        
+        import scalapy.core
+    
+        lmax = self.telescope.lmax
+        mmax = self.telescope.mmax
+        nfreq_global = self.nfreq
+
+        npol_tel = self.telescope.num_pol_sky
+        npol_mat = len(mat)
+        npol = 1 if temponly else npol_tel
+
+        # Argument checking
+        assert 0 <= m <= mmax
+        assert mat.shape == (npol_mat, npol_mat, lmax+1, nfreq_global, nfreq_global)
+        assert npol_tel >= npol
+        assert npol_mat >= npol
+        assert isinstance(context, scalapy.core.ProcessContext)
+        
+        (svnum, svbounds) = self._svd_num(m)
+        nsvd_global = svbounds[-1]
+        
+        # FIXME block sizes hardcoded for now
+        ret = scalapy.core.DistributedMatrix(global_shape = (nsvd_global,nsvd_global), 
+                                             dtype = np.complex128,
+                                             block_shape = (64,64),
+                                             context = context)
+
+        (row_indices, col_indices) = ret.indices(full=False)
+        (row_indices, col_indices) = (row_indices[:,0], col_indices[0,:])
+        
+        (nrows_local, ncols_local) = ret.local_array.shape
+        assert row_indices.shape == (nrows_local,)
+        assert col_indices.shape == (ncols_local,)
+
+        ret.local_array[:] = 0.
+
+        #
+        # The purpose of the next block of code is to initialize the following quantities
+        #  
+        #    local_freqs = 1d array of frequencies which appear in the local matrix block
+        #                  (each element of the array is a global frequency index)
+        #
+        #    row_freqs, col_freqs 
+        #        = 1d arrays of frequencies which appear in local rows/cols
+        #          (each element of these arrays is a local frequency index)
+        #
+        #    row_freq_bounds, col_freq_bounds
+        #       = 1d array of length len(row_freqs)+1 defining bounds for the frequency
+        #         blocks, i.e. rows in the interval
+        #            [ row_freq_bounds[i], row_freq_bounds[i+1] )
+        #         correspond to frequency row_freqs[i].  (And likewise for columns)
+        #
+        #    row_svds, col_svds
+        #       = 1d array of length nrows (or ncols) giving svd index
+        #
+
+        # Set t = mapping (global matrix index) -> (global frequency index, svd index)
+        t = np.zeros((2,nsvd_global), dtype=np.int32)
+        for i in xrange(nfreq_global):
+            (a,b) = (svbounds[i], svbounds[i+1])
+            t[0,a:b] = i
+            t[1,a:b] = np.arange(b-a, dtype=np.int32)
+    
+        # initialize local_freqs
+        (row_freqs, row_freq_bounds) = _make_bounds(t[0,row_indices])
+        (col_freqs, col_freq_bounds) = _make_bounds(t[0,col_indices])
+        local_freqs = np.unique(np.concatenate((row_freqs,col_freqs)))
+        (nfreq_local, nfreq_row, nfreq_col) = (len(local_freqs), len(row_freqs), len(col_freqs))
+
+        # Set u = mapping (global frequency index) -> (local frequency index)
+        u = -np.ones(nfreq_global, dtype=np.int32)
+        u[local_freqs] = np.arange(nfreq_local, dtype=np.int32)
+
+        row_freqs = u[row_freqs]
+        row_svds = t[1,row_indices]
+        col_freqs = u[col_freqs]
+        col_svds = t[1,col_indices]
+        
+        #
+        # End-to-end check on the above calculation
+        #
+        t = np.searchsorted(svbounds, row_indices, side='right') - 1
+        for i in xrange(nfreq_row):
+            (a,b) = (row_freq_bounds[i], row_freq_bounds[i+1])
+            assert np.all(t[a:b] == local_freqs[row_freqs[i]])
+            assert np.all(row_svds[a:b] == row_indices[a:b] - svbounds[t[a:b]])
+            
+        t = np.searchsorted(svbounds, col_indices, side='right') - 1
+        for i in xrange(nfreq_col):
+            (a,b) = (col_freq_bounds[i], col_freq_bounds[i+1])
+            assert np.all(t[a:b] == local_freqs[col_freqs[i]])
+            assert np.all(col_svds[a:b] == col_indices[a:b] - svbounds[t[a:b]])
+
+
+        #
+        # Read beam
+        #
+        # FIXME for now we read the entire beam; could be improved by reading only
+        # beam data which is needed for computing the local block, but this is not
+        # as simple as calling self.beam_svd(m,local_freqs) due to limitations in h5py.
+        #
+        beam = self.beam_svd(m)
+        assert beam.shape == (nfreq_global, self.svd_len, npol_tel, lmax+1)
+
+        # Compute output matrix
+        for pi in xrange(npol):
+            for pj in xrange(npol):
+                for fi in xrange(nfreq_row):
+                    gi = local_freqs[row_freqs[fi]]
+                    (a,b) = (row_freq_bounds[fi], row_freq_bounds[fi+1])
+                    row_beam = beam[gi, row_svds[a:b], pi, :]
+                    assert row_beam.shape == (b-a, lmax+1)
+                    
+                    for fj in xrange(nfreq_col):
+                        gj = local_freqs[col_freqs[fj]]
+                        (c,d) = (col_freq_bounds[fj], col_freq_bounds[fj+1])
+                        col_beam = beam[gj, col_svds[c:d], pj, :]
+                        assert col_beam.shape == (d-c, lmax+1)
+                        
+                        lmat = mat[pi,pj,:,gi,gj]
+                        ret.local_array[a:b,c:d] += np.dot(row_beam * lmat, col_beam.T.conj())
+
+        return ret
 
 
     #===================================================

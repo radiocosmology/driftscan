@@ -54,7 +54,7 @@ def collect_m_array(mlist, func, shape, dtype):
 
 
 
-def eigh_gen(A, B):
+def eigh_gen(A, B, overwrite_a=True, overwrite_b=True):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
     
@@ -76,42 +76,29 @@ def eigh_gen(A, B):
     add_const : scalar
         The constant added on the diagonal to regularise.
     """
-    add_const = 0.0
 
-    if (A == 0).all():
-        evals, evecs = np.zeros(A.shape[0], dtype=A.real.dtype), np.identity(A.shape[0], dtype=A.dtype)
+    # Argument checking
+    if (len(A.shape) != 2) or (A.shape[0] != A.shape[1]):
+        raise RuntimeError('eigh_gen: A is not a square matrix (A.shape=%s)' % A.shape)
+    if (len(B.shape) != 2) or (B.shape[0] != B.shape[1]):
+        raise RuntimeError('eigh_gen: B is not a square matrix (B.shape=%s)' % B.shape)
+    if (A.shape != B.shape):
+        raise RuntimeError('eigh_gen: A,B arrays have different shapes: %s %s' % (A.shape, B.shape))
 
-    else:
-    
-        try:
-            evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
-        except la.LinAlgError as e:
-            print "Error occured in eigenvalue solve."
-            # Get error number
-            mo = re.search('order (\\d+)', e.message)
+    # Special case: A is all zeros
+    if not np.any(A):
+        evals = np.zeros_like(A)
+        evecs = np.identity(A.shape[0])
+        add_const = 0.0
+        return (evals, evecs, add_const)
 
-            # If exception unrecognised then re-raise.
-            if mo is None:
-                raise e
+    # Add a small multiple of the identity to regularize
+    add_const = 1.0e-12 * np.trace(B)
+    B[np.diag_indices(B.shape[0])] += add_const
 
-            errno = mo.group(1)
-
-            if errno < (A.shape[0]+1):
-
-                print "Matrix probably not positive definite due to numerical issues. \
-                Trying to add a constant diagonal...."
-
-                evb = la.eigvalsh(B)
-                add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
-
-                B[np.diag_indices(B.shape[0])] += add_const
-                evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
-
-            else:
-                print "Strange convergence issue. Trying non divide and conquer routine."
-                evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True, turbo=False)
-
-    return evals, evecs, add_const
+    # Solve eigenproblem
+    evals, evecs = la.eigh(A, B, overwrite_a=overwrite_a, overwrite_b=overwrite_b)
+    return (evals, evecs, add_const)
 
 
 def inv_gen(A):

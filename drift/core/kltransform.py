@@ -11,6 +11,8 @@ from cora.util import hputil
 from drift.util import mpiutil, util, config
 from drift.core import skymodel
 
+import scalapy.core
+
 
 def collect_m_arrays(mlist, func, shapes, dtype):
 
@@ -242,7 +244,7 @@ class KLTransform(config.Reader):
         return self._cvsg
 
 
-    def sn_covariance(self, mi):
+    def sn_covariance(self, mi, context=None):
         """Compute the signal and noise covariances (on the telescope).
 
         The signal is formed from the 21cm signal, whereas the noise includes
@@ -252,27 +254,46 @@ class KLTransform(config.Reader):
         ----------
         mi : integer
             The m-mode to calculate at.
+        context : scalapack.core.ProcessContext, or None
+            Scalapack context used to construct distributed matrices (optional)
 
         Returns
         -------
-        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
-            Signal and noice covariance matrices.
+        s, n : objects of class np.ndarray (if context==None) or scalapy.core.DistributedMatrix
+            Signal and noice covariance matrices with global shape (nsvd, nsvd)
         """
 
         if not (self.use_foregrounds or self.use_thermal):
             raise Exception("Either `use_thermal` or `use_foregrounds`, or both must be True.")
 
         # Project the signal and foregrounds from the sky onto the telescope.
-        cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
+        cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal(), context=context)
 
         if self.use_foregrounds:
-            cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground())
-        else:
+            cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground(), context=context)
+        elif context is None:
             cvb_n = np.zeros_like(cvb_s)
+        else:
+            cvb_n = cvb_s.empty_like(cvb_s)   # note: scalapy matrices are zeroed in constructor
 
+        #
         # Add in a small diagonal to regularise the noise matrix.
-        cnr = cvb_n.reshape((self.beamtransfer.ndof(mi), -1))
-        cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
+        #
+        # Note: since cvb_n is positive definite Hermitian, its maximum
+        # entry occurs on the diagonal, and is real.
+        #
+        if context is None:
+            d = np.diag_indices_from(cvb_n)
+            max_noise = np.max(cvb_n[d]).real
+            assert max_noise >= 0.0
+            cvb_n[d] += self._foreground_regulariser * max_noise
+        else:
+            (g,r,c) = cvb_n.local_diagonal_indices()
+            max_noise = np.max(cvb_n.local_array[r,c]).real if (len(g) > 0) else 0.0
+            max_noise = np.array(max_noise)
+            context.mpi_comm.Allreduce(max_noise.copy(), max_noise, mpiutil.MPI.MAX)
+            max_noise = float(max_noise)
+            cvb_n.local_array[r,c] += self._foreground_regulariser * max_noise
 
         # Even if noise=False, we still want a very small amount of
         # noise, so we multiply by a constant to turn Tsys -> 1 mK.
@@ -286,8 +307,7 @@ class KLTransform(config.Reader):
         npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
 
         # Project into SVD basis and add into noise matrix
-        cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
-
+        cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower, context=context)
 
         return cvb_s, cvb_n
 

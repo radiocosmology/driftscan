@@ -1089,7 +1089,7 @@ class BeamTransfer(object):
         return [fi for fi in range(self.nfreq) if (num[fi] > 0)]
 
 
-    def project_matrix_sky_to_svd(self, mi, mat, temponly=False):
+    def project_matrix_sky_to_svd(self, mi, mat, temponly=False, context=None):
         """Project a covariance matrix from the sky into the SVD basis.
 
         Parameters
@@ -1101,13 +1101,18 @@ class BeamTransfer(object):
             indices even if `temponly=True`.
         temponly: boolean
             Force projection of temperature (TT) part only (default: False)
+        context: scalapy.core.ProcessContext, or None
+            Optional scalapack context, if distributed matrices are desired
 
         Returns
         -------
-        tmat : np.ndarray [nsvd, nsvd]
-            Covariance in SVD basis.
-        """       
+        tmat : covariance matrix in SVD matrix, shape (nsvd, nsvd).
+            Either an object of class np.ndarray (if context is None), or scalapy.core.DistributedMatrix 
+        """
         
+        if context is not None:
+            return self.project_matrix_sky_to_svd_parallel(mi, mat, temponly, context)
+
         npol = 1 if temponly else self.telescope.num_pol_sky
 
         lside = self.telescope.lmax + 1
@@ -1137,7 +1142,7 @@ class BeamTransfer(object):
         return matf
 
 
-    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat):
+    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, context=None):
         """Project a diagonal matrix from the telescope basis into the SVD basis.
 
         This slightly specialised routine is for projecting the noise
@@ -1149,12 +1154,17 @@ class BeamTransfer(object):
             Mode index to fetch for.
         mat : np.ndarray
             Sky matrix packed as [nfreq, ntel]
+        context: scalapy.core.ProcessContext, or None
+            Optional scalapack context, if distributed matrices are desired
 
         Returns
         -------
-        tmat : np.ndarray [nsvd, nsvd]
-            Covariance in SVD basis.
+        tmat : covariance matrix in SVD matrix, shape (nsvd, nsvd).
+            Either an object of class np.ndarray (if context is None), or scalapy.core.DistributedMatrix 
         """ 
+
+        if context is not None:
+            return self.project_matrix_diagonal_telescope_to_svd_parallel(mi, dmat, context)
 
         svdfile = h5py.File(self._svdfile(mi), 'r')
 
@@ -1335,7 +1345,7 @@ class BeamTransfer(object):
         return (ix_list, ix_bounds)
 
 
-    def project_matrix_sky_to_svd_parallel(self, m, mat, context, temponly=False):
+    def project_matrix_sky_to_svd_parallel(self, m, mat, temponly, context):
         """Scalapack version of project_matrix_sky_to_svd(); returns scalapy.core.DistributedMatrix.
         
         Project a covariance matrix from sky into SVD basis.
@@ -1373,6 +1383,7 @@ class BeamTransfer(object):
         assert mat.shape == (npol_mat, npol_mat, lmax+1, nfreq_global, nfreq_global)
         assert npol_tel >= npol
         assert npol_mat >= npol
+        assert context is not None
         assert isinstance(context, scalapy.core.ProcessContext)
         
         (svnum, svbounds) = self._svd_num(m)
@@ -1421,8 +1432,8 @@ class BeamTransfer(object):
             t[1,a:b] = np.arange(b-a, dtype=np.int32)
     
         # initialize local_freqs
-        (row_freqs, row_freq_bounds) = _make_bounds(t[0,row_indices])
-        (col_freqs, col_freq_bounds) = _make_bounds(t[0,col_indices])
+        (row_freqs, row_freq_bounds) = self._make_bounds(t[0,row_indices])
+        (col_freqs, col_freq_bounds) = self._make_bounds(t[0,col_indices])
         local_freqs = np.unique(np.concatenate((row_freqs,col_freqs)))
         (nfreq_local, nfreq_row, nfreq_col) = (len(local_freqs), len(row_freqs), len(col_freqs))
 
@@ -1514,6 +1525,7 @@ class BeamTransfer(object):
         # argument checking
         assert 0 <= m <= mmax
         assert dmat.shape == (nfreq_global, ntel)
+        assert context is not None
         assert isinstance(context, scalapy.core.ProcessContext)
 
         (svnum, svbounds) = self._svd_num(m)

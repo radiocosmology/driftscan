@@ -64,41 +64,86 @@ def eigh_gen(A, B, overwrite_a=True, overwrite_b=True):
     
     Parameters
     ----------
-    A, B : np.ndarray
+    A, B : np.ndarray, or scalapy.core.DistributedMatrix
         Matrices to operate on.
         
     Returns
     -------
     evals : np.ndarray
         Eigenvalues of the problem.
-    evecs : np.ndarray
+    evecs : np.ndarray, or scalapy.core.DistributedMatrix
         2D array of eigenvectors (packed column by column).
     add_const : scalar
         The constant added on the diagonal to regularise.
     """
 
-    # Argument checking
-    if (len(A.shape) != 2) or (A.shape[0] != A.shape[1]):
-        raise RuntimeError('eigh_gen: A is not a square matrix (A.shape=%s)' % A.shape)
-    if (len(B.shape) != 2) or (B.shape[0] != B.shape[1]):
-        raise RuntimeError('eigh_gen: B is not a square matrix (B.shape=%s)' % B.shape)
-    if (A.shape != B.shape):
-        raise RuntimeError('eigh_gen: A,B arrays have different shapes: %s %s' % (A.shape, B.shape))
+    if isinstance(A, np.ndarray) and isinstance(B, np.ndarray):
+        #
+        # Case 1: matrices are serial
+        #
 
-    # Special case: A is all zeros
-    if not np.any(A):
-        evals = np.zeros_like(A)
-        evecs = np.identity(A.shape[0])
-        add_const = 0.0
+        # Argument checking
+        if (len(A.shape) != 2) or (A.shape[0] != A.shape[1]):
+            raise RuntimeError('eigh_gen: A is not a square matrix (A.shape=%s)' % A.shape)
+        if (len(B.shape) != 2) or (B.shape[0] != B.shape[1]):
+            raise RuntimeError('eigh_gen: B is not a square matrix (B.shape=%s)' % B.shape)
+        if (A.shape != B.shape):
+            raise RuntimeError('eigh_gen: A,B arrays have different shapes: %s %s' % (A.shape, B.shape))
+
+        # Special case: A is all zeros
+        if not np.any(A):
+            evals = np.zeros(A.shape[0], dtype=A.real.dtype)
+            evecs = np.identity(A.shape[0], dtype=A.dtype)
+            add_const = 0.0
+            return (evals, evecs, add_const)
+
+        # Add a small multiple of the identity to regularize
+        if not overwrite_b:
+            B = B.copy()
+        add_const = 1.0e-12 * np.trace(B)
+        B[np.diag_indices(B.shape[0])] += add_const
+
+        # Solve eigenproblem (note overwrite_b=True since we copied above)
+        evals, evecs = la.eigh(A, B, overwrite_a=overwrite_a, overwrite_b=True)
         return (evals, evecs, add_const)
 
-    # Add a small multiple of the identity to regularize
-    add_const = 1.0e-12 * np.trace(B)
-    B[np.diag_indices(B.shape[0])] += add_const
+    if isinstance(A, scalapy.core.DistributedMatrix) and isinstance(B, scalapy.core.DistributedMatrix):
+        #
+        # Case 2: matrices are distributed
+        #
 
-    # Solve eigenproblem
-    evals, evecs = la.eigh(A, B, overwrite_a=overwrite_a, overwrite_b=overwrite_b)
-    return (evals, evecs, add_const)
+        # Argument checking
+        if (len(A.global_shape) != 2) or (A.global_shape[0] != A.global_shape[1]):
+            raise RuntimeError('eigh_gen: A is not a square matrix (A.shape=%s)' % A.global_shape)
+        if (len(B.global_shape) != 2) or (B.global_shape[0] != B.global_shape[1]):
+            raise RuntimeError('eigh_gen: B is not a square matrix (B.shape=%s)' % B.global_shape)
+        if (A.global_shape != B.global_shape):
+            raise RuntimeError('eigh_gen: A,B arrays have different shapes: %s %s' % (A.global_shape, B.global_shape))
+
+        nonzero_flag = np.array(np.any(A.local_array), dtype=np.bool)
+        A.context.mpi_comm.Allreduce(nonzero_flag.copy(), nonzero_flag, mpiutil.MPI.LOR)
+
+        # Special case: A is all zeros
+        if not nonzero_flag:
+            evals = np.zeros(A.global_shape[0], dtype=np.float)
+            evecs = A.identity(A.global_shape[0], dtype=A.dtype)
+            add_const = 0.0
+            return (evals, evecs, add_const)
+
+        # Add a small multiple of the identity to regularize
+        if not overwrite_b:
+            B = B.copy()
+        add_const = 1.0e-12 * B.trace()
+        (g,r,c) = B.local_diagonal_indices()
+        B.local_array[r,c] += add_const
+
+        # Solve eigenproblem (note overwrite_b=True here since we copied above)
+        evals, evecs = scalapy.routines.eigh(A, B, overwrite_a=overwrite_a, overwrite_b=True)
+        return (evals, evecs, add_const)
+
+    # If we get here, then types of (A,B) were unrecognized
+    raise RuntimeError("eigh_gen: fatal: don't know what to do with objects of class (%s,%s)"
+                       % (A.__class__, B.__class__))
 
 
 def inv_gen(A):

@@ -36,18 +36,17 @@ class DoubleKL(kltransform.KLTransform):
         cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi) ]
         
         # Find joint eigenbasis and transformation matrix
-        evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+        evals, evecs2, ac, inv = kltransform.eigh_gen(cs, cn, invert=self.inverse)
         evecs = evecs2.T.conj()
+
+        if self.inverse:
+            inv.imag *= -1   # conjugate but no transpose
 
         # Get the indices that extract the high S/F ratio modes
         ind = np.where(evals > self.foreground_threshold)
 
         # Construct evextra dictionary (holding foreground ratio)
         evextra = { 'ac' : ac, 'f_evals' : evals.copy() }
-
-        # Construct inverse transformation if required
-        if self.inverse:
-            inv = kltransform.inv_gen(evecs).T
 
         # Construct the foreground removed subset of the space
         evals = evals[ind]
@@ -62,12 +61,12 @@ class DoubleKL(kltransform.KLTransform):
             cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
 
             # Find the eigenbasis and the transformation into it.
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+            evals, evecs2, ac, inv2 = kltransform.eigh_gen(cs, cn, invert=self.inverse)
             evecs = np.dot(evecs2.T.conj(), evecs)
 
             # Construct the inverse if required.
             if self.inverse:
-                inv2 = kltransform.inv_gen(evecs2)
+                inv2.imag *= -1    # conjugate but no transpose
                 inv = np.dot(inv2, inv)
 
         return evals, evecs, inv, evextra

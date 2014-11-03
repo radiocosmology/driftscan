@@ -54,7 +54,7 @@ def collect_m_array(mlist, func, shape, dtype):
 
 
 
-def eigh_gen(A, B, overwrite_a=True, overwrite_b=True):
+def eigh_gen(A, B, overwrite_a=True, overwrite_b=True, invert=False):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
     
@@ -75,6 +75,8 @@ def eigh_gen(A, B, overwrite_a=True, overwrite_b=True):
         2D array of eigenvectors (packed column by column).
     add_const : scalar
         The constant added on the diagonal to regularise.
+    inverse_evecs : np.ndarray, or scalapy.core.DistributedMatrix
+        Either inverse of evecs matrix, or None (depending on whether invert flag is set)
     """
 
     if isinstance(A, np.ndarray) and isinstance(B, np.ndarray):
@@ -95,17 +97,20 @@ def eigh_gen(A, B, overwrite_a=True, overwrite_b=True):
             evals = np.zeros(A.shape[0], dtype=A.real.dtype)
             evecs = np.identity(A.shape[0], dtype=A.dtype)
             add_const = 0.0
-            return (evals, evecs, add_const)
+            inverse_evecs = np.identity(A.shape[0], dtype=A.dtype) if invert else None
+            return (evals, evecs, add_const, inverse_evecs)
 
         # Add a small multiple of the identity to regularize
-        if not overwrite_b:
-            B = B.copy()
         add_const = 1.0e-12 * np.trace(B)
-        B[np.diag_indices(B.shape[0])] += add_const
+        Bprime = B if overwrite_b else B.copy()
+        Bprime[np.diag_indices(Bprime.shape[0])] += add_const
 
-        # Solve eigenproblem (note overwrite_b=True since we copied above)
-        evals, evecs = la.eigh(A, B, overwrite_a=overwrite_a, overwrite_b=True)
-        return (evals, evecs, add_const)
+        # Solve eigenproblem
+        evals, evecs = la.eigh(A, Bprime, overwrite_a=overwrite_a, overwrite_b=(not invert))
+        inverse_evecs = np.dot(evecs.T.conj(), Bprime) if invert else None
+            
+        return (evals, evecs, add_const, inverse_evecs)
+
 
     if isinstance(A, scalapy.core.DistributedMatrix) and isinstance(B, scalapy.core.DistributedMatrix):
         #
@@ -128,18 +133,21 @@ def eigh_gen(A, B, overwrite_a=True, overwrite_b=True):
             evals = np.zeros(A.global_shape[0], dtype=np.float)
             evecs = A.identity(A.global_shape[0], dtype=A.dtype)
             add_const = 0.0
-            return (evals, evecs, add_const)
+            inverse_evecs = A.identity(A.global_shape[0], dtype=A.dtype)
+            return (evals, evecs, add_const, inverse_evecs)
 
         # Add a small multiple of the identity to regularize
-        if not overwrite_b:
-            B = B.copy()
         add_const = 1.0e-12 * B.trace()
-        (g,r,c) = B.local_diagonal_indices()
-        B.local_array[r,c] += add_const
+        Bprime = B if overwrite_b else B.copy()
+        (g,r,c) = Bprime.local_diagonal_indices()
+        Bprime.local_array[r,c] += add_const
 
-        # Solve eigenproblem (note overwrite_b=True here since we copied above)
-        evals, evecs = scalapy.routines.eigh(A, B, overwrite_a=overwrite_a, overwrite_b=True)
-        return (evals, evecs, add_const)
+        # Solve eigenproblem
+        evals, evecs = scalapy.routines.eigh(A, Bprime, overwrite_a=overwrite_a, overwrite_b=(not invert))
+        inverse_evecs = scalapy.routines.dot(evecs, Bprime, transA='C') if invert else None
+        
+        return (evals, evecs, add_const, inverse_evecs)
+
 
     # If we get here, then types of (A,B) were unrecognized
     raise RuntimeError("eigh_gen: fatal: don't know what to do with objects of class (%s,%s)"
@@ -150,6 +158,9 @@ def inv_gen(A):
     """Find the inverse of A.
 
     If a standard matrix inverse has issues try using the pseudo-inverse.
+
+    Note: this routine is currently unused (in favor of passing invert=True 
+    to eigh_gen()) but useful to keep around anyway?
 
     Parameters
     ----------
@@ -375,16 +386,15 @@ class KLTransform(config.Reader):
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
-        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
+        evals, evecs, ac, inv = eigh_gen(cvb_sr, cvb_nr, invert=self.inverse)
         et=time.time()
         print "Time =", (et-st)
 
+        # By convention, the (evecs, inv) parameters returned by this routine are
+        # (E^\dag, (E^{-1})^*) where E is the eigenvector array returned by eigh_gen().
         evecs = evecs.T.conj()
-
-        # Generate inverse if required
-        inv = None
-        if self.inverse:
-            inv = inv_gen(evecs).T
+        if inv is not None:
+            inv.imag *= -1    # conjugate but no transpose
 
         # Construct dictionary of extra parameters to return
         evextra = {'ac' : ac}

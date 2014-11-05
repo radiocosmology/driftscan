@@ -179,6 +179,28 @@ def inv_gen(A):
     return inv
 
 
+def zero_matrix(m, n, dtype=np.float, context=None):
+    """Returns either a serial or distributed zero matrix."""
+
+    if context is None:
+        return np.zeros((m,n), dtype=dtype)
+    else:
+        # FIXME block_shape hardcoded for now
+        return scalapy.core.DistributedMatrix(global_shape = (m,n), 
+                                              dtype = dtype,
+                                              block_shape = (64,64),
+                                              context = context)
+
+def conjugate_in_place(m):
+    """Conjugates either a serial or distributed matrix"""
+
+    if m is None:
+        return
+    elif isinstance(m, scalapy.core.DistributedMatrix):
+        m.local_array.imag *= -1
+    else:
+        m.imag *= -1
+                                              
 
 class KLTransform(config.Reader):
     """Perform KL transform.
@@ -355,19 +377,24 @@ class KLTransform(config.Reader):
         return cvb_s, cvb_n
 
 
-    def _transform_m(self, mi):
+    def _transform_m(self, mi, context=None):
         """Perform the KL-transform for a single m.
 
         Parameters
         ----------
         mi : integer
             The m-mode to calculate for.
+        context : scalapack.core.ProcessContext, or None
+            Scalapack context used to construct distributed matrices (optional)
 
         Returns
         -------
-        evals, evecs : np.ndarray
+        evals, evecs, inv : objects of class np.ndarray, or scalapy.core.DistributedMatrix
             The KL-modes. The evals correspond to the diagonal of the
             covariances in the new basis, and the evecs define the basis.
+            The matrix of inverse eigenvectors (inv) is only returned if
+            the self.inverse flag is set.
+        evextra : dictionary of "extra parameters"
         """
         
         print "Solving for Eigenvalues...."
@@ -378,23 +405,30 @@ class KLTransform(config.Reader):
 
         # Ensure that number of SVD degrees of freedom is non-zero before proceeding
         if nside == 0:
-            return np.array([]), np.array([[]]), np.array([[]]), { 'ac' : 0.0 }
+            evals = np.zeros((0,), dtype=np.float)
+            evecs = zero_matrix(0, 0, dtype=np.complex, context=context)
+            inv = zero_matrix(0, 0, dtype=np.complex, context=context) if self.inverse else None
+            evextra = { 'ac': 0.0 }
+            return (evals, evecs, inv, evextra)
 
-        cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
+        cvb_sr, cvb_nr = self.sn_covariance(mi, context=context)
         et = time.time()
         print "Time =", (et-st)
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
         evals, evecs, ac, inv = eigh_gen(cvb_sr, cvb_nr, invert=self.inverse)
-        et=time.time()
+        et = time.time()
         print "Time =", (et-st)
+
+        # Reclaim memory (may be needed if calling scalapy transpose below)
+        del cvb_sr, cvb_nr
 
         # By convention, the (evecs, inv) parameters returned by this routine are
         # (E^\dag, (E^{-1})^*) where E is the eigenvector array returned by eigh_gen().
-        evecs = evecs.T.conj()
-        if inv is not None:
-            inv.imag *= -1    # conjugate but no transpose
+        evecs = evecs.transpose()
+        conjugate_in_place(evecs)
+        conjugate_in_place(inv)      # Note: ok if inv==None
 
         # Construct dictionary of extra parameters to return
         evextra = {'ac' : ac}

@@ -12,6 +12,7 @@ from drift.util import mpiutil, util, config
 from drift.core import skymodel
 
 import scalapy.core
+import scalapy.hdf5utils
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):
@@ -437,7 +438,7 @@ class KLTransform(config.Reader):
 
 
 
-    def transform_save(self, mi):
+    def transform_save(self, mi, context=None):
         """Save the KL-modes for a given m.
 
         Perform the transform and cache the results for later use.
@@ -446,63 +447,80 @@ class KLTransform(config.Reader):
         ----------
         mi : integer
             m-mode to calculate.
+        context : scalapack.core.ProcessContext, or None
+            Scalapack context used to construct distributed matrices (optional)
 
         Results
         -------
-        evals, evecs : np.ndarray
+        evals, evecs : objects of class np.ndarray, or scalapy.core.DistributedMatrix
             See `transfom_m` for details.
         """
-        
+
+        rank0 = (context is None) or (context.mpi_comm.rank == 0)
+        nside = self.beamtransfer.ndof(mi)
+        f = None
+
         # Perform the KL-transform
         print "Constructing signal and noise covariances for m = %i ..." % (mi)
-        evals, evecs, inv, evextra = self._transform_m(mi)
-    
-        ## Write out Eigenvals and Vectors
+        evals, evecs, inv, evextra = self._transform_m(mi, context)
 
-        # Create file and set some metadata
-        print "Creating file %s ...." % (self._evfile % mi)
-        f = h5py.File(self._evfile % mi, 'w')
-        f.attrs['m'] = mi
-        f.attrs['SUBSET'] = self.subset
+        if rank0:
+            # Create file and set some metadata
+            print "Creating file %s ...." % (self._evfile % mi)
+            f = h5py.File(self._evfile % mi, 'w')
+            f.attrs['m'] = mi
+            f.attrs['SUBSET'] = self.subset
 
-        ## If modes have been already truncated (e.g. DoubleKL) then pad out
-        ## with zeros at the lower end.
-        nside = self.beamtransfer.ndof(mi)
-        evalsf = np.zeros(nside, dtype=np.float64)
-        if evals.size != 0:
-            evalsf[(-evals.size):] = evals
-        f.create_dataset('evals_full', data=evalsf)
+            ## If modes have been already truncated (e.g. DoubleKL) then pad out
+            ## with zeros at the lower end.
+            evalsf = np.zeros(nside, dtype=np.float64)
+            if evals.size != 0:
+                evalsf[(-evals.size):] = evals
+            f.create_dataset('evals_full', data=evalsf)
+
+            # Note: don't close file yet...
 
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
             i_ev = np.searchsorted(evals, self.threshold)
-            
             evals = evals[i_ev:]
-            evecs = evecs[i_ev:]
-            print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size)
+
+            if context is None:
+                evecs = evecs[i_ev:]
+                inv = inv[i_ev:] if (inv is not None) else None
+            else:
+                rows = np.arange(i_ev, evecs.global_shape[1], dtype=np.int)
+                evecs = evecs.get_rows(rows)
+                inv = inv.get_rows(rows) if (inv is not None) else None
+                
+            print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, nside)
 
         # Write out potentially reduced eigen spectrum.
-        f.create_dataset('evals', data=evals)
-        f.create_dataset('evecs', data=evecs)
-        f.attrs['num_modes'] = evals.size
+        if rank0:
+            f.create_dataset('evals', data=evals)
+            f.attrs['num_modes'] = evals.size
+
+        scalapy.hdf5utils.write_matrix(evecs, f, 'evecs')
 
         if self.inverse:
-            if self.subset:
-                inv = inv[i_ev:]
-
-            f.create_dataset('evinv', data=inv)
+            scalapy.hdf5utils.write_matrix(inv, f, 'evinv')
         
         # Call hook which allows derived classes to save special information
         # into the EV file.
-        self._ev_save_hook(f, evextra)
-                
-        f.close()
+        self._ev_save_hook(f, evextra, context)
+
+        if f is not None:
+            f.close()
 
         return evals, evecs
 
 
-    def _ev_save_hook(self, f, evextra):
+    def _ev_save_hook(self, f, evextra, context=None):
+        rank0 = (context is None) or (context.mpi_comm.rank == 0)
 
+        if not rank0:
+            return
+        
         ac = evextra['ac']
 
         # If we had to regularise because the noise spectrum is numerically ill

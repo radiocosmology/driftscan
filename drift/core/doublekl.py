@@ -72,12 +72,13 @@ class DoubleKL(kltransform.KLTransform):
         return evals, evecs, inv, evextra
 
 
-    def _ev_save_hook(self, f, evextra):
-
-        kltransform.KLTransform._ev_save_hook(self, f, evextra)
+    def _ev_save_hook(self, f, evextra, context=None):
+        kltransform.KLTransform._ev_save_hook(self, f, evextra, context)
 
         # Save out S/F ratios
-        f.create_dataset('f_evals', data=evextra['f_evals'])
+        rank0 = (context is None) or (context.mpi_comm.rank == 0)
+        if rank0:
+            f.create_dataset('f_evals', data=evextra['f_evals'])
 
 
     def _collect(self):

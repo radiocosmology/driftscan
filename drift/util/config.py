@@ -166,4 +166,6 @@ class Reader(object):
             for propname, clsprop in basecls.__dict__.items():
                 if isinstance(clsprop, Property):
                     clsprop._from_config(self, config)
+	    if hasattr(basecls, "_finalise_config"):
+		basecls._finalise_config(self)
 

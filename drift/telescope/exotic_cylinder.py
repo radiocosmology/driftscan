@@ -1,8 +1,8 @@
 import numpy as np
 
-from drift.core import telescope
+from caput import config
+
 from drift.telescope import cylinder, cylbeam
-from drift.util import config
 
 
 class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):
@@ -42,7 +42,7 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
         a = self.wavelengths[-1] / 2.0 if self.min_spacing < 0.0 else self.min_spacing
         #b = 2 * (sp - a) / nf
         b = 2.0*(self.max_spacing - a * (nf-1)) / (nf-1)**2.0
-        
+
         pos = np.empty([nf, 2], dtype=np.float64)
 
         i = np.arange(nf)
@@ -79,10 +79,10 @@ class CylinderExtra(cylinder.UnpolarisedCylinderTelescope):
 
 class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
     """A base for a polarised telescope.
-    
+
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
-    
+
     Abstract Methods
     ----------------
     beamx, beamy : methods
@@ -110,7 +110,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
     def beamx(self, feed, freq):
         """Beam for the x polarisation feed.
-        
+
         Parameters
         ----------
         feed : integer
@@ -122,7 +122,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         -------
         beam : np.ndarray
             Healpix maps (of size [self._nside, 2]) of the field pattern in the
-            theta and phi directions.         
+            theta and phi directions.
         """
         beampert = int(self.beamclass[feed] / 2)
 
@@ -133,10 +133,10 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
         elif beampert == 1:
 
-            beam0 = cylbeam.beam_x(self._angpos, self.zenith, 
+            beam0 = cylbeam.beam_x(self._angpos, self.zenith,
                 self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
 
-            beam1 = cylbeam.beam_x(self._angpos, self.zenith, 
+            beam1 = cylbeam.beam_x(self._angpos, self.zenith,
                 self.cylinder_width / self.wavelengths[freq], self.fwhm_e * 1.01, self.fwhm_h)
 
             dbeam = (beam1 - beam0) / (0.01 * self.fwhm_e)
@@ -146,7 +146,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
     def beamy(self, feed, freq):
         """Beam for the x polarisation feed.
-        
+
         Parameters
         ----------
         feed : integer
@@ -158,7 +158,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         -------
         beam : np.ndarray
             Healpix maps (of size [self._nside, 2]) of the field pattern in the
-            theta and phi directions.         
+            theta and phi directions.
         """
 
         beampert = int(self.beamclass[feed] / 2)
@@ -170,10 +170,10 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
         elif beampert == 1:
 
-            beam0 = cylbeam.beam_y(self._angpos, self.zenith, 
+            beam0 = cylbeam.beam_y(self._angpos, self.zenith,
                 self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
 
-            beam1 = cylbeam.beam_y(self._angpos, self.zenith, 
+            beam1 = cylbeam.beam_y(self._angpos, self.zenith,
                 self.cylinder_width / self.wavelengths[freq], self.fwhm_e * 1.01, self.fwhm_h)
 
             dbeam = (beam1 - beam0) / (0.01 * self.fwhm_e)
@@ -202,4 +202,3 @@ class CylinderShift(cylinder.UnpolarisedCylinderTelescope):
         pos2[:nextra, 1] = self.extra_feeds
 
         return pos2
-

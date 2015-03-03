@@ -2,8 +2,9 @@ import numpy as np
 
 from cora.util import nputil
 
+from caput import mpiutil, config
+
 from drift.core import psestimation
-from drift.util import config, mpiutil
 
 
 class PSMonteCarlo(psestimation.PSEstimation):
@@ -19,7 +20,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
     nsamples : integer
         The number of samples to draw from each band.
     """
-    
+
     nsamples = config.Property(proptype=int, default=500)
 
 
@@ -46,9 +47,9 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         # Calculate C**(1/2), this is the weight to generate a draw from C
         w = np.ones_like(evals) if noiseonly else (evals + 1.0)**0.5
-    
+
         # Calculate x
-        x = nputil.complex_std_normal((evals.shape[0], nsamples)) * w[:, np.newaxis] 
+        x = nputil.complex_std_normal((evals.shape[0], nsamples)) * w[:, np.newaxis]
 
         return x
 
@@ -72,7 +73,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         bias : np.ndarray[nbands]
             Bias vector.
         """
-        
+
         qa = np.zeros((self.nbands, self.nsamples))
 
         # Split calculation into subranges to save on memory usage
@@ -91,7 +92,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         return fisher, bias
 
-        
+
 
 
 class PSMonteCarloAlt(psestimation.PSEstimation):
@@ -109,7 +110,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
     nsamples : integer
         The number of samples to draw from each band.
     """
-    
+
     nsamples = config.Property(proptype=int, default=500)
     nswitch = config.Property(proptype=int, default=0) #200
 
@@ -178,7 +179,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
 
         fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
         bias = np.zeros(self.nbands, dtype=np.complex128)
-        
+
         self.gen_vecs(mi)
 
         ns = self.nsamples
@@ -195,7 +196,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
 
                 fisher[ia, ib] = np.sum(va * vb.conj()) / ns
                 fisher[ib, ia] = np.conj(fisher[ia, ib])
-            
+
         return fisher, bias
 
 
@@ -218,7 +219,7 @@ def sim_skyvec(trans, n):
     gaussvars : np.ndarray
        Vector of alms.
     """
-    
+
     lside = trans.shape[0]
     nfreq = trans.shape[1]
 
@@ -231,7 +232,7 @@ def sim_skyvec(trans, n):
         gaussvars[i] = np.dot(trans[i], gaussvars[i])
 
     return gaussvars   #.T.copy()
-        
+
 
 def block_root(clzz):
     """Calculate the 'square root' of an angular powerspectrum matrix (with

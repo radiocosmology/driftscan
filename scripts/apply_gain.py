@@ -7,9 +7,10 @@ Usage:
 import numpy as np
 import h5py
 
+from caput import mpiutil
+
 from drift.core import manager
 from drift.pipeline import timestream
-from drift.util import mpiutil
 
 from docopt import docopt
 
@@ -61,8 +62,3 @@ for fi in mpiutil.mpirange(t.nfreq):
 		tsf['timestream'][:, ti] *= gain_fluc
 
 	tsf.close()
-
-
-
-
-

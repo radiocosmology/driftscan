@@ -6,7 +6,7 @@ import warnings
 
 import yaml
 
-from drift.util import mpiutil
+from caput import mpiutil
 
 from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder, exotic_cylinder
 from drift.core import beamtransfer
@@ -23,7 +23,7 @@ teltype_dict =  {   'UnpolarisedCylinder'   : cylinder.UnpolarisedCylinderTelesc
                     'FocalPlane'            : focalplane.FocalPlaneArray,
                     'RestrictedCylinder'    : restrictedcylinder.RestrictedCylinder,
                     'RestrictedPolarisedCylinder'    : restrictedcylinder.RestrictedPolarisedCylinder,
-                    'RestrictedExtra'       : restrictedcylinder.RestrictedExtra,                  
+                    'RestrictedExtra'       : restrictedcylinder.RestrictedExtra,
                     'GradientCylinder'       : exotic_cylinder.GradientCylinder
                 }
 
@@ -39,7 +39,7 @@ kltype_dict =   {   'KLTransform'   : kltransform.KLTransform,
 pstype_dict =   {   'Full'          : psestimation.PSExact,
                     'MonteCarlo'    : psmc.PSMonteCarlo,
                     'MonteCarloAlt' : psmc.PSMonteCarloAlt,
-                    'Cross'         : crosspower.CrossPower                   
+                    'Cross'         : crosspower.CrossPower
                 }
 
 
@@ -178,13 +178,13 @@ class ProductManager(object):
 
         ## Beam transfer generation
         if 'nosvd' in yconf['config'] and yconf['config']['nosvd']:
-            self.beamtransfer = beamtransfer.BeamTransferNoSVD(self.directory + '/bt/', telescope=self.telescope)    
+            self.beamtransfer = beamtransfer.BeamTransferNoSVD(self.directory + '/bt/', telescope=self.telescope)
         else:
             self.beamtransfer = beamtransfer.BeamTransfer(self.directory + '/bt/', telescope=self.telescope)
 
         ## Use the full SVD if requested
         if 'fullsvd' in yconf['config'] and yconf['config']['fullsvd']:
-            self.beamtransfer = beamtransfer.BeamTransferFullSVD(self.directory + '/bt/', telescope=self.telescope)    
+            self.beamtransfer = beamtransfer.BeamTransferFullSVD(self.directory + '/bt/', telescope=self.telescope)
         else:
             self.beamtransfer = beamtransfer.BeamTransfer(self.directory + '/bt/', telescope=self.telescope)
 
@@ -234,7 +234,7 @@ class ProductManager(object):
                 pstype = psentry['type']
                 klname = psentry['klname']
                 psname = psentry['name'] if 'name' in psentry else 'ps'
-                
+
                 psclass = _resolve_class(pstype, pstype_dict, 'PS estimator')
 
                 if klname not in self.kltransforms:
@@ -270,7 +270,3 @@ class ProductManager(object):
             print "=           DONE AT LAST!!             ="
             print "=                                      ="
             print "========================================"
-
-
-
-

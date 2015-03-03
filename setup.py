@@ -5,7 +5,7 @@ setup(
     version = 0.1,
 
     packages = find_packages(),
-    requires = ['numpy', 'scipy', 'healpy', 'h5py', 'cora'],
+    requires = ['numpy', 'scipy', 'healpy', 'h5py', 'caput', 'cora'],
     package_data = {'drift.telescope' : ['gmrtpositions.dat'] },
     scripts = ['scripts/drift-makeproducts', 'scripts/drift-runpipeline'],
 

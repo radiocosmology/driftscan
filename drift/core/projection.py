@@ -5,17 +5,18 @@ import numpy as np
 import h5py
 import healpy
 
+from caput import config, mpiutil
+
 from cora.util import hputil
 
 from drift.core import kltransform
-from drift.util import mpiutil, util, config
 
 
 class Projector(config.Reader):
 
     maps = config.Property(proptype=list, default=[])
     thresholds = config.Property(proptype=(lambda x: [float(item) for item in list(x)]), default=[])
-    
+
     evec_proj = config.Property(proptype=bool, default=True)
     beam_proj = config.Property(proptype=bool, default=True)
 
@@ -131,7 +132,7 @@ class Projector(config.Reader):
                     print "Projecting %i" % mi
 
                     mvals, mvecs = self.kltransform.modes_m(mi, threshold=cut)
-                    
+
                     if mvals is None:
                         return None
 
@@ -147,7 +148,3 @@ class Projector(config.Reader):
                 _write_map_from_almarray(almp, stem + ("kl_%g.hdf5" % cut), {'threshold' : cut})
 
                 mpiutil.barrier()
-
-
-
-

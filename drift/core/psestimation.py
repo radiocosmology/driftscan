@@ -9,13 +9,14 @@ import h5py
 import numpy as np
 import scipy.linalg as la
 
+from caput import config, mpiutil
+
 from cora.signal import corr21cm
 
 from drift.core import skymodel
-from drift.util import mpiutil, util, config
+from drift.util import util
 
 from mpi4py import MPI
-
 
 
 def uniform_band(k, kstart, kend):
@@ -64,7 +65,7 @@ def range_config(lst):
             if count == len(lst):
                 endpoint = True
             count += 1
-            
+
             if item['spacing'] == 'log':
                 item = np.logspace(np.log10(item['start']), np.log10(item['stop']), item['num'], endpoint=endpoint)
             elif item['spacing'] == 'linear':
@@ -210,7 +211,7 @@ class PSEstimation(config.Reader):
         self.kltrans = kltrans
         self.telescope = kltrans.telescope
         self.psdir = self.kltrans.evdir + '/' + subdir + '/'
-        
+
         if mpiutil.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)
 
@@ -250,10 +251,10 @@ class PSEstimation(config.Reader):
         """
 
         print "Generating bands..."
-   
+
         cr = corr21cm.Corr21cm()
         cr.ps_2d = False
-        
+
         # Create different sets of bands depending on whether we're using polar bins or not.
         if self.bandtype == 'polar':
 
@@ -287,7 +288,7 @@ class PSEstimation(config.Reader):
                 self.band_power = cr.ps_vv(self.k_center)
 
         elif self.bandtype == 'cartesian':
-            
+
             # Broadcast the bounds against each other to make the 2D array of bands
             kparb, kperpb = np.broadcast_arrays(self.kpar_bands[np.newaxis, :], self.kperp_bands[:, np.newaxis])
 
@@ -325,10 +326,10 @@ class PSEstimation(config.Reader):
 
             self.make_clzz_array()
 
-            
+
         print "Done."
 
-        
+
     def make_clzz(self, pk):
         """Make an angular powerspectrum from the input matter powerspectrum.
 
@@ -349,7 +350,7 @@ class PSEstimation(config.Reader):
 
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt, temponly=True)
-        
+
         print "Rank: %i - Finished making band." % mpiutil.rank
         return clzz
 
@@ -391,10 +392,10 @@ class PSEstimation(config.Reader):
         Parameters
         ----------
         mi : integer
-            m-mode to calculate for. 
+            m-mode to calculate for.
 
         """
-            
+
         if self.num_evals(mi) > 0:
             print "Making fisher (for m=%i)." % mi
 
@@ -502,10 +503,10 @@ class PSEstimation(config.Reader):
 
                 f.create_dataset('theta_start/', data=self.theta_start)
                 f.create_dataset('theta_end/', data=self.theta_end)
-                f.create_dataset('theta_center/', data=self.theta_center) 
+                f.create_dataset('theta_center/', data=self.theta_center)
 
                 f.create_dataset('k_bands', data=self.k_bands)
-                f.create_dataset('theta_bands', data=self.theta_bands)                       
+                f.create_dataset('theta_bands', data=self.theta_bands)
 
             elif self.bandtype == 'cartesian':
 
@@ -515,10 +516,10 @@ class PSEstimation(config.Reader):
 
                 f.create_dataset('kperp_start/', data=self.kperp_start)
                 f.create_dataset('kperp_end/', data=self.kperp_end)
-                f.create_dataset('kperp_center/', data=self.kperp_center) 
+                f.create_dataset('kperp_center/', data=self.kperp_center)
 
                 f.create_dataset('kpar_bands', data=self.kpar_bands)
-                f.create_dataset('kperp_bands', data=self.kperp_bands)          
+                f.create_dataset('kperp_bands', data=self.kperp_bands)
 
 
             f.close()
@@ -542,7 +543,7 @@ class PSEstimation(config.Reader):
         with h5py.File(self.psdir + '/fisher.hdf5', 'r') as f:
 
             return f['fisher'][:], f['bias'][:]
-        
+
     #===================================================
 
 
@@ -602,7 +603,7 @@ class PSEstimation(config.Reader):
             for li in range(lside):
 
                 lxvec = x2[:, 0, li]
-                lyvec = y2[:, 0, li]                
+                lyvec = y2[:, 0, li]
 
                 qa[bi] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li], lxvec), axis=0) # TT only.
 
@@ -610,18 +611,18 @@ class PSEstimation(config.Reader):
         if noise:
 
             # If calculating crosspower don't include instrumental noise
-            noisemodes = 0.0 if self.crosspower else 1.0 
+            noisemodes = 0.0 if self.crosspower else 1.0
             noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
 
             qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
 
         return qa.real
-            
+
     #===================================================
 
 
 
-            
+
 
 
 class PSExact(PSEstimation):
@@ -634,7 +635,7 @@ class PSExact(PSEstimation):
         return self.psdir + "/ps_c_m_" + util.intpattern(self.telescope.mmax) + "_b_" + util.natpattern(len(self.bands)-1) + ".hdf5"
 
 
-    
+
     def makeproj(self, mi, bi):
         """Project angular powerspectrum band into KL-basis.
 
@@ -704,12 +705,12 @@ class PSExact(PSEstimation):
             self._bp_cache = []
 
         for i in range(len(self.clarray)):
-            
+
             fn = self._cfile % (mi, i)
             if os.path.exists(fn):
                 print "Deleting cache file:" + fn
                 os.remove(self._cfile % (mi, i))
-                
+
 
     def getproj(self, mi, bi):
         """Fetch cached KL-covariance (either from disk or just calculate if small enough).
@@ -737,7 +738,7 @@ class PSExact(PSEstimation):
             f = h5py.File(fn, 'r')
             proj = f['proj'][:]
             f.close()
-            
+
         return proj
 
 
@@ -760,7 +761,7 @@ class PSExact(PSEstimation):
         bias : np.ndarray[nbands]
             Bias vector.
         """
-        
+
         evals = self.kltrans.evals_m(mi, self.threshold)
 
         fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
@@ -774,7 +775,7 @@ class PSExact(PSEstimation):
         for ia in range(self.nbands):
             c_a = self.getproj(mi, ia)
             fisher[ia, ia] = np.sum(c_a * c_a.T * ci**2)
-            
+
             for ib in range(ia):
                 c_b = self.getproj(mi, ib)
                 fisher[ia, ib] = np.sum(c_a * c_b.T * ci**2)
@@ -783,5 +784,3 @@ class PSExact(PSEstimation):
         self.delproj(mi)
 
         return fisher, bias
-
-

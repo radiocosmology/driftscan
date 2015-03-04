@@ -2,9 +2,11 @@ import os.path
 
 import yaml
 
+from caput import config
+
 from drift.core import manager
-from drift.util import config
 from drift.pipeline import timestream
+
 
 def fixpath(path):
     """Fix up path (expanding variables etc.)"""
@@ -146,20 +148,20 @@ class PipelineManager(config.Reader):
                 print "Generating modes (%s)" % tsname
 
                 tsobj.generate_mmodes()
-                tsobj.generate_mmodes_svd()            
+                tsobj.generate_mmodes_svd()
 
         if self.generate_klmodes:
 
             for tsname, tsobj in self.timestreams.items():
 
-                for klname in self.klmodes:                
+                for klname in self.klmodes:
                     print "Generating KL filter (%s:%s)" % (tsname, klname)
 
                     tsobj.set_kltransform(klname)
                     tsobj.generate_mmodes_kl()
 
                     if self.collect_klmodes:
-                        tsobj.collect_mmodes_kl()                
+                        tsobj.collect_mmodes_kl()
 
 
         if self.generate_powerspectra:
@@ -178,7 +180,7 @@ class PipelineManager(config.Reader):
 
                     tsobj.powerspectrum()
 
-            
+
 
             for xp in self.crosspower:
 
@@ -205,7 +207,7 @@ class PipelineManager(config.Reader):
 
             for tsname, tsobj in self.timestreams.items():
 
-                for klname in self.klmaps:                
+                for klname in self.klmaps:
                     print "Generating KL map (%s:%s)" % (tsname, klname)
 
                     mapfile = 'map_%s.hdf5' % klname
@@ -213,7 +215,7 @@ class PipelineManager(config.Reader):
                     tsobj.set_kltransform(klname)
                     tsobj.mapmake_kl(self.nside, mapfile, wiener=self.wiener)
 
-    
+
 
                 print "Generating SVD map (%s)" % tsname
                 tsobj.mapmake_svd(self.nside, 'map_svd.hdf5')
@@ -225,4 +227,3 @@ class PipelineManager(config.Reader):
 
 
     run = generate
-

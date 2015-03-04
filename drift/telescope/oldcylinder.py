@@ -1,12 +1,11 @@
 
 import numpy as np
 
+from caput import config
+
 from cora.util import coord
 
 from drift.core import telescope, visibility
-from drift.util import util, config
-
-
 
 
 class CylinderTelescope(telescope.TransitTelescope):
@@ -57,10 +56,10 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     def _unique_baselines(self):
         """Calculate the unique baseline pairs.
-        
+
         Pairs are considered identical if they have the same baseline
         separation,
-        
+
         Parameters
         ----------
         fpairs : np.ndarray
@@ -73,7 +72,7 @@ class CylinderTelescope(telescope.TransitTelescope):
         redundancy : np.ndarray
             For each unique pair, give the number of equivalent pairs.
         """
-        
+
         base_map, base_mask = super(CylinderTelescope, self)._unique_baselines()
 
 
@@ -88,7 +87,7 @@ class CylinderTelescope(telescope.TransitTelescope):
             ic_mask = np.where(bl1[..., 0] != 0.0, np.ones(fshape, dtype=np.bool), np.zeros(fshape, dtype=np.bool))
             base_mask = np.logical_and(base_mask, ic_mask)
             base_map = telescope._remap_keyarray(base_map, base_mask)
-        
+
         return base_map, base_mask
 
 
@@ -96,7 +95,7 @@ class CylinderTelescope(telescope.TransitTelescope):
     @property
     def _single_feedpositions(self):
         """The set of feed positions on *all* cylinders.
-        
+
         Returns
         -------
         feedpositions : np.ndarray
@@ -115,8 +114,8 @@ class CylinderTelescope(telescope.TransitTelescope):
             if self.cylspacing is None:
                 raise Exception("Need to set cylinder spacing if not touching.")
             return self.cylspacing
-            
-            
+
+
 
 
     def feed_positions_cylinder(self, cylinder_index):
@@ -126,7 +125,7 @@ class CylinderTelescope(telescope.TransitTelescope):
         ----------
         cylinder_index : integer
             The cylinder index, an integer from 0 to self.num_cylinders.
-            
+
         Returns
         -------
         feed_positions : np.ndarray
@@ -143,7 +142,7 @@ class CylinderTelescope(telescope.TransitTelescope):
             nf = self.num_feeds - cylinder_index
             sp = self.feed_spacing / (nf - 1.0) * nf
 
-        
+
         pos = np.empty([nf, 2], dtype=np.float64)
 
         pos[:, 0] = cylinder_index * self.cylinder_spacing
@@ -157,17 +156,17 @@ class CylinderTelescope(telescope.TransitTelescope):
 class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
-    
+
     def beam(self, feed, freq):
         """Beam for a particular feed.
-        
+
         Parameters
         ----------
         feed : integer
             Index for the feed.
         freq : integer
             Index for the frequency.
-        
+
         Returns
         -------
         beam : np.ndarray
@@ -183,7 +182,7 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarise
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
-    
+
     # Change the illuminated width in X and Y
     illumination_x = config.Property(proptype=float, default=1.0)
     illumination_y = config.Property(proptype=float, default=1.0)
@@ -192,7 +191,7 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
 
     #@util.cache_last
     def beamx(self, feed, freq):
-        
+
         bpat = visibility.cylinder_beam(self._angpos, self.zenith,
                                         self.illumination_x * self.cylinder_width / self.wavelengths[freq])
 
@@ -204,7 +203,7 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
             thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
             bm[:, 0] = np.dot(thatp, phatz) * bpat
             bm[:, 1] = np.dot(phatp, phatz) * bpat
-            
+
         return bm
 
     #@util.cache_last
@@ -221,7 +220,5 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
             thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
             bm[:, 0] = np.dot(thatp, thatz) * bpat
             bm[:, 1] = np.dot(phatp, thatz) * bpat
-        
+
         return bm
-        
-        

@@ -1,6 +1,7 @@
 import numpy as np
 
-from drift.util import mpiutil
+from caput import mpiutil
+
 from drift.core import psmc
 
 
@@ -26,7 +27,7 @@ class CrossPower(psmc.PSMonteCarlo):
         bias : np.ndarray[nbands]
             Bias vector.
         """
-        
+
         qa = np.zeros((self.nbands + 1, self.nsamples))
 
         # Split calculation into subranges to save on memory usage
@@ -35,7 +36,7 @@ class CrossPower(psmc.PSMonteCarlo):
         for n, s, e in zip(num, starts, ends):
 
             x1 = self.gen_sample(mi, n)
-            x2 = self.gen_sample(mi, n)            
+            x2 = self.gen_sample(mi, n)
             qa[:, s:e] = self.q_estimator(mi, x1, x2, noise=True)
 
         ft = np.cov(qa)
@@ -44,4 +45,3 @@ class CrossPower(psmc.PSMonteCarlo):
         bias = ft[-1, :self.nbands]
 
         return fisher, bias
-

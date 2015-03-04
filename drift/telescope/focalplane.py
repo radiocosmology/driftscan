@@ -2,9 +2,11 @@
 import numpy as np
 from scipy.special import jn
 
+from caput import config
+
 from cora.util import coord, units
 from drift.core import telescope
-from drift.util import util, config
+from drift.util import util
 
 
 def jinc(x):
@@ -13,7 +15,7 @@ def jinc(x):
 
 def beam_circular(angpos, zenith, uv_diameter):
     """Beam pattern for a circular dish.
-    
+
     Parameters
     ----------
     angpos : np.ndarray
@@ -22,15 +24,15 @@ def beam_circular(angpos, zenith, uv_diameter):
         Co-ordinates of the zenith.
     uv_diameter : scalar
         Diameter of the dish (in units of wavelength).
-    
+
     Returns
     -------
     beam : np.ndarray
         Beam pattern at each position in angpos.
     """
-    
+
     x = (1.0 - coord.sph_dot(angpos, zenith)**2)**0.5 * np.pi * uv_diameter
-    
+
     return 2*jinc(x)
 
 
@@ -38,7 +40,7 @@ def gaussian_beam(angpos, pointing, fwhm):
 
     sigma = np.radians(fwhm) / (8.0*np.log(2.0))**0.5
     x2 = (1.0 - coord.sph_dot(angpos, pointing)**2) / (4*sigma**2)
-    
+
     return np.exp(-x2)
 
 
@@ -75,7 +77,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
         return pnt.reshape(-1, 2)
 
     #== Methods for calculating the unique baselines ===
-    
+
 
     @util.cache_last
     def beam_gaussian(self, feed, freq):
@@ -87,7 +89,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
             fwhm = self.beam_size
 
         return gaussian_beam(self._angpos, pointing, fwhm)
-        
+
 
     @util.cache_last
     def beam_square(self, feed, freq):
@@ -97,7 +99,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
         bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
         #bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
         beam = np.logical_and(bdist[:, 0] < 0.5, bdist[:, 1] < 0.5).astype(np.float64)
-        
+
         return beam
 
     def beam(self, feed, freq):
@@ -105,13 +107,13 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
             return self.beam_square(feed, freq)
         else:
             return self.beam_gaussian(feed, freq)
-    
+
 
     @property
     def dish_width(self):
         lpivot = (units.c / self.beam_pivot * 1e-6)
         return (lpivot / np.radians(self.beam_size))
-    
+
     @property
     def u_width(self):
         return self.dish_width
@@ -136,7 +138,3 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
         beam_map = telescope._remap_keyarray(np.diag(np.arange(self.nfeed)), mask=beam_mask)
 
         return beam_map, beam_mask
-
-
-
-

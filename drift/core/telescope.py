@@ -190,17 +190,14 @@ class TransitTelescope(config.Reader):
         # NOTE: latlon_to_sphpol is automatically applied on assignment
         self.zenith = [latitude, longitude]
 
-
+    _pickle_keys = []
 
     def __getstate__(self):
 
         state = self.__dict__.copy()
 
-        #delkeys = ['_baselines', '_redundancy', '_frequencies'] + self._extdelkeys
-
         for key in self.__dict__:
-            #if (key in delkeys) or (key[0] == "_"):
-            if (key[0] == "_"):
+            if (key not in self._pickle_keys) and (key[0] == "_"):
                 del state[key]
 
         return state

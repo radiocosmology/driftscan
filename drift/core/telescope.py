@@ -352,13 +352,13 @@ class TransitTelescope(config.Reader):
     @property
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths.min(), self.u_width, self.v_width)
         return int(np.ceil(lmax.max() * self.l_boost))
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths.min(), self.u_width, self.v_width)
         return int(np.ceil(mmax.max() * self.l_boost))
 
     #===================================================

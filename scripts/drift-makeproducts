@@ -76,7 +76,7 @@ def queue_config(args):
 cd %(pbsdir)s
 export OMP_NUM_THREADS=%(ompnum)i
 
-mpirun --mca btl self,sm,tcp -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s run config.yaml &> jobout.log
+mpirun -bind-to none -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s run config.yaml &> jobout.log
 """
 
     script = script % conf

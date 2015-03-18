@@ -190,17 +190,14 @@ class TransitTelescope(config.Reader):
         # NOTE: latlon_to_sphpol is automatically applied on assignment
         self.zenith = [latitude, longitude]
 
-
+    _pickle_keys = []
 
     def __getstate__(self):
 
         state = self.__dict__.copy()
 
-        #delkeys = ['_baselines', '_redundancy', '_frequencies'] + self._extdelkeys
-
         for key in self.__dict__:
-            #if (key in delkeys) or (key[0] == "_"):
-            if (key[0] == "_"):
+            if (key not in self._pickle_keys) and (key[0] == "_"):
                 del state[key]
 
         return state
@@ -355,13 +352,13 @@ class TransitTelescope(config.Reader):
     @property
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths.min(), self.u_width, self.v_width)
         return int(np.ceil(lmax.max() * self.l_boost))
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
-        lmax, mmax = max_lm(self.baselines, self.wavelengths[-1], self.u_width, self.v_width)
+        lmax, mmax = max_lm(self.baselines, self.wavelengths.min(), self.u_width, self.v_width)
         return int(np.ceil(mmax.max() * self.l_boost))
 
     #===================================================

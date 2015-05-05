@@ -211,7 +211,7 @@ class TransitTelescope(config.Reader):
     @property
     def baselines(self):
         """The unique baselines in the telescope."""
-        if self._baselines == None:
+        if self._baselines is None:
             self.calculate_feedpairs()
 
         return self._baselines
@@ -223,7 +223,7 @@ class TransitTelescope(config.Reader):
     def redundancy(self):
         """The redundancy of each baseline (corresponds to entries in
         cyl.baselines)."""
-        if self._redundancy == None:
+        if self._redundancy is None:
             self.calculate_feedpairs()
 
         return self._redundancy
@@ -245,7 +245,7 @@ class TransitTelescope(config.Reader):
     @property
     def uniquepairs(self):
         """An (npairs, 2) array of the feed pairs corresponding to each baseline."""
-        if self._uniquepairs == None:
+        if self._uniquepairs is None:
             self.calculate_feedpairs()
         return self._uniquepairs
 
@@ -257,7 +257,7 @@ class TransitTelescope(config.Reader):
         """An (nfeed, nfeed) array giving the mapping between feedpairs and
         the calculated baselines. Each entry is an index into the arrays of unique pairs."""
 
-        if self._feedmap == None:
+        if self._feedmap is None:
             self.calculate_feedpairs()
 
         return self._feedmap
@@ -270,7 +270,7 @@ class TransitTelescope(config.Reader):
         """An (nfeed, nfeed) array giving the entries that have been
         calculated. This allows to mask out pairs we want to ignore."""
 
-        if self._feedmask == None:
+        if self._feedmask is None:
             self.calculate_feedpairs()
 
         return self._feedmask
@@ -282,7 +282,7 @@ class TransitTelescope(config.Reader):
         """An (nfeed, nfeed) array giving the feed pairs which must be complex
         conjugated."""
 
-        if self._feedconj == None:
+        if self._feedconj is None:
             self.calculate_feedpairs()
 
         return self._feedconj
@@ -298,7 +298,7 @@ class TransitTelescope(config.Reader):
     @property
     def frequencies(self):
         """The centre of each frequency band (in MHz)."""
-        if self._frequencies == None:
+        if self._frequencies is None:
             self.calculate_frequencies()
 
         return self._frequencies
@@ -664,7 +664,7 @@ class TransitTelescope(config.Reader):
         tsys : array_like
             System temperature at requested frequencies.
         """
-        if f_indices == None:
+        if f_indices is None:
             freq = self.frequencies
         else:
             freq = self.frequencies[f_indices]

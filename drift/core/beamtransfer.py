@@ -247,7 +247,7 @@ class BeamTransfer(object):
 
         mpiutil.barrier()
 
-        if self.telescope == None:
+        if self.telescope is None:
             print "Attempting to read telescope from disk..."
 
             try:

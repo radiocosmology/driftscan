@@ -120,7 +120,7 @@ if mpiutil.rank0:
 
         for mi, proj in p_process:
 
-            if proj == None:
+            if proj is None:
                 continue
 
             palm[:, :, mi] = proj.reshape(palm.shape[:-1])

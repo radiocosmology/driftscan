@@ -63,7 +63,7 @@ if mpiutil.rank0:
 
         for mi, proj in p_process:
 
-            if proj == None:
+            if proj is None:
                 continue
 
             nalm[:, :, mi] = proj.reshape(nalm.shape[:-1])

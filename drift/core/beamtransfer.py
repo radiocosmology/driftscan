@@ -188,7 +188,7 @@ class BeamTransfer(object):
     project_matrix_sky_to_svd
     """
 
-    _mem_switch = 3.0 # Rough chunks (in GB) to divide calculation into.
+    _mem_switch = 2.0 # Rough chunks (in GB) to divide calculation into.
 
     svcut = 1e-6
     polsvcut = 1e-4

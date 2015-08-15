@@ -408,6 +408,8 @@ class TransitTelescope(config.Reader):
                 self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
 
 
+    # Tolerance used when comparing baselines. See np.around documentation for details.
+    _bl_tol = 6
 
     def _unique_baselines(self):
         """Map of equivalent baseline lengths, and mask of ones to exclude.
@@ -418,7 +420,11 @@ class TransitTelescope(config.Reader):
 
         # Construct array of baseline separations in complex representation
         bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
-        bl2 = np.around(bl1[..., 0] + 1.0J * bl1[..., 1], 7)
+        bl2 = np.around(bl1[..., 0] + 1.0J * bl1[..., 1], self._bl_tol)
+
+        # Flip sign if required to get common direction to correctly find redundant baselines
+        flip_sign = np.logical_or(bl2.real < 0.0, np.logical_and(bl2.real == 0, bl2.imag < 0))
+        bl2 = np.where(flip_sign, -bl2, bl2)
 
         # Construct array of baseline lengths
         blen = np.sum(bl1**2, axis=-1)**0.5

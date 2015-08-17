@@ -373,10 +373,7 @@ class TransitTelescope(config.Reader):
         """
 
         # Get unique pairs, and create mapping arrays
-        self._feedmap, self._feedmask = self._get_unique()
-
-        # Identify conjugate pairs
-        self._feedconj = np.tril(np.ones_like(self._feedmap), -1).astype(np.bool)
+        self._feedmap, self._feedmask, self._feedconj = self._get_unique()
 
         # Reorder and conjugate baselines such that the default feedpair
         # points W->E (to ensure we use positive-m)
@@ -392,10 +389,9 @@ class TransitTelescope(config.Reader):
         self._redundancy = np.bincount(self._feedmap[np.where(tmask)]) # Triangle mask to avoid double counting
         self._baselines = self.feedpositions[self._uniquepairs[:, 0]] - self.feedpositions[self._uniquepairs[:, 1]]
 
-
-
     def _make_ew(self):
         # Reorder baselines pairs, such that the baseline vector always points E (or pure N)
+
         tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
         uniq = _get_indices(self._feedmap, mask=tmask)
 
@@ -406,7 +402,6 @@ class TransitTelescope(config.Reader):
                 # Reorder feed pairs and conjugate mapping
                 # self._uniquepairs[i, 1], self._uniquepairs[i, 0] = self._uniquepairs[i, 0], self._uniquepairs[i, 1]
                 self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
-
 
     # Tolerance used when comparing baselines. See np.around documentation for details.
     _bl_tol = 6
@@ -423,8 +418,8 @@ class TransitTelescope(config.Reader):
         bl2 = np.around(bl1[..., 0] + 1.0J * bl1[..., 1], self._bl_tol)
 
         # Flip sign if required to get common direction to correctly find redundant baselines
-        flip_sign = np.logical_or(bl2.real < 0.0, np.logical_and(bl2.real == 0, bl2.imag < 0))
-        bl2 = np.where(flip_sign, -bl2, bl2)
+        #flip_sign = np.logical_or(bl2.real < 0.0, np.logical_and(bl2.real == 0, bl2.imag < 0))
+        #bl2 = np.where(flip_sign, -bl2, bl2)
 
         # Construct array of baseline lengths
         blen = np.sum(bl1**2, axis=-1)**0.5
@@ -457,8 +452,6 @@ class TransitTelescope(config.Reader):
 
         return beam_map, beam_mask
 
-
-
     def _get_unique(self):
         """Calculate the unique baseline pairs.
 
@@ -487,12 +480,13 @@ class TransitTelescope(config.Reader):
         beam_map, beam_mask = self._unique_beams()
         comb_map, comb_mask = _merge_keyarray(base_map, beam_map, mask1=base_mask, mask2=beam_mask)
 
-        # Take into account conjugation by identifying
+        # Take into account conjugation by identifying the indices of conjugate pairs
+        conj_map = comb_map > comb_map.T
         comb_map = np.dstack((comb_map, comb_map.T)).min(axis=-1)
         comb_map = _remap_keyarray(comb_map, comb_mask)
 
-        return comb_map, comb_mask
 
+        return comb_map, comb_mask, conj_map
 
     def _sort_pairs(self):
         """Re-order keys into a desired sort order.

@@ -82,6 +82,8 @@ class ProductManager(object):
     gen_ps = False
     gen_proj = False
 
+    skip_svd = False
+
 
     @classmethod
     def from_config(cls, configfile):
@@ -196,12 +198,11 @@ class ProductManager(object):
         if 'polsvcut' in yconf['config']:
             self.beamtransfer.polsvcut = float(yconf['config']['polsvcut'])
 
-
-
-
         if yconf['config']['beamtransfers']:
             self.gen_beams = True
 
+        if 'skip_svd' in yconf['config'] and yconf['config']['skip_svd']:
+            self.skip_svd = True
 
         self.kltransforms  = {}
 
@@ -250,7 +251,7 @@ class ProductManager(object):
 
 
         if self.gen_beams:
-            self.beamtransfer.generate()
+            self.beamtransfer.generate(skip_svd=self.skip_svd)
 
 
         if self.gen_kl:

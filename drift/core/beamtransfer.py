@@ -542,27 +542,31 @@ class BeamTransfer(object):
 
     #====== Generation of all the cache files ==========
 
-    def generate(self, regen=False):
+    def generate(self, regen=False, skip_svd=False):
         """Save out all beam transfer matrices to disk.
 
         Parameters
         ----------
         regen : boolean, optional
             Force regeneration even if cache files exist (default: False).
+        skip_svd : boolen, optional
+            Skip SVD beam generation. Saves time and space if you are only map making.
         """
 
         st = time.time()
 
         self._generate_dirs()
-        #self._generate_ffiles(regen)
-        self._generate_mfiles(regen)
-        self._generate_svdfiles(regen)
 
         # Save pickled telescope object
         if mpiutil.rank0:
             with open(self._picklefile, 'w') as f:
                 print "=== Saving Telescope object. ==="
                 pickle.dump(self.telescope, f)
+
+        self._generate_mfiles(regen)
+
+        if not skip_svd:
+            self._generate_svdfiles(regen)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
@@ -584,13 +588,6 @@ class BeamTransfer(object):
             # Create main directory for beamtransfer
             if not os.path.exists(self.directory):
                 os.makedirs(self.directory)
-
-            # Create directories for storing frequency ordered beams
-            for fi in range(self.nfreq):
-                dirname = self._fdir(fi)
-
-                if not os.path.exists(dirname):
-                    os.makedirs(dirname)
 
             # Create directories for m beams and svd files.
             for mi in range(self.telescope.mmax + 1):

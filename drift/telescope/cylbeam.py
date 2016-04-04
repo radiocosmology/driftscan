@@ -196,10 +196,10 @@ def beam_x(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
 
     Parameters
     ----------
-    angpos : np.ndarray[npoints]
+    angpos : np.ndarray[npoints, 2]
         Angular position on the sky.
     zenith : np.ndarray[2]
-        Position of zenin on spherical polars.
+        Position of zenith in spherical polars.
     width : scalar
         Cylinder width in wavelengths.
     fwhm_e, fwhm_h
@@ -229,10 +229,10 @@ def beam_y(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
 
     Parameters
     ----------
-    angpos : np.ndarray[npoints]
+    angpos : np.ndarray[npoints, 2]
         Angular position on the sky.
     zenith : np.ndarray[2]
-        Position of zenin on spherical polars.
+        Position of zenith in spherical polars.
     width : scalar
         Cylinder width in wavelengths.
     fwhm_e, fwhm_h

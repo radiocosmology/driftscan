@@ -141,6 +141,8 @@ class TransitTelescope(config.Reader):
 
     Properties
     ----------
+    zenith : [latitude, longitude]
+        Must be set in degrees (implicit conversion to spherical polars on radians)
     freq_lower, freq_higher : scalar
         The center of the lowest and highest frequency bands.
     num_freq : scalar
@@ -156,6 +158,7 @@ class TransitTelescope(config.Reader):
         how they're used in further calculation. Default: False
     minlength, maxlength : scalar
         Minimum and maximum baseline lengths to include (in metres).
+
 
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
@@ -848,11 +851,16 @@ class UnpolarisedTelescope(TransitTelescope):
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        # Beam solid angle (integrate over beam^2 - equal area pixels)
-        omega_A = (np.abs(beami) * np.abs(beamj) * self._horizon).sum() * (4*np.pi / beami.size)
+        pxarea = (4 * np.pi / beami.shape[0])
 
-        # Calculate the complex visibility
-        cvis = self._horizon * fringe * beami * beamj / omega_A
+        # Beam solid angle (integrate over beam^2 - equal area pixels)
+        om_i = np.sum(np.abs(beami)**2 * self._horizon) * pxarea
+        om_j = np.sum(np.abs(beamj)**2 * self._horizon) * pxarea
+
+        omega_A = (om_i * om_j)**0.5
+
+        # Calculate the complex visibility transfer function
+        cvis = self._horizon * fringe * beami * beamj.conjugate() / omega_A
 
         return cvis
 
@@ -933,8 +941,9 @@ class PolarisedTelescope(TransitTelescope):
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
         fringe = visibility.fringe(self._angpos, self.zenith, uv)
 
-        pow_stokes = [ np.sum(beami * np.dot(beamj, polproj), axis=1) * self._horizon for polproj in p_stokes]
+        pow_stokes = [ np.sum(beami * np.dot(beamj.conjugate(), polproj), axis=1) * self._horizon for polproj in p_stokes]
 
+        # Calculate the solid angle of each beam
         pxarea = (4*np.pi / beami.shape[0])
 
         om_i = np.sum(np.abs(beami)**2 * self._horizon[:, np.newaxis]) * pxarea
@@ -942,6 +951,7 @@ class PolarisedTelescope(TransitTelescope):
 
         omega_A = (om_i * om_j)**0.5
 
+        # Calculate the complex visibility transfer function
         cv_stokes = [ p * (2 * fringe / omega_A) for p in pow_stokes ]
 
         return cv_stokes

@@ -3,6 +3,7 @@ import abc
 import numpy as np
 
 from caput import config
+from caput import time as ctime
 
 from cora.util import hputil, units
 
@@ -81,7 +82,7 @@ def _get_indices(keyarray, mask=None):
 
     un, ind = np.unique(keysflat, return_index=True)
     # CHANGE: np (< 1.6) does not support multiple indices in np.unravel_index
-    #upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
+    # upairs = np.array(np.unravel_index(wm[ind], keyarray.shape)).T
     upairs = np.array([np.unravel_index(i1, keyarray.shape) for i1 in wm[ind] ])
 
     #return np.sort(upairs, axis=-1) # Sort to ensure we are in upper triangle
@@ -114,16 +115,7 @@ def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     return lmax, mmax
 
 
-def latlon_to_sphpol(latlon):
-
-    zenith = np.array([np.pi / 2.0 - np.radians(latlon[0]),
-                       np.remainder(np.radians(latlon[1]), 2*np.pi)])
-
-    return zenith
-
-
-
-class TransitTelescope(config.Reader):
+class TransitTelescope(config.Reader, ctime.Observer):
     """Base class for simulating any transit interferometer.
 
     This is an abstract class, and several methods must be implemented before it
@@ -141,8 +133,8 @@ class TransitTelescope(config.Reader):
 
     Properties
     ----------
-    zenith : [latitude, longitude]
-        Must be set in degrees (implicit conversion to spherical polars on radians)
+    zenith : [theta, phi]
+        The position of the zenith spherical polars (in radians). Read only.
     freq_lower, freq_higher : scalar
         The center of the lowest and highest frequency bands.
     num_freq : scalar
@@ -158,12 +150,14 @@ class TransitTelescope(config.Reader):
         how they're used in further calculation. Default: False
     minlength, maxlength : scalar
         Minimum and maximum baseline lengths to include (in metres).
-
-
+    local_origin : bool
+        If set the observers location is the terrestrial origin, and so the
+        rotation angle corresponds to the right ascension that is overhead
+        (Local Stellar Angle in `caput.time`). If not the origin is Greenwich,
+        so the rotation angle is what is overhead at Greenwich (Earth Rotation
+        Angle).
     """
     __metaclass__ = abc.ABCMeta  # Enforce Abstract class
-
-    zenith = config.Property(proptype=latlon_to_sphpol, default=[45.0, 0.0])
 
     freq_lower = config.Property(proptype=float, default=400.0)
     freq_upper = config.Property(proptype=float, default=800.0)
@@ -180,8 +174,9 @@ class TransitTelescope(config.Reader):
 
     auto_correlations = config.Property(proptype=bool, default=False)
 
+    local_origin = config.Property(proptype=bool, default=True)
 
-    def __init__(self, latitude=45, longitude=0):
+    def __init__(self, latitude=45, longitude=0, **kwargs):
         """Initialise a telescope object.
 
         Parameters
@@ -190,8 +185,8 @@ class TransitTelescope(config.Reader):
             Position on the Earths surface of the telescope (in degrees).
         """
 
-        # NOTE: latlon_to_sphpol is automatically applied on assignment
-        self.zenith = [latitude, longitude]
+        # Set the observers position on the Earth
+        ctime.Observer.__init__(self, longitude, latitude, **kwargs)
 
     _pickle_keys = []
 
@@ -205,7 +200,22 @@ class TransitTelescope(config.Reader):
 
         return state
 
+    @property
+    def zenith(self):
+        """The zenith vector in spherical polars."""
 
+        # Set polar angle
+        theta = np.pi / 2.0 - np.radians(self.latitude)
+
+        # Set azimuthal angle
+        phi = np.remainder(np.radians(self.longitude), 2 * np.pi)
+
+        # If we want a local origin, the observers location is the terrestrial
+        # origin, so the zenith should be at phi=0. Otherwise the origin is
+        # Greenwich, so we need the longitude.
+        phi = 0.0 if self.local_origin else phi
+
+        return np.array([theta, phi])
 
     #========= Properties related to baselines =========
 

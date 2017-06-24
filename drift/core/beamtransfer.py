@@ -1178,7 +1178,6 @@ class BeamTransfer(object):
 
         return matf
 
-
     def project_vector_telescope_to_svd(self, mi, vec):
         """Map a vector from the telescope space into the SVD basis.
 
@@ -1217,6 +1216,50 @@ class BeamTransfer(object):
 
         return vecf
 
+    def project_vector_svd_to_telescope(self, mi, svec):
+        """Map a vector from the SVD basis into the original data basis.
+
+        This projection may be lose information about the sky, depending on the
+        polarisation filtering. This essentially uses the pseudo-inverse which
+        is simply related to the original projection matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        svec : np.ndarray
+            SVD data vector.
+
+        Returns
+        -------
+        vec : np.ndarray[freq, sign, baseline]
+            Data vector to return.
+        """
+
+        # Number of significant sv modes at each frequency, and the array bounds
+        svnum, svbounds = self._svd_num(mi)
+
+        # Get the SVD beam matrix
+        beam = self.beam_ut(mi)
+
+        # Create the output matrix (shape is calculated from input shape)
+        vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
+
+        # Should it be a +=?
+        for fi in self._svd_freq_iter(mi):
+
+            noise = self.telescope.noisepower(np.arange(self.telescope.npairs), fi).flatten()
+            noise = np.concatenate([noise, noise])
+
+            fbeam = beam[fi, :svnum[fi], :]  # Beam matrix for this frequency and cut
+            lvec = svec[svbounds[fi]:svbounds[fi + 1]]  # Matrix section for this frequency
+
+            # As the form of the forward projection is simply a scaling and then
+            # projection onto an orthonormal basis, the pseudo-inverse is simply
+            # related.
+            vecf[fi, :] = noise * np.dot(fbeam.T.conj(), lvec)
+
+        return vecf.reshape(self.nfreq, 2, self.telescope.npairs)
 
     def project_vector_sky_to_svd(self, mi, vec, temponly=False):
         """Project a vector from the the sky into the SVD basis.

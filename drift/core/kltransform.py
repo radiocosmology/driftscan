@@ -750,7 +750,7 @@ class KLTransform(config.Reader):
         evals, evecs = self.modes_m(mi, threshold)
 
         if evals is None:
-            return np.zeros(self.beamtransfer.ntel*self.telescope.nfreq, dtype=np.complex128)
+            return np.zeros(self.beamtransfer.ndofmax, dtype=np.complex128)
 
         if vec.shape[0] != evecs.shape[0]:
             raise Exception("Vectors are incompatible.")

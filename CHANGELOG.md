@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/), with the exception
 that I'm using PEP440 to denote pre-releases.
 
+## [1.2.0] - 2017-06-24
+
+### Added
+
+- A projection routine from the SVD basis back into the telescope basis.
+
+### Fixes
+
+- Fixed a casting bug in the quadratic estimator code that caused a crash with
+  new numpy versions.
+
+
 ## [1.1.0] - 2016-08-12
 
 ### Added

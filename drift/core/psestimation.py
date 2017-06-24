@@ -605,7 +605,7 @@ class PSEstimation(config.Reader):
                 lxvec = x2[:, 0, li]
                 lyvec = y2[:, 0, li]
 
-                qa[bi] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li], lxvec), axis=0) # TT only.
+                qa[bi] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li].astype(np.complex128), lxvec), axis=0).astype(np.float64) # TT only.
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:

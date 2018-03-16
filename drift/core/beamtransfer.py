@@ -706,18 +706,25 @@ class BeamTransfer(object):
 
         mpiutil.barrier()
 
-        # Iterate over chunks
-        for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
+        # Foliate accross nodes to restrict frequency selection per node
+        node_num, node_start, node_end = mpiutil.split_local(nfb)
+        #fb_ind_node = range(node_start, node_end)
+        
+        for ci, fbrange in enumerate(mpiutil.split_m(node_num, num_chunks).T):
 
             if mpiutil.rank0:
                 print "Starting chunk %i of %i" % (ci+1, num_chunks)
 
             # Unpack freq-baselines range into num, start and end
-            fbnum, fbstart, fbend = fbrange
+            loc_num, loc_start, loc_end = fbrange
 
-            # Split the fb list into the ones local to this node
-            loc_num, loc_start, loc_end = mpiutil.split_local(fbnum)
-            fb_ind = range(fbstart + loc_start, fbstart + loc_end)
+            # Total size for transpose should just be local times nnode
+            fbnum = loc_num * mpiutil.size
+            fbstart = node_start + loc_start
+            fbend = node_start + loc_end
+
+            # Get actual indices
+            fb_ind = range(fbstart, fbend)
 
             # Extract the local frequency and baselines indices
             f_ind = fbmap[0, fb_ind]

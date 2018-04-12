@@ -755,6 +755,19 @@ class BeamTransfer(object):
 
             del fb_array
 
+            #Collect the global fbranges of all the nodes
+            comm =  mpiutil.world
+            size = mpiutil.size
+            rank = mpiutil.rank
+            
+            fb_ind_list = []
+            for ri in range(size):
+                fbri = comm.bcast(fb_ind, root=ri)
+                fb_ind_list.append(fbri)
+            fb_inds = []
+            for fbi in fb_ind_list:
+                fb_inds = fb_inds + list(fbi)
+
             # Write out the current set of chunks into the m-files.
             for lmi, mi in enumerate(range(sm, em)):
 
@@ -762,7 +775,7 @@ class BeamTransfer(object):
                 with h5py.File(self._mfile(mi), 'r+') as mfile:
 
                     # Lookup where to write Beam Transfers and write into file.
-                    for fbl, fbi in enumerate(range(fbstart, fbend)):
+                    for fbl, fbi in enumerate(fb_inds):
                         fi = fbmap[0, fbi]
                         bi = fbmap[1, fbi]
                         mfile['beam_m'][fi, :, bi] = m_array[fbl, ..., lmi]

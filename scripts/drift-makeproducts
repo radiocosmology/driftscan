@@ -81,7 +81,7 @@ def queue_config(args):
     # Set queueing system w. defaults
     cluster_defaults = {
         'pbs' : {'ppn': 8, 'mem': '16000M', 'account':None, 'submit':'qsub',},
-        'slurm': {'ppn': 32, 'mem': '0', 'account':'rpp-krs', 'submit':'sbatch',}
+        'slurm': {'ppn': 32, 'mem': '0', 'account':None, 'submit':'sbatch',}
     }
 
     if queue_sys in cluster_defaults:

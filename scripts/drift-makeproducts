@@ -46,24 +46,105 @@ def queue_config(args):
     if not os.path.isabs(outdir):
         raise Exception("Output directory path must be absolute.")
 
-    pbsdir = os.path.normpath(outdir + '/pbs/')
+    # Get the name of the scheduler
+    if 'queue_sys' in conf:
+        queue_sys = conf['queue_sys']
+    else:
+        queue_sys = 'pbs'
+        raise Warning('Queueing system not set, defaulting to PBS')
+    
+    # Use it to create submitdir
+    submitdir = os.path.normpath(outdir + '/'+ queue_sys +'/')
 
     # Create directory if required
-    if not os.path.exists(pbsdir):
-        os.makedirs(pbsdir)
+    if not os.path.exists(submitdir):
+        os.makedirs(submitdir)
 
     # Copy config file into output directory (check it's not already there first)
     sfile = os.path.realpath(os.path.abspath(args.configfile))
-    dfile = os.path.realpath(os.path.abspath(pbsdir + '/config.yaml'))
+    dfile = os.path.realpath(os.path.abspath(submitdir + '/config.yaml'))
 
     if sfile != dfile:
         shutil.copy(sfile, dfile)
 
-    conf['mpiproc'] = conf['nodes'] * conf['pernode']
-    conf['pbsdir'] = pbsdir
-    conf['scriptpath'] = os.path.realpath(__file__)
+    clusterconf = {}
 
-    script="""#!/bin/bash
+    # Set up required PBS vars
+    if 'nodes' not in conf:
+        raise Exception('Nodes is required.')
+    clusterconf['nodes'] = conf['nodes']
+
+    if 'time' not in conf:
+        raise Exception('Job time is required.')
+    clusterconf['time'] = conf['time']
+
+    # Set queueing system w. defaults
+    cluster_defaults = {
+        'pbs' : {'ppn': 8, 'mem': '16000M', 'account':None, 'submit':'qsub',},
+        'slurm': {'ppn': 32, 'mem': '0', 'account':None, 'submit':'sbatch',}
+    }
+
+    if queue_sys in cluster_defaults:
+        
+        clusterconf['queue_sys'] = queue_sys
+        clusterconf['ppn'] = conf['ppn'] if 'ppn' in conf else cluster_defaults[queue_sys]['ppn']
+        clusterconf['mem'] = conf['mem'] if 'mem' in conf else cluster_defaults[queue_sys]['mem']
+        clusterconf['account'] = conf['account'] if 'account' in conf else cluster_defaults[queue_sys]['account']
+
+        submit_command = conf['submit_command'] if 'submit_command' in conf else cluster_defaults[queue_sys]['submit']
+        
+    else:
+        clusterconf['queue_sys'] = queue_sys
+        clusterconf['ppn'] = conf['ppn'] if 'ppn' in conf else 8
+        clusterconf['mem'] = conf['mem'] if 'mem' in conf else '0'
+        clusterconf['account'] = conf['account'] if 'account' in conf else None
+
+        if 'submit_command' in conf:
+            submit_command = conf['submit_command']
+        else:
+            raise Exception('Need to specify submit command for unknown scheduler.')
+        
+        if 'script_template' in conf:
+            script_templates[queue_sys] = conf['script_template']
+        else:
+            raise Exception('Need to specify submit script string for unknown scheduler.')
+        
+    # Set up optional PBS vars
+    clusterconf['ompnum'] = conf['ompnum'] if 'ompnum' in conf else 8
+    clusterconf['queue'] = conf['queue'] if 'queue' in conf else 'batch'
+    clusterconf['pernode'] = conf['pernode'] if 'pernode' in conf else 1
+    clusterconf['name'] = conf['name'] if 'name' in conf else 'job'
+
+    # Set vars only needed to create script
+    clusterconf['mpiproc'] = clusterconf['nodes'] * clusterconf['pernode']
+    clusterconf['workdir'] = outdir
+    clusterconf['scriptpath'] = os.path.realpath(__file__)
+    clusterconf['logpath'] = submitdir + '/jobout.log'
+    clusterconf['configpath'] = submitdir + '/config.yaml'
+
+    # Set up virtualenv
+    if 'venv' in conf:
+        if not os.path.exists(conf['venv'] + '/bin/activate'):
+            raise Exception('Could not find virtualenv')
+
+        clusterconf['venv'] = conf['venv'] + '/bin/activate'
+    else:
+        clusterconf['venv'] = '/dev/null'
+
+    script = script_templates[queue_sys] % clusterconf
+
+    scriptname = submitdir + "/jobscript.sh"
+
+    with open(scriptname, 'w') as f:
+        f.write(script)
+
+    if not args.nosubmit:
+        os.system('cd %s; %s jobscript.sh' % (submitdir, submit_command))
+
+# Put script templates for different schedulers here and add
+# them to the dictionary.
+
+pbs_script = """#!/bin/bash
 #PBS -l nodes=%(nodes)i:ppn=%(ppn)i
 #PBS -q %(queue)s
 #PBS -r n
@@ -71,27 +152,32 @@ def queue_config(args):
 #PBS -V
 #PBS -l walltime=%(time)s
 #PBS -N %(name)s
-
-
-cd %(pbsdir)s
+source %(venv)s
+cd %(workdir)s
 export OMP_NUM_THREADS=%(ompnum)i
-
-mpirun -bind-to none -np %(mpiproc)i -npernode %(pernode)i python %(scriptpath)s run config.yaml &> jobout.log
+mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s run %(configpath)s &> %(logpath)s
 """
 
-    script = script % conf
+slurm_script = """#!/bin/bash
+#SBATCH --account=%(account)s
+#SBATCH --nodes=%(nodes)i
+#SBATCH --ntasks-per-node=%(pernode)i # number of MPI processes
+#SBATCH --cpus-per-task=%(ompnum)i # number of OpenMP processes
+#SBATCH --mem=%(mem)s # memory per node
+#SBATCH --time=%(time)s
+#SBATCH --job-name=%(name)s
 
-    scriptname = pbsdir + "/jobscript.sh"
+source %(venv)s
+cd %(workdir)s
 
-    with open(scriptname, 'w') as f:
-        f.write(script)
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-    if not args.nosubmit:
-        os.system('cd %s; qsub jobscript.sh' % pbsdir)
+mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s run %(configpath)s &> %(logpath)s
+"""
 
-
-
-
+script_templates = {}
+script_templates['pbs'] = pbs_script
+script_templates['slurm'] = slurm_script
 
 parser = argparse.ArgumentParser(description='Create/load the analysis products.')
 subparsers = parser.add_subparsers(help='Command to run.', title="Commands", metavar="<command>")

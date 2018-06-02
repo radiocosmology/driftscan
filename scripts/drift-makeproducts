@@ -139,7 +139,7 @@ def queue_config(args):
         f.write(script)
 
     if not args.nosubmit:
-        os.system('cd %s; ' % submitdir + submit_command + ' jobscript.sh')
+        os.system('cd %s; %s jobscript.sh' % (submitdir, submit_command))
 
 # Put script templates for different schedulers here and add
 # them to the dictionary.

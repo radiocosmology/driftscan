@@ -711,8 +711,7 @@ class TransitTelescope(config.Reader, ctime.Observer):
         # Broadcast arrays against each other
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
-        #bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
-        bw = 1.0e6 * (self.freq_upper - self.freq_lower) / self.num_freq
+        bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
         delnu = units.t_sidereal * bw / (2*np.pi)
         noisepower = self.tsys(f_indices)**2 / (2 * np.pi * delnu * ndays)
         noisebase = noisepower / self.redundancy[bl_indices]

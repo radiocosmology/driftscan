@@ -419,8 +419,6 @@ class TransitTelescope(config.Reader, ctime.Observer):
 
         # Flip the feedpairs
         self._feedconj = np.logical_xor(self._feedconj, conj_map[self._feedmap])
-        # Reorder feed pairs and conjugate mapping
-        # self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
 
     # Tolerance used when comparing baselines. See np.around documentation for details.
     _bl_tol = 6

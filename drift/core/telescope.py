@@ -408,13 +408,17 @@ class TransitTelescope(config.Reader, ctime.Observer):
         tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
         uniq = _get_indices(self._feedmap, mask=tmask)
 
+        conj_map = np.zeros(uniq.shape[0] + 1, dtype=np.bool)
+
         for i in range(uniq.shape[0]):
             sep = self.feedpositions[uniq[i, 0]] - self.feedpositions[uniq[i, 1]]
 
             if sep[0] < 0.0 or (sep[0] == 0.0 and sep[1] < 0.0):
-                # Reorder feed pairs and conjugate mapping
-                # self._uniquepairs[i, 1], self._uniquepairs[i, 0] = self._uniquepairs[i, 0], self._uniquepairs[i, 1]
-                self._feedconj = np.where(self._feedmap == i, np.logical_not(self._feedconj), self._feedconj)
+                # Note down that we need to flip feedconj
+                conj_map[i] = True
+
+        # Flip the feedpairs
+        self._feedconj = np.logical_xor(self._feedconj, conj_map[self._feedmap])
 
     # Tolerance used when comparing baselines. See np.around documentation for details.
     _bl_tol = 6

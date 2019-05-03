@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import os.path
 import shutil
 
@@ -48,12 +55,12 @@ class Projector(config.Reader):
             if self.copy_orig:
                 shutil.copy(mfile, stem + 'orig.hdf5')
 
-            print "============\nProjecting file %s\n============\n" % mfile
+            print("============\nProjecting file %s\n============\n" % mfile)
 
             ## Load map and perform spherical harmonic transform
             if mpiutil.rank0:
                 # Calculate alm's and broadcast
-                print "Read in skymap."
+                print("Read in skymap.")
                 f = h5py.File(mfile, 'r')
                 skymap = f['map'][:]
                 f.close()
@@ -83,7 +90,7 @@ class Projector(config.Reader):
 
             ## Broadcast set of alms to the world
             alm = mpiutil.world.bcast(alm, root=0)
-            mlist = range(self.kltransform.telescope.mmax+1)
+            mlist = list(range(self.kltransform.telescope.mmax+1))
             nevals = self.beamtransfer.ntel * self.beamtransfer.nfreq
 
 
@@ -91,7 +98,7 @@ class Projector(config.Reader):
             if self.beam_proj:
 
                 def proj_beam(mi):
-                    print "Projecting %i" % mi
+                    print("Projecting %i" % mi)
                     bproj = self.beamtransfer.project_vector_forward(mi, alm[:, :, mi]).flatten()
                     return self.beamtransfer.project_vector_backward(mi, bproj)
 
@@ -106,7 +113,7 @@ class Projector(config.Reader):
 
                 def proj_evec(mi):
                     ## Worker function for mapping over list and projecting onto signal modes.
-                    print "Projecting %i" % mi
+                    print("Projecting %i" % mi)
                     p2 = np.zeros(nevals, dtype=np.complex128)
                     if self.kltransform.modes_m(mi)[0] is not None:
                         p1 = self.kltransform.project_sky_vector_forward(mi, alm[:, :, mi])
@@ -129,7 +136,7 @@ class Projector(config.Reader):
 
                 def filt_kl(mi):
                     ## Worker function for mapping over list and projecting onto signal modes.
-                    print "Projecting %i" % mi
+                    print("Projecting %i" % mi)
 
                     mvals, mvecs = self.kltransform.modes_m(mi, threshold=cut)
 

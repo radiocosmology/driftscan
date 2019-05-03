@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import os
 
 import numpy as np
@@ -102,16 +109,16 @@ class DoubleKL(kltransform.KLTransform):
             return ta
 
         if mpiutil.rank0:
-            print "Creating eigenvalues file (process 0 only)."
+            print("Creating eigenvalues file (process 0 only).")
 
-        mlist = range(self.telescope.mmax+1)
+        mlist = list(range(self.telescope.mmax+1))
         shape = (2, self.beamtransfer.ndofmax)
 
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
             if os.path.exists(self.evdir + "/evals.hdf5"):
-                print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
+                print("File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5"))
                 return
 
             f = h5py.File(self.evdir + "/evals.hdf5", 'w')

@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import numpy as np
 
 from caput import config
@@ -124,7 +131,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             Healpix maps (of size [self._nside, 2]) of the field pattern in the
             theta and phi directions.
         """
-        beampert = int(self.beamclass[feed] / 2)
+        beampert = int(self.beamclass[feed] // 2)
 
         if beampert == 0:
 
@@ -161,7 +168,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             theta and phi directions.
         """
 
-        beampert = int(self.beamclass[feed] / 2)
+        beampert = int(self.beamclass[feed] // 2)
 
         if beampert == 0:
 

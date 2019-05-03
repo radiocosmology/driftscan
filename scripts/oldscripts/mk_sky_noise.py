@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import sys
 
 import numpy as np
@@ -18,7 +25,7 @@ bt = beamtransfer.BeamTransfer(btdir)
 cyl = bt.telescope
 mmax = cyl.mmax
 
-print "Making map with T_sys = %f" % cyl.tsys_flat
+print("Making map with T_sys = %f" % cyl.tsys_flat)
 
 shape = (cyl.nfreq, cyl.nbase)
 ind = np.indices(shape)
@@ -35,7 +42,7 @@ if not cyl.positive_m_only:
 
 def noisem(mi):
 
-    print "Noise vector %i" % mi
+    print("Noise vector %i" % mi)
 
     vis = (np.random.standard_normal(shape + (2,)) * np.array([1.0, 1.0J])).sum(axis=-1) * noise
     sbinv = bt.project_vector_backward(mi, vis)
@@ -43,12 +50,12 @@ def noisem(mi):
     return sbinv
 
 # Project m-modes across different processes
-mlist = range(mmax+1)
+mlist = list(range(mmax+1))
 mpart = mpiutil.partition_list_mpi(mlist)
 mproj = [[mi, noisem(mi)] for mi in mpart]
 
 if mpiutil.rank0:
-    print "Gather results onto root process"
+    print("Gather results onto root process")
 p_all = mpiutil.world.gather(mproj, root=0)
 
 
@@ -57,7 +64,7 @@ if mpiutil.rank0:
 
     nalm = np.zeros((cyl.nfreq, cyl.lmax+1, cyl.lmax+1), dtype=np.complex128)
     
-    print "Combining results."
+    print("Combining results.")
     
     for p_process in p_all:
 
@@ -68,10 +75,10 @@ if mpiutil.rank0:
 
             nalm[:, :, mi] = proj.reshape(nalm.shape[:-1])
 
-    print "Transforming onto sky."
+    print("Transforming onto sky.")
     noise_map = hputil.sphtrans_inv_sky(nalm, nside)
 
-    print "Saving file."
+    print("Saving file.")
     f = h5py.File(outfile, 'w')
 
     f.create_dataset('/map', data=noise_map)

@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import abc
 
 import numpy as np
@@ -9,6 +16,7 @@ from cora.util import hputil, units
 
 from drift.core import visibility
 from drift.util import util
+from future.utils import with_metaclass
 
 
 def in_range(arr, min, max):
@@ -115,7 +123,7 @@ def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     return lmax, mmax
 
 
-class TransitTelescope(config.Reader, ctime.Observer):
+class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer)):
     """Base class for simulating any transit interferometer.
 
     This is an abstract class, and several methods must be implemented before it
@@ -157,7 +165,6 @@ class TransitTelescope(config.Reader, ctime.Observer):
         so the rotation angle is what is overhead at Greenwich (Earth Rotation
         Angle).
     """
-    __metaclass__ = abc.ABCMeta  # Enforce Abstract class
 
     freq_lower = config.Property(proptype=float, default=400.0)
     freq_upper = config.Property(proptype=float, default=800.0)
@@ -602,7 +609,7 @@ class TransitTelescope(config.Reader, ctime.Observer):
         # Generate the array for the Transfer functions
 
         tshape = bl_indices.shape + (self.num_pol_sky, lside+1, 2*lside+1)
-        print "Size: %i elements. Memory %f GB." % (np.prod(tshape), 2*np.prod(tshape) * 8.0 / 2**30)
+        print("Size: %i elements. Memory %f GB." % (np.prod(tshape), 2*np.prod(tshape) * 8.0 / 2**30))
         tarray = np.zeros(tshape, dtype=np.complex128)
 
         # Sort the baselines by ascending lmax and iterate through in that
@@ -822,13 +829,12 @@ class TransitTelescope(config.Reader, ctime.Observer):
 
 
 
-class UnpolarisedTelescope(TransitTelescope):
+class UnpolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
     """A base for an unpolarised telescope.
 
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the `beam` function.
     """
-    __metaclass__ = abc.ABCMeta
 
     _npol_sky_ = 1
 
@@ -922,7 +928,7 @@ class UnpolarisedTelescope(TransitTelescope):
 
 
 
-class PolarisedTelescope(TransitTelescope):
+class PolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
     """A base for a polarised telescope.
 
     Again, an abstract class, but the only things that require implementing are
@@ -933,7 +939,6 @@ class PolarisedTelescope(TransitTelescope):
     beamx, beamy : methods
         Routines giving the field pattern for the x and y feeds.
     """
-    __metaclass__ = abc.ABCMeta
 
     _npol_sky_ = 4
 
@@ -987,7 +992,7 @@ class PolarisedTelescope(TransitTelescope):
     #===================================================
 
 
-class SimpleUnpolarisedTelescope(UnpolarisedTelescope):
+class SimpleUnpolarisedTelescope(with_metaclass(abc.ABCMeta, UnpolarisedTelescope)):
     """A base for a polarised telescope.
 
     Again, an abstract class, but the only things that require implementing are
@@ -998,8 +1003,6 @@ class SimpleUnpolarisedTelescope(UnpolarisedTelescope):
     beamx, beamy : methods
         Routines giving the field pattern for the x and y feeds.
     """
-
-    __metaclass__ = abc.ABCMeta
 
 
     @property
@@ -1021,7 +1024,7 @@ class SimpleUnpolarisedTelescope(UnpolarisedTelescope):
 
 
 
-class SimplePolarisedTelescope(PolarisedTelescope):
+class SimplePolarisedTelescope(with_metaclass(abc.ABCMeta, PolarisedTelescope)):
     """A base for a polarised telescope.
 
     Again, an abstract class, but the only things that require implementing are
@@ -1032,8 +1035,6 @@ class SimplePolarisedTelescope(PolarisedTelescope):
     beamx, beamy : methods
         Routines giving the field pattern for the x and y feeds.
     """
-
-    __metaclass__ = abc.ABCMeta
 
 
     @property

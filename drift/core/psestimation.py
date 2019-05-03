@@ -1,5 +1,11 @@
 """Estimate powerspectra and forecast constraints from real data.
 """
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import os
 import abc
@@ -17,6 +23,7 @@ from drift.core import skymodel
 from drift.util import util
 
 from mpi4py import MPI
+from future.utils import with_metaclass
 
 
 def uniform_band(k, kstart, kend):
@@ -137,7 +144,7 @@ def decorrelate_ps_file(fname):
 
 
 
-class PSEstimation(config.Reader):
+class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
     """Base class for quadratic powerspectrum estimation.
 
     See Tegmark 1997 for details.
@@ -168,8 +175,6 @@ class PSEstimation(config.Reader):
     zero_mean : boolean
         If True (default), then the fiducial parameters have zero mean.
     """
-
-    __metaclass__ = abc.ABCMeta
 
 
     bandtype = config.Property(proptype=str, default='polar')
@@ -250,7 +255,7 @@ class PSEstimation(config.Reader):
         and the angular powerspectrum.
         """
 
-        print "Generating bands..."
+        print("Generating bands...")
 
         cr = corr21cm.Corr21cm()
         cr.ps_2d = False
@@ -273,7 +278,7 @@ class PSEstimation(config.Reader):
             self.theta_end = tb[1:, 1:].flatten()
             self.theta_center = 0.5 * (self.theta_end + self.theta_start)
 
-            bounds = zip(self.k_start, self.k_end, self.theta_start, self.theta_end)
+            bounds = list(zip(self.k_start, self.k_end, self.theta_start, self.theta_end))
 
             # Make a list of functions of the band window functions
             self.band_func = [ bandfunc_2d_polar(*bound) for bound in bounds ]
@@ -301,7 +306,7 @@ class PSEstimation(config.Reader):
             self.kperp_end = kperpb[1:, 1:].flatten()
             self.kperp_center = 0.5 * (self.kperp_end + self.kperp_start)
 
-            bounds = zip(self.kpar_start, self.kpar_end, self.kperp_start, self.kperp_end)
+            bounds = list(zip(self.kpar_start, self.kpar_end, self.kperp_start, self.kperp_end))
 
             self.k_center = (self.kpar_center**2 + self.kperp_center**2)**0.5
 
@@ -327,7 +332,7 @@ class PSEstimation(config.Reader):
             self.make_clzz_array()
 
 
-        print "Done."
+        print("Done.")
 
 
     def make_clzz(self, pk):
@@ -351,7 +356,7 @@ class PSEstimation(config.Reader):
         clzz = skymodel.im21cm_model(self.telescope.lmax, self.telescope.frequencies,
                                      self.telescope.num_pol_sky, cr = crt, temponly=True)
 
-        print "Rank: %i - Finished making band." % mpiutil.rank
+        print("Rank: %i - Finished making band." % mpiutil.rank)
         return clzz
 
 
@@ -397,12 +402,12 @@ class PSEstimation(config.Reader):
         """
 
         if self.num_evals(mi) > 0:
-            print "Making fisher (for m=%i)." % mi
+            print("Making fisher (for m=%i)." % mi)
 
             fisher, bias = self._work_fisher_bias_m(mi)
 
         else:
-            print "No evals (for m=%i), skipping." % mi
+            print("No evals (for m=%i), skipping." % mi)
 
             fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
             bias = np.zeros((self.nbands,), dtype=np.complex128)
@@ -445,7 +450,7 @@ class PSEstimation(config.Reader):
 
         if mpiutil.rank0:
             st = time.time()
-            print "======== Starting PS calculation ========"
+            print("======== Starting PS calculation ========")
 
         ffile = self.psdir +'/fisher.hdf5'
 
@@ -459,10 +464,10 @@ class PSEstimation(config.Reader):
         self.genbands()
 
         # Use parallel map to distribute Fisher calculation
-        fisher_bias = mpiutil.parallel_map(self.fisher_bias_m, range(self.telescope.mmax + 1))
+        fisher_bias = mpiutil.parallel_map(self.fisher_bias_m, list(range(self.telescope.mmax + 1)))
 
         # Unpack into separate lists of the Fisher matrix and bias
-        fisher, bias = zip(*fisher_bias)
+        fisher, bias = list(zip(*fisher_bias))
 
         # Sum over all m-modes to get the over all Fisher and bias
         self.fisher = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here
@@ -471,7 +476,7 @@ class PSEstimation(config.Reader):
         # Write out all the PS estimation products
         if mpiutil.rank0:
             et = time.time()
-            print "======== Ending PS calculation (time=%f) ========" % (et - st)
+            print("======== Ending PS calculation (time=%f) ========" % (et - st))
 
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
@@ -485,7 +490,7 @@ class PSEstimation(config.Reader):
                 cr = np.zeros_like(self.fisher)
 
             f = h5py.File(self.psdir + '/fisher.hdf5', 'w')
-            f.attrs['bandtype'] = self.bandtype
+            f.attrs['bandtype'] = np.string_(self.bandtype)  # HDF5 string issues
 
             f.create_dataset('fisher/', data=self.fisher)
             f.create_dataset('bias/', data=self.bias)
@@ -678,7 +683,7 @@ class PSExact(PSEstimation):
             self._bp_cache = []
 
         for i in range(len(self.clarray)):
-            print "Generating cache for m=%i band=%i" % (mi, i)
+            print("Generating cache for m=%i band=%i" % (mi, i))
             projm = self.makeproj(mi, i)
 
             ## Don't generate cache for small enough matrices
@@ -686,7 +691,7 @@ class PSExact(PSEstimation):
                 self._bp_cache.append(projm)
 
             else:
-                print "Creating cache file:" + self._cfile % (mi, i)
+                print("Creating cache file:" + self._cfile % (mi, i))
                 f = h5py.File(self._cfile % (mi, i), 'w')
                 f.create_dataset('proj', data=projm)
                 f.close()
@@ -708,7 +713,7 @@ class PSExact(PSEstimation):
 
             fn = self._cfile % (mi, i)
             if os.path.exists(fn):
-                print "Deleting cache file:" + fn
+                print("Deleting cache file:" + fn)
                 os.remove(self._cfile % (mi, i))
 
 

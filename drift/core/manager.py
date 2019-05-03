@@ -1,4 +1,9 @@
-
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import os.path
 import shutil
@@ -160,7 +165,7 @@ class ProductManager(object):
             self.directory = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(configfile)), self.directory))
 
         if mpiutil.rank0:
-            print "Product directory:", self.directory
+            print("Product directory:", self.directory)
 
         ## Telescope configuration
         if 'telescope' not in yconf:
@@ -266,8 +271,8 @@ class ProductManager(object):
                 psobj.delbands()
 
         if mpiutil.rank0:
-            print "========================================"
-            print "=                                      ="
-            print "=           DONE AT LAST!!             ="
-            print "=                                      ="
-            print "========================================"
+            print("========================================")
+            print("=                                      =")
+            print("=           DONE AT LAST!!             =")
+            print("=                                      =")
+            print("========================================")

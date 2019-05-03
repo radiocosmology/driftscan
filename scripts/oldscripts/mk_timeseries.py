@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import argparse
 
 import numpy as np
@@ -68,8 +75,8 @@ tseries[wc] = tseries[wc].conj()
 nseries = (np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1]) +
            np.random.standard_normal([tel.nfeed, tel.nfeed, 2*tel.mmax + 1])) / 2**0.5
 
-print "Shape", nseries.shape
-print "Size: %f GB" % (nseries.size * 16 / 2**30.0)
+print("Shape", nseries.shape)
+print("Size: %f GB" % (nseries.size * 16 / 2**30.0))
 
 
 fi, fj = np.indices([tel.nfeed, tel.nfeed])

@@ -1,3 +1,9 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import sys
 
@@ -18,7 +24,7 @@ svd_len = min(bt.telescope.num_pol_sky*(bt.telescope.lmax+1), bt.ntel)
 
 def svd_func(mi):
 
-    print mi
+    print(mi)
     # Open m beams for reading.
 
     sv = np.zeros((bt.nfreq, svd_len), dtype=np.float64)
@@ -50,7 +56,7 @@ def svd_func(mi):
     
 
     
-svdspectrum = kltransform.collect_m_array(range(bt.telescope.mmax + 1), svd_func, (bt.nfreq, svd_len,), np.float64)
+svdspectrum = kltransform.collect_m_array(list(range(bt.telescope.mmax + 1)), svd_func, (bt.nfreq, svd_len,), np.float64)
 
 if mpiutil.rank0:
 

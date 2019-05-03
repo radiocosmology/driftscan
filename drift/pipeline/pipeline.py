@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import os.path
 
 import yaml
@@ -131,7 +138,7 @@ class PipelineManager(config.Reader):
             ts = self.timestreams[tsname]
 
             if os.path.exists(ts._ffile(0)):
-                print "Looks like timestream already exists. Skipping...."
+                print("Looks like timestream already exists. Skipping....")
             else:
                 m = manager.ProductManager.from_config(simconf['product_directory'])
                 timestream.simulate(m, ts.directory, **simconf)
@@ -145,7 +152,7 @@ class PipelineManager(config.Reader):
         if self.generate_modes:
 
             for tsname, tsobj in self.timestreams.items():
-                print "Generating modes (%s)" % tsname
+                print("Generating modes (%s)" % tsname)
 
                 tsobj.generate_mmodes()
                 tsobj.generate_mmodes_svd()
@@ -155,7 +162,7 @@ class PipelineManager(config.Reader):
             for tsname, tsobj in self.timestreams.items():
 
                 for klname in self.klmodes:
-                    print "Generating KL filter (%s:%s)" % (tsname, klname)
+                    print("Generating KL filter (%s:%s)" % (tsname, klname))
 
                     tsobj.set_kltransform(klname)
                     tsobj.generate_mmodes_kl()
@@ -173,7 +180,7 @@ class PipelineManager(config.Reader):
                     psname = ps['psname']
                     klname = ps['klname']
 
-                    print "Estimating powerspectra (%s:%s)" % (tsname, psname)
+                    print("Estimating powerspectra (%s:%s)" % (tsname, psname))
 
                     tsobj.set_kltransform(klname)
                     tsobj.set_psestimator(psname)
@@ -208,7 +215,7 @@ class PipelineManager(config.Reader):
             for tsname, tsobj in self.timestreams.items():
 
                 for klname in self.klmaps:
-                    print "Generating KL map (%s:%s)" % (tsname, klname)
+                    print("Generating KL map (%s:%s)" % (tsname, klname))
 
                     mapfile = 'map_%s.hdf5' % klname
 
@@ -217,10 +224,10 @@ class PipelineManager(config.Reader):
 
 
 
-                print "Generating SVD map (%s)" % tsname
+                print("Generating SVD map (%s)" % tsname)
                 tsobj.mapmake_svd(self.nside, 'map_svd.hdf5')
 
-                print "Generating full map (%s)" % tsname
+                print("Generating full map (%s)" % tsname)
                 tsobj.mapmake_full(self.nside, 'map_full.hdf5')
 
 

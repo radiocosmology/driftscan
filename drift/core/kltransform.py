@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import time
 import os
 import re
@@ -86,7 +93,7 @@ def eigh_gen(A, B):
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
-            print "Error occured in eigenvalue solve."
+            print("Error occured in eigenvalue solve.")
             # Get error number
             mo = re.search('order (\\d+)', e.message)
 
@@ -98,8 +105,8 @@ def eigh_gen(A, B):
 
             if errno < (A.shape[0]+1):
 
-                print "Matrix probably not positive definite due to numerical issues. \
-                Trying to add a constant diagonal...."
+                print("Matrix probably not positive definite due to numerical issues. \
+                Trying to add a constant diagonal....")
 
                 evb = la.eigvalsh(B)
                 add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
@@ -108,7 +115,7 @@ def eigh_gen(A, B):
                 evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
 
             else:
-                print "Strange convergence issue. Trying non divide and conquer routine."
+                print("Strange convergence issue. Trying non divide and conquer routine.")
                 evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True, turbo=False)
 
     return evals, evecs, add_const
@@ -309,7 +316,7 @@ class KLTransform(config.Reader):
             covariances in the new basis, and the evecs define the basis.
         """
 
-        print "Solving for Eigenvalues...."
+        print("Solving for Eigenvalues....")
 
         # Fetch the covariance matrices to diagonalise
         st = time.time()
@@ -321,13 +328,13 @@ class KLTransform(config.Reader):
 
         cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
-        print "Time =", (et-st)
+        print("Time =", (et-st))
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
         evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
         et=time.time()
-        print "Time =", (et-st)
+        print("Time =", (et-st))
 
         evecs = evecs.T.conj()
 
@@ -360,13 +367,13 @@ class KLTransform(config.Reader):
         """
 
         # Perform the KL-transform
-        print "Constructing signal and noise covariances for m = %i ..." % (mi)
+        print("Constructing signal and noise covariances for m = %i ..." % (mi))
         evals, evecs, inv, evextra = self._transform_m(mi)
 
         ## Write out Eigenvals and Vectors
 
         # Create file and set some metadata
-        print "Creating file %s ...." % (self._evfile % mi)
+        print("Creating file %s ...." % (self._evfile % mi))
         f = h5py.File(self._evfile % mi, 'w')
         f.attrs['m'] = mi
         f.attrs['SUBSET'] = self.subset
@@ -385,7 +392,7 @@ class KLTransform(config.Reader):
 
             evals = evals[i_ev:]
             evecs = evecs[i_ev:]
-            print "Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size)
+            print("Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size))
 
         # Write out potentially reduced eigen spectrum.
         f.create_dataset('evals', data=evals)
@@ -453,15 +460,15 @@ class KLTransform(config.Reader):
             return evf
 
         if mpiutil.rank0:
-            print "Creating eigenvalues file (process 0 only)."
+            print("Creating eigenvalues file (process 0 only).")
 
-        mlist = range(self.telescope.mmax+1)
+        mlist = list(range(self.telescope.mmax+1))
         shape = (self.beamtransfer.ndofmax, )
         evarray = collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
             if os.path.exists(self.evdir + "/evals.hdf5"):
-                print "File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5")
+                print("File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5"))
                 return
 
             f = h5py.File(self.evdir + "/evals.hdf5", 'w')
@@ -482,12 +489,12 @@ class KLTransform(config.Reader):
 
         if mpiutil.rank0:
             st = time.time()
-            print "======== Starting KL calculation ========"
+            print("======== Starting KL calculation ========")
 
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(self.telescope.mmax+1):
             if os.path.exists(self._evfile % mi) and not regen:
-                print "m index %i. File: %s exists. Skipping..." % (mi, (self._evfile % mi))
+                print("m index %i. File: %s exists. Skipping..." % (mi, (self._evfile % mi)))
                 continue
 
             self.transform_save(mi)
@@ -497,7 +504,7 @@ class KLTransform(config.Reader):
 
         if mpiutil.rank0:
             et = time.time()
-            print "======== Ending KL calculation (time=%f) ========" % (et - st)
+            print("======== Ending KL calculation (time=%f) ========" % (et - st))
 
 
         # Collect together the eigenvalues
@@ -644,7 +651,7 @@ class KLTransform(config.Reader):
                 return inv.T
 
             else:
-                print "Inverse not cached, generating pseudo-inverse."
+                print("Inverse not cached, generating pseudo-inverse.")
                 return la.pinv(self.modes_m(mi, threshold)[1])
 
 
@@ -875,7 +882,7 @@ class KLTransform(config.Reader):
 
         # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
-            mlist = range(self.telescope.mmax + 1)
+            mlist = list(range(self.telescope.mmax + 1))
         mpart = mpiutil.partition_list_mpi(mlist)
 
         # Total number of sky modes.

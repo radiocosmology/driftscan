@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import pickle
 import os
 
@@ -149,7 +156,7 @@ class Timestream(object):
 
         if os.path.exists(self.output_directory + "/mmodes/COMPLETED_M"):
             if mpiutil.rank0:
-                print "******* m-files already generated ********"
+                print("******* m-files already generated ********")
             return
 
         tel = self.telescope
@@ -238,7 +245,7 @@ class Timestream(object):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._svdfile(mi)):
-                print "File %s exists. Skipping..." % self._svdfile(mi)
+                print("File %s exists. Skipping..." % self._svdfile(mi))
                 continue
 
             tm = self.mmode(mi).reshape(self.telescope.nfreq, 2*self.telescope.npairs)
@@ -261,14 +268,14 @@ class Timestream(object):
 
         def _make_alm(mi):
 
-            print "Making %i" % mi
+            print("Making %i" % mi)
 
             mmode = self.mmode(mi)
             sphmode = self.beamtransfer.project_vector_telescope_to_sky(mi, mmode)
 
             return sphmode
 
-        alm_list = mpiutil.parallel_map(_make_alm, range(self.telescope.mmax + 1))
+        alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
 
         if mpiutil.rank0:
 
@@ -299,7 +306,7 @@ class Timestream(object):
 
             return sphmode
 
-        alm_list = mpiutil.parallel_map(_make_alm, range(self.telescope.mmax + 1))
+        alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
 
         if mpiutil.rank0:
 
@@ -357,7 +364,7 @@ class Timestream(object):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._klfile(mi)):
-                print "File %s exists. Skipping..." % self._klfile(mi)
+                print("File %s exists. Skipping..." % self._klfile(mi))
                 continue
 
             svdm = self.mmode_svd(mi) #.reshape(self.telescope.nfreq, 2*self.telescope.npairs)
@@ -384,16 +391,16 @@ class Timestream(object):
             return evf
 
         if mpiutil.rank0:
-            print "Creating eigenvalues file (process 0 only)."
+            print("Creating eigenvalues file (process 0 only).")
 
-        mlist = range(self.telescope.mmax+1)
+        mlist = list(range(self.telescope.mmax+1))
         shape = (self.beamtransfer.ndofmax, )
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.complex128)
 
         if mpiutil.rank0:
             fname =  self.output_directory + ("/klmodes_%s_%f.hdf5"% (self.klname, self.klthreshold))
             if os.path.exists(fname):
-                print "File: %s exists. Skipping..." % (fname)
+                print("File: %s exists. Skipping..." % (fname))
                 return
 
             with h5py.File(fname, 'w') as f:
@@ -431,7 +438,7 @@ class Timestream(object):
 
         if os.path.exists(mapfile):
             if mpiutil.rank0:
-                print "File %s exists. Skipping..."
+                print("File %s exists. Skipping...")
             return
 
         kl = self.manager.kltransforms[self.klname]
@@ -440,7 +447,7 @@ class Timestream(object):
             raise Exception("Need the inverse to make a meaningful map.")
 
         def _make_alm(mi):
-            print "Making %i" % mi
+            print("Making %i" % mi)
 
             klmode = self.mmode_kl(mi)
 
@@ -456,7 +463,7 @@ class Timestream(object):
 
             return sphmode
 
-        alm_list = mpiutil.parallel_map(_make_alm, range(self.telescope.mmax + 1))
+        alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
 
         if mpiutil.rank0:
 
@@ -464,7 +471,7 @@ class Timestream(object):
                             self.telescope.lmax + 1), dtype=np.complex128)
 
             # Determine whether to use m=0 or not
-            mlist = range(1 if self.no_m_zero else 0, self.telescope.mmax + 1)
+            mlist = list(range(1 if self.no_m_zero else 0, self.telescope.mmax + 1))
 
             for mi in mlist:
 
@@ -500,7 +507,7 @@ class Timestream(object):
 
 
         if os.path.exists(self._psfile):
-            print "File %s exists. Skipping..." % self._psfile
+            print("File %s exists. Skipping..." % self._psfile)
             return
 
         ps = self.manager.psestimators[self.psname]
@@ -511,7 +518,7 @@ class Timestream(object):
             return ps.q_estimator(mi, self.mmode_kl(mi))
 
         # Determine whether to use m=0 or not
-        mlist = range(1 if self.no_m_zero else 0, self.telescope.mmax + 1)
+        mlist = list(range(1 if self.no_m_zero else 0, self.telescope.mmax + 1))
         qvals = mpiutil.parallel_map(_q_estimate, mlist)
 
         qtotal = np.array(qvals).sum(axis=0)
@@ -582,8 +589,8 @@ class Timestream(object):
 
         # Save pickled telescope object
         if mpiutil.rank0:
-            with open(self._picklefile, 'w') as f:
-                print "=== Saving Timestream object. ==="
+            with open(self._picklefile, 'wb') as f:
+                print("=== Saving Timestream object. ===")
                 pickle.dump(self, f)
 
 
@@ -600,8 +607,8 @@ class Timestream(object):
         # Create temporary object to extract picklefile property
         tmp_obj = cls(tsdir, tsdir)
 
-        with open(tmp_obj._picklefile, 'r') as f:
-            print "=== Loading Timestream object. ==="
+        with open(tmp_obj._picklefile, 'rb') as f:
+            print("=== Loading Timestream object. ===")
             return pickle.load(f)
 
     #====================================================
@@ -613,7 +620,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
     import scipy.linalg as la
 
     if os.path.exists(psfile):
-        print "File %s exists. Skipping..." % psfile
+        print("File %s exists. Skipping..." % psfile)
         return
 
     products = timestreams[0].manager
@@ -630,7 +637,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
         for ti in range(nstream):
             for tj in range(ti+1, nstream):
 
-                print "Making m=%i (%i, %i)" % (mi, ti, tj)
+                print("Making m=%i (%i, %i)" % (mi, ti, tj))
 
                 si = timestreams[ti]
                 sj = timestreams[tj]
@@ -641,7 +648,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
         return qp
 
     # Determine whether to use m=0 or not
-    mlist = range(1 if timestreams[0].no_m_zero else 0, products.telescope.mmax + 1)
+    mlist = list(range(1 if timestreams[0].no_m_zero else 0, products.telescope.mmax + 1))
     qvals = mpiutil.parallel_map(_q_estimate, mlist)
 
     qtotal = np.array(qvals).sum(axis=0)
@@ -725,7 +732,7 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
     projmaps = (len(maps) > 0)
 
     lfreq, sfreq, efreq = mpiutil.split_local(nfreq)
-    local_freq = range(sfreq, efreq)
+    local_freq = list(range(sfreq, efreq))
 
     lm, sm, em = mpiutil.split_local(mmax + 1)
 

@@ -14,6 +14,12 @@ Classes
     BeamTransfer
 
 """
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import pickle
 import os
@@ -52,13 +58,13 @@ def svd_gen(A, errmsg=None, *args, **kwargs):
         try:
             res = la.svd(At, *args, **kwargs)
         except la.LinAlgError as e:
-            print "Failed completely. %s" % errmsg
+            print("Failed completely. %s" % errmsg)
             raise e
 
         if errmsg is None:
-            print "Matrix SVD did not converge. Regularised."
+            print("Matrix SVD did not converge. Regularised.")
         else:
-            print "Matrix SVD did not converge (%s)." % errmsg
+            print("Matrix SVD did not converge (%s)." % errmsg)
 
     return res
 
@@ -76,7 +82,7 @@ def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
 
     except la.LinAlgError as e:
         # Try QR with pivoting
-        print "SVD1 not converged. %s" % errmsg
+        print("SVD1 not converged. %s" % errmsg)
 
         q, r, p = la.qr(A, pivoting=True, mode='economic')
 
@@ -88,7 +94,7 @@ def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
             spectrum = s
 
         except la.LinAlgError as e:
-            print "SVD2 not converged. %s" % errmsg
+            print("SVD2 not converged. %s" % errmsg)
 
             image = q
             spectrum = np.abs(r.diagonal())
@@ -116,7 +122,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
 
     except la.LinAlgError as e:
         # Try QR with pivoting
-        print "SVD1 not converged. %s" % errmsg
+        print("SVD1 not converged. %s" % errmsg)
 
         q, r, p = la.qr(A, pivoting=True, mode='full')
 
@@ -128,7 +134,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
             spectrum = s
 
         except la.LinAlgError as e:
-            print "SVD2 not converged. %s" % errmsg
+            print("SVD2 not converged. %s" % errmsg)
 
             nullspace = q
             spectrum = np.abs(r.diagonal())
@@ -248,12 +254,12 @@ class BeamTransfer(object):
         mpiutil.barrier()
 
         if self.telescope is None:
-            print "Attempting to read telescope from disk..."
+            print("Attempting to read telescope from disk...")
 
             try:
-                f = open(self._picklefile, 'r')
-                self.telescope = pickle.load(f)
-            except IOError, UnpicklingError:
+                with open(self._picklefile, 'rb') as f:
+                    self.telescope = pickle.load(f)
+            except (IOError, pickle.UnpicklingError):
                 raise Exception("Could not load Telescope object from disk.")
 
 
@@ -346,7 +352,7 @@ class BeamTransfer(object):
         if single:
             return bf
 
-        mside = (bf.shape[-1] + 1) / 2
+        mside = (bf.shape[-1] + 1) // 2
 
         bfc = np.zeros((mside, 2) + bf.shape[:-1], dtype=bf.dtype)
 
@@ -559,8 +565,8 @@ class BeamTransfer(object):
 
         # Save pickled telescope object
         if mpiutil.rank0:
-            with open(self._picklefile, 'w') as f:
-                print "=== Saving Telescope object. ==="
+            with open(self._picklefile, 'wb') as f:
+                print("=== Saving Telescope object. ===")
                 pickle.dump(self.telescope, f)
 
         self._generate_mfiles(regen)
@@ -574,7 +580,7 @@ class BeamTransfer(object):
         et = time.time()
 
         if mpiutil.rank0:
-            print "***** Beam generation time: %f" % (et - st)
+            print("***** Beam generation time: %f" % (et - st))
 
 
     generate_cache = generate # For compatibility with old code
@@ -633,14 +639,14 @@ class BeamTransfer(object):
             # Divide into roughly 5 GB chunks
             nsections = int(np.ceil(np.prod(dsize) * 16.0 / 2**30.0 / self._mem_switch))
 
-            print "Dividing calculation of %f GB array into %i sections." % (np.prod(dsize) * 16.0 / 2**30.0, nsections)
+            print("Dividing calculation of %f GB array into %i sections." % (np.prod(dsize) * 16.0 / 2**30.0, nsections))
 
             b_sec = np.array_split(np.arange(self.telescope.npairs, dtype=np.int), nsections)
             f_sec = np.array_split(fi * np.ones(self.telescope.npairs, dtype=np.int), nsections)
 
             # Iterate over each section, generating transfers and save them.
             for si in range(nsections):
-                print "Calculating section %i of %i...." % (si, nsections)
+                print("Calculating section %i of %i...." % (si, nsections))
                 b_ind, f_ind = b_sec[si], f_sec[si]
                 tarray = self.telescope.transfer_matrices(b_ind, f_ind)
                 dset[(b_ind[0]):(b_ind[-1]+1), ..., :(self.telescope.mmax+1)] = tarray[..., :(self.telescope.mmax+1)]
@@ -659,7 +665,7 @@ class BeamTransfer(object):
 
         if os.path.exists(self.directory + '/beam_m/COMPLETED') and not regen:
             if mpiutil.rank0:
-                print "******* m-files already generated ********"
+                print("******* m-files already generated ********")
             return
 
         st = time.time()
@@ -678,7 +684,7 @@ class BeamTransfer(object):
         num_chunks = int(np.ceil(1.0 * nfb / num_fb_per_chunk))  # Number of chunks to break the calculation into
 
         if mpiutil.rank0:
-            print "Splitting into %i chunks...." % num_chunks
+            print("Splitting into %i chunks...." % num_chunks)
 
         # The local m sections
         lm, sm, em = mpiutil.split_local(self.telescope.mmax+1)
@@ -700,7 +706,6 @@ class BeamTransfer(object):
             # f.attrs['baselines'] = self.telescope.baselines
             f.attrs['m'] = mi
             f.attrs['frequencies'] = self.telescope.frequencies
-            f.attrs['cylobj'] = self._telescope_pickle
 
             f.close()
 
@@ -710,14 +715,14 @@ class BeamTransfer(object):
         for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
 
             if mpiutil.rank0:
-                print "Starting chunk %i of %i" % (ci+1, num_chunks)
+                print("Starting chunk %i of %i" % (ci+1, num_chunks))
 
             # Unpack freq-baselines range into num, start and end
             fbnum, fbstart, fbend = fbrange
 
             # Split the fb list into the ones local to this node
             loc_num, loc_start, loc_end = mpiutil.split_local(fbnum)
-            fb_ind = range(fbstart + loc_start, fbstart + loc_end)
+            fb_ind = list(range(fbstart + loc_start, fbstart + loc_end))
 
             # Extract the local frequency and baselines indices
             f_ind = fbmap[0, fb_ind]
@@ -741,7 +746,7 @@ class BeamTransfer(object):
                 del tarray
 
             if mpiutil.rank0:
-                print "Transposing and writing chunk."
+                print("Transposing and writing chunk.")
 
             # Perform an in memory MPI transpose to get the m-ordered array
             m_array = mpiutil.transpose_blocks(fb_array, (fbnum, 2, self.telescope.num_pol_sky, self.telescope.lmax + 1, self.telescope.mmax + 1))
@@ -772,7 +777,7 @@ class BeamTransfer(object):
             open(self.directory + '/beam_m/COMPLETED', 'a').close()
 
             # Print out timing
-            print "=== MPI transpose took %f s ===" % (et - st)
+            print("=== MPI transpose took %f s ===" % (et - st))
 
 
 
@@ -790,7 +795,7 @@ class BeamTransfer(object):
                        (mi, (self._svdfile(mi))))
                 continue
             else:
-                print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile(mi))
+                print('m index %i. Creating SVD file: %s' % (mi, self._svdfile(mi)))
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), 'r')
@@ -890,7 +895,6 @@ class BeamTransfer(object):
             fs.attrs['baselines'] = self.telescope.baselines
             fs.attrs['m'] = mi
             fs.attrs['frequencies'] = self.telescope.frequencies
-            fs.attrs['cylobj'] = self._telescope_pickle
 
             fs.close()
             fm.close()
@@ -910,7 +914,7 @@ class BeamTransfer(object):
 
         svd_func = lambda mi: self.beam_singularvalues(mi)
 
-        svdspectrum = kltransform.collect_m_array(range(self.telescope.mmax + 1), svd_func, (self.nfreq, self.svd_len,), np.float64)
+        svdspectrum = kltransform.collect_m_array(list(range(self.telescope.mmax + 1)), svd_func, (self.nfreq, self.svd_len,), np.float64)
 
         if mpiutil.rank0:
 
@@ -1406,7 +1410,7 @@ class BeamTransferTempSVD(BeamTransfer):
                        (mi, (self._svdfile(mi))))
                 continue
             else:
-                print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile(mi))
+                print('m index %i. Creating SVD file: %s' % (mi, self._svdfile(mi)))
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), 'r')
@@ -1501,7 +1505,7 @@ class BeamTransferFullSVD(BeamTransfer):
                        (mi, (self._svdfile(mi))))
                 continue
             else:
-                print 'm index %i. Creating SVD file: %s' % (mi, self._svdfile(mi))
+                print('m index %i. Creating SVD file: %s' % (mi, self._svdfile(mi)))
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), 'r')

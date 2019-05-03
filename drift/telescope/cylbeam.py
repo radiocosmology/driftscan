@@ -1,3 +1,10 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
+
 import numpy as np
 
 from cora.util import coord, cubicspline
@@ -124,7 +131,7 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
     """
     res = int(res * 16)
     num = 512
-    hnum = 512/2 -1
+    hnum = 512//2 -1
 
     ua = -1.0 * np.linspace(-1.0, 1.0, num, endpoint=False)[::-1]
 

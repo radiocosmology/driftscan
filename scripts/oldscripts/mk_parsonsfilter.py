@@ -1,3 +1,9 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import os
 import sys
@@ -49,14 +55,14 @@ alm = np.zeros((cyl.nfreq, cyl.lmax+1, cyl.lmax+1), dtype=np.complex128)
 
 if mpiutil.rank0:
     ## Useful output
-    print "=================================="
-    print "Projecting file:\n    %s\ninto:\n    %s" % (args.mapfile, args.outfile)
-    print "Using beamtransfer: %s" % args.teldir
-    print "Truncating to modes with S/N > %f" % cut
-    print "=================================="
+    print("==================================")
+    print("Projecting file:\n    %s\ninto:\n    %s" % (args.mapfile, args.outfile))
+    print("Using beamtransfer: %s" % args.teldir)
+    print("Truncating to modes with S/N > %f" % cut)
+    print("==================================")
 
     # Calculate alm's and broadcast
-    print "Read in skymap."
+    print("Read in skymap.")
     f = h5py.File(args.mapfile)
     skymap = f['map'][:]
     f.close()
@@ -88,7 +94,7 @@ blmask = np.exp(-(np.arange(50.0)-25.0)**2 / (2*(3.0**2)))[:, np.newaxis]
 
 def projm(mi):
     ## Worker function for mapping over list and projecting onto signal modes.
-    print "Projecting %i" % mi
+    print("Projecting %i" % mi)
 
     sky_vec = bt.project_vector_forward(mi, alm[:, :, mi])
 
@@ -101,12 +107,12 @@ def projm(mi):
     return alm2
 
 # Project m-modes across different processes
-mlist = range(mmax+1)
+mlist = list(range(mmax+1))
 mpart = mpiutil.partition_list_mpi(mlist)
 mproj = [[mi, projm(mi)] for mi in mpart]
 
 if mpiutil.rank0:
-    print "Gather results onto root process"
+    print("Gather results onto root process")
 p_all = mpiutil.world.gather(mproj, root=0)
 
 
@@ -115,7 +121,7 @@ if mpiutil.rank0:
 
     palm = np.zeros_like(alm)
 
-    print "Combining results."
+    print("Combining results.")
     for p_process in p_all:
 
         for mi, proj in p_process:
@@ -125,10 +131,10 @@ if mpiutil.rank0:
 
             palm[:, :, mi] = proj.reshape(palm.shape[:-1])
 
-    print "Transforming onto sky."
+    print("Transforming onto sky.")
     proj_map = hputil.sphtrans_inv_sky(palm, nside)
 
-    print "Saving file."
+    print("Saving file.")
     f = h5py.File(args.outfile, 'w')
     f.attrs['threshold'] = cut
 

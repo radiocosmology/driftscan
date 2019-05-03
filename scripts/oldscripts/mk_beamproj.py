@@ -1,3 +1,9 @@
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import os
 import sys
@@ -23,7 +29,7 @@ parser.add_argument("outfile", help="Output map.")
 args = parser.parse_args()
 
 if mpiutil.rank0:
-    print "Read in beamtransfers and extract telescope object."
+    print("Read in beamtransfers and extract telescope object.")
 
 # Set up cylinder classes.
 bt = beamtransfer.BeamTransfer(args.teldir)
@@ -35,7 +41,7 @@ nside = 0
 
 # Calculate alm's and broadcast
 if mpiutil.rank0:
-    print "Read in skymap."
+    print("Read in skymap.")
     f = h5py.File(args.mapfile)
     skymap = f['map'][:]
     f.close()
@@ -52,7 +58,7 @@ alm = mpiutil.world.bcast(alm, root=0)
 
 def projm(mi):
 
-    print "Projecting %i" % mi
+    print("Projecting %i" % mi)
 
     bproj = bt.project_vector_forward(mi, alm[:, :, mi]).flatten()
     sbdirty = bt.project_vector_backward_dirty(mi, bproj)
@@ -61,12 +67,12 @@ def projm(mi):
     return [sbdirty, sbinv]
 
 # Project m-modes across different processes
-mlist = range(mmax+1)
+mlist = list(range(mmax+1))
 mpart = mpiutil.partition_list_mpi(mlist)
 mproj = [[mi, projm(mi)] for mi in mpart]
 
 if mpiutil.rank0:
-    print "Gather results onto root process"
+    print("Gather results onto root process")
 p_all = mpiutil.world.gather(mproj, root=0)
 
 
@@ -76,7 +82,7 @@ if mpiutil.rank0:
     balm = np.zeros_like(alm)
     dalm = np.zeros_like(alm)
 
-    print "Combining results."
+    print("Combining results.")
     for p_process in p_all:
 
         for mi, proj in p_process:
@@ -87,11 +93,11 @@ if mpiutil.rank0:
             dalm[:, :, mi] = proj[0].reshape(dalm.shape[:-1])
             balm[:, :, mi] = proj[1].reshape(balm.shape[:-1])
 
-    print "Transforming onto sky."
+    print("Transforming onto sky.")
     beamp_map = hputil.sphtrans_inv_sky(balm, nside)
     dirty_map = hputil.sphtrans_inv_sky(dalm, nside)
 
-    print "Saving file."
+    print("Saving file.")
     f = h5py.File(args.outfile, 'w')
 
     f.create_dataset('/beamproj', data=beamp_map)

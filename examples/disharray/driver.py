@@ -10,8 +10,7 @@ from simplearray import DishArray
 ### on the m-mode products for mapmaking
 
 # Create telescope object and set zenith
-tel = DishArray()
-tel.zenith = np.radians(np.array([30.0, 0.0]))  # Must be in radians
+tel = DishArray(latitude=30.0, longitude=0.0)
 
 # Create Beam Transfer manager, and generate products
 bt = beamtransfer.BeamTransfer('pydriver/btdir/',  telescope=tel)

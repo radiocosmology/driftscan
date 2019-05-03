@@ -32,5 +32,5 @@ interface. Simply run::
 In both cases you'll need a sky map to simulate. To get a quick map of the
 galaxy, try running::
 
-	$ cora-makesky galaxy 256 100.0 150.0 5 simulated_map.hdf5
+	$ cora-makesky --filename=simulated_map.hdf5 --nside=256 --freq 100.0 150.0 5 --pol=zero galaxy
 

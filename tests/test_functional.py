@@ -1,274 +1,253 @@
 """Functional test suite for checking integrity of the analysis product
 generation."""
 
-import argparse
-import tempfile
 import shutil
 import os
-import sys
+import subprocess
+import tarfile
 
-import unittest
-
+import pytest
 import h5py
-import numpy as np
+
+from drift.core import manager as pm
+
 
 # Ensure we're using the correct package
 _basedir = os.path.realpath(os.path.dirname(__file__))
-_scriptdir = os.path.realpath(_basedir + '/../scripts/')
-_pkgdir = os.path.realpath(_basedir + '/../')
-sys.path.insert(0, _pkgdir)
-
-from drift.core import manager
 
 
-def array_approx_equal(a, b, tol=1e-10):
-    cmp_arr = np.abs(a-b) < tol * (0.5 * (a.max() + b.max()))
-
-    return cmp_arr.all()
-
+def approx(x, rel=1e-4, abs=1e-8):
+    """Pytest approx with changed defaults."""
+    return pytest.approx(x, rel=rel, abs=abs)
 
 
-class TestSimulate(unittest.TestCase):
+@pytest.fixture(scope='module')
+def products_run(tmpdir_factory):
 
-    @classmethod
-    def setUpClass(cls):
-        """Generate the analysis products.
-        """
+    # If DRIFT_TESTDIR is set then use that
+    if 'DRIFT_TESTDIR' in os.environ:
+        _base = os.environ['DRIFT_TESTDIR']
+    else:
+        _base = str(tmpdir_factory.mktemp('testdrift'))
 
-        # parser = argparse.ArgumentParser(description='Test the consistency of 
-        # the analysis code.')
-        # parser.add_argument('--keep', action='store_true')
+    testdir = _base + '/tmptestdir/'
 
-        # args = parser.parse_args()
+    # If the data already exists then we don't need to re-run the tests
+    if not os.path.exists(testdir):
+        os.makedirs(testdir)
 
-        cls.testdir = _basedir + '/tmptestdir/'
-        if os.path.exists(cls.testdir):
-            shutil.rmtree(cls.testdir)
-        os.makedirs(cls.testdir)
-
-        shutil.copy('testparams.yaml', cls.testdir + '/params.yaml')
+        shutil.copy('testparams.yaml', testdir + '/params.yaml')
 
         import multiprocessing
         nproc = max(multiprocessing.cpu_count() / 3, 1)
 
-        cmd = """
-                 cd %s
-                 export OMP_NUM_THREADS=1
-                 export PYTHONPATH=%s:$PYTHONPATH
-                 mpirun -np %i python %s/drift-makeproducts run params.yaml &> output.log
-              """
+        cmd = "mpirun -np %i drift-makeproducts run params.yaml" % nproc
 
-        cmd = cmd % (cls.testdir, _pkgdir, nproc, _scriptdir)
+        env = dict(os.environ)
+        env['OMP_NUM_THREADS'] = '1'
 
-        print "Running test in: %s" % cls.testdir
-
+        print "Running test in: %s" % testdir
         print "Generating products:", cmd
-        cls.retval = os.system(cmd)
-        #cls.retval = 0
+        with open('output.log', 'w') as fh:
+            retval = subprocess.check_call(cmd.split(), cwd=testdir, stdout=fh,
+                                           stderr=subprocess.STDOUT, env=env)
         print "Done."
+    else:
+        retval = 0
 
-        cls.manager = manager.ProductManager.from_config(cls.testdir + '/params.yaml')
+    manager = pm.ProductManager.from_config(testdir + '/params.yaml')
 
+    return retval, testdir, manager
 
-    def test_return_code(self):
-        """Test that the products exited cleanly.
-        """
-        code = self.retval / 256
-        self.assertEqual(code, 0, msg=('Exited with non-zero return code %i.' % code))
 
+@pytest.fixture()
+def return_code(products_run):
+    return products_run[0]
 
-    def test_signal_exit(self):
-        """Test that the products exited cleanly.
-        """
-        signal = self.retval % 256
-        self.assertEqual(signal, 0, msg=('Killed with signal %i' % signal))
 
+@pytest.fixture()
+def testdir(products_run):
+    return products_run[1]
 
-    def test_manager(self):
-        """Check that the product manager code loads properly.
-        """
 
-        mfile = self.manager.directory
-        tfile = self.testdir + '/testdir'
-        self.assertTrue(os.path.samefile(mfile, tfile), msg='Manager does not see same directory.')
+@pytest.fixture()
+def manager(products_run):
+    return products_run[2]
 
 
-    @unittest.skip("Stopping generating beam_f soon.")
-    def test_beam_f(self):
-        """Check the consistency of the f-ordered beams.
-        """
+@pytest.fixture(scope='module')
+def saved_products(tmpdir_factory):
 
-        with h5py.File('saved_products/beam_f_2.hdf5', 'r') as f:
-            bf_saved = f['beam_freq'][:]
-        bf = self.manager.beamtransfer.beam_freq(2, single=True)
+    _base = str(tmpdir_factory.mktemp("saved_products"))
+    prodfile = os.path.join(_basedir, 'drift_testproducts.tar.gz')
 
-        self.assertEqual(bf_saved.shape, bf.shape, msg='Beam matrix (f=2) shape has changed.')
-        self.assertTrue((bf == bf_saved).all(), msg='Beam matrix (f=2) is incorrect.')
+    with tarfile.open(prodfile, 'r:gz') as tf:
+        tf.extractall(path=_base)
 
+    def _load(fname):
+        path = os.path.join(_base, fname)
 
-    def test_beam_m(self):
-        """Check the consistency of the m-ordered beams.
-        """
+        if not os.path.exists(path):
+            raise ValueError('Saved product %s does not exist' % path)
 
-        with h5py.File('saved_products/beam_m_14.hdf5', 'r') as f:
-            bm_saved = f['beam_m'][:]
-        bm = self.manager.beamtransfer.beam_m(14)
+        return h5py.File(path, 'r')
 
-        self.assertEqual(bm_saved.shape, bm.shape, msg='Beam matrix (m=14) shape has changed.')
-        self.assertTrue(array_approx_equal(bm, bm_saved), msg='Beam matrix (m=14) is incorrect.')
+    return _load
 
 
-    def test_svd_spectrum(self):
-        """Test the SVD spectrum.
-        """
-        with h5py.File('saved_products/svdspectrum.hdf5', 'r') as f:
-            svd_saved = f['singularvalues'][:]
+def test_return_code(return_code):
+    """Test that the products exited cleanly.
+    """
+    code = return_code / 256
 
-        svd = self.manager.beamtransfer.svd_all()
+    assert code == 0
 
-        self.assertEqual(svd_saved.shape, svd.shape, msg='SVD spectrum shapes not equal.')
-        self.assertTrue(array_approx_equal(svd, svd_saved), msg='SVD spectrum is incorrect.')
 
+def test_signal_exit(return_code):
+    """Test that the products exited cleanly.
+    """
+    signal = return_code % 256
 
-    @unittest.skip("Broken test.")
-    def test_svd_mode(self):
-        """Test that the SVD modes are correct.
-        """
+    assert signal == 0
 
-        with h5py.File('saved_products/svd_m_14.hdf5', 'r') as f:
-            svd_saved = f['beam_svd'][:]
-            invsvd_saved = f['invbeam_svd'][:]
-            ut_saved = f['beam_ut'][:]
 
-        svd = self.manager.beamtransfer.beam_svd(14)
-        invsvd = self.manager.beamtransfer.invbeam_svd(14)
-        ut = self.manager.beamtransfer.beam_ut(14)
+def test_manager(manager, testdir):
+    """Check that the product manager code loads properly.
+    """
 
-        self.assertEqual(svd_saved.shape, svd.shape, msg='SVD beam matrix (m=14) shape has changed.')
-        self.assertTrue((svd == svd_saved).all(), msg='SVD beam matrix (m=14) is incorrect.')
-        self.assertTrue((invsvd == invsvd_saved).all(), msg='Inverse SVD beam matrix (m=14) is incorrect.')
-        self.assertTrue((ut == ut_saved).all(), msg='SVD UT matrix (m=14) is incorrect.')
+    mfile = manager.directory
+    tfile = testdir + '/testdir'
 
+    assert os.path.samefile(mfile, tfile)  # Manager does not see same directory
 
-    def test_kl_spectrum(self):
-        """Check the KL spectrum (for the foregroundless model).
-        """
 
-        with h5py.File('saved_products/evals_kl.hdf5', 'r') as f:
-            ev_saved = f['evals'][:]
+def test_beam_m(manager, saved_products):
+    """Check the consistency of the m-ordered beams.
+    """
 
-        ev = self.manager.kltransforms['kl'].evals_all()
+    with saved_products("beam_m_14.hdf5") as f:
+        bm_saved = f['beam_m'][:]
+    bm = manager.beamtransfer.beam_m(14)
 
-        self.assertEqual(ev_saved.shape, ev.shape, msg='KL spectrum shapes not equal.')
-        self.assertTrue(array_approx_equal(ev, ev_saved, tol=1e-6), msg='KL spectrum is incorrect.')
+    assert bm_saved.shape == bm.shape  # Beam matrix (m=14) shape has changed
 
+    assert bm == approx(bm_saved)  # Beam matrix (m=14) is incorrect
 
-    @unittest.skip("Broken test.")
-    def test_kl_mode(self):
-        """Check a KL mode (m=26) for the foregroundless model.
-        """
 
-        with h5py.File('saved_products/ev_kl_m_26.hdf5', 'r') as f:
-            evecs_saved = f['evecs'][:]
+def test_svd_spectrum(manager, saved_products):
+    """Test the SVD spectrum.
+    """
+    with saved_products('svdspectrum.hdf5') as f:
+        svd_saved = f['singularvalues'][:]
 
-        evals, evecs = self.manager.kltransforms['kl'].modes_m(26)
+    svd = manager.beamtransfer.svd_all()
 
-        self.assertEqual(evecs_saved.shape, evecs.shape, msg='KL mode shapes not equal.')
-        self.assertTrue((evecs == evecs_saved).all(), msg='KL mode is incorrect.')
+    assert svd_saved.shape == svd.shape  # SVD spectrum shapes not equal
+    assert svd == approx(svd_saved)  # SVD spectrum is incorrect
 
 
-    @unittest.skip("Broken test.")
-    def test_dk_spectrum(self):
-        """Check the KL spectrum (for the model with foregrounds).
-        """
+def test_kl_spectrum(manager, saved_products):
+    """Check the KL spectrum (for the foregroundless model).
+    """
 
-        with h5py.File('saved_products/evals_dk.hdf5', 'r') as f:
-            ev_saved = f['evals'][:]
+    with saved_products("evals_kl.hdf5") as f:
+        ev_saved = f['evals'][:]
 
-        ev = self.manager.kltransforms['dk'].evals_all()
+    ev = manager.kltransforms['kl'].evals_all()
 
-        self.assertEqual(ev_saved.shape, ev.shape, msg='DK spectrum shapes not equal.')
-        self.assertTrue(array_approx_equal(ev, ev_saved, tol=1e-6), msg='DK spectrum is incorrect.')
+    assert ev_saved.shape == ev.shape  # KL spectrum shapes not equal
+    assert ev == approx(ev_saved)  # KL spectrum is incorrect
 
 
-    @unittest.skip("Broken test.")
-    def test_dk_mode(self):
-        """Check a KL mode (m=26) for the model with foregrounds.
-        """
+def test_kl_mode(manager, saved_products):
+    """Check a KL mode (m=26) for the foregroundless model.
+    """
 
-        with h5py.File('saved_products/ev_dk_m_33.hdf5', 'r') as f:
-            evecs_saved = f['evecs'][:]
+    with saved_products('ev_kl_m_26.hdf5') as f:
+        evecs_saved = f['evecs'][:]
 
-        evals, evecs = self.manager.kltransforms['dk'].modes_m(33)
+    evals, evecs = manager.kltransforms['kl'].modes_m(26)
 
-        self.assertEqual(evecs_saved.shape, evecs.shape, msg='DK mode shapes not equal.')
-        self.assertTrue((evecs == evecs_saved).all(), msg='DK mode is incorrect.')
+    assert evecs_saved.shape == evecs.shape  # KL mode shapes not equal
+    assert evecs == approx(evecs_saved)  # KL mode is incorrect
 
 
-    def test_kl_fisher(self):
-        """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo.
-        """
+def test_dk_mode(manager, saved_products):
+    """Check a KL mode (m=38) for the model with foregrounds.
+    """
 
-        with h5py.File('saved_products/fisher_kl.hdf5', 'r') as f:
-            fisher_saved = f['fisher'][:]
-            bias_saved = f['bias'][:]            
-            kc_saved = f['k_center']
-            tc_saved = f['theta_center']
+    with saved_products('ev_dk_m_38.hdf5') as f:
+        evecs_saved = f['evecs'][:]
 
-        ps = self.manager.psestimators['ps1']
-        fisher, bias = ps.fisher_bias()
+    evals, evecs = manager.kltransforms['dk'].modes_m(38)
 
-        self.assertEqual(fisher_saved.shape, fisher.shape, msg='KL Fisher shapes not equal.')
+    assert evecs_saved.shape == evecs.shape  # DK mode shapes not equal
+    assert evecs == approx(evecs_saved)  # DK mode is incorrect
 
-        fisher_rdiff = np.abs((fisher - fisher_saved) / (np.abs(fisher_saved) + 1e-4 * np.abs(fisher_saved).max()))
-        fisher_adiff = np.abs((fisher - fisher_saved) / np.abs(fisher_saved.max()))
 
-        rtest = (fisher_rdiff < 0.1).all()
-        atest = (fisher_adiff < 0.05).all()
+def test_kl_fisher(manager, saved_products):
+    """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo.
+    """
 
-        if not (rtest and atest):
-            print "Fisher difference: %f (rel) %f (abs)" % (fisher_rdiff.max(), fisher_adiff.max())
+    with saved_products('fisher_kl.hdf5') as f:
+        fisher_saved = f['fisher'][:]
+        bias_saved = f['bias'][:]
 
-        self.assertTrue(rtest, msg='KL Fisher is incorrect (relative).')
-        self.assertTrue(atest, msg='KL Fisher is incorrect (absolute).')        
+    ps = manager.psestimators['ps1']
+    fisher, bias = ps.fisher_bias()
 
-        self.assertEqual(bias_saved.shape, bias.shape, msg='KL bias shapes not equal.')
-        bias_diff = np.abs((bias - bias_saved) / (np.abs(bias_saved) + 1e-2 * np.abs(bias_saved).max()))        
-        self.assertTrue((bias_diff < 0.02).all(), msg='KL bias is incorrect.')
+    assert fisher_saved.shape == fisher.shape  # KL Fisher shapes not equal
+    assert fisher == approx(fisher_saved)  # KL Fisher is incorrect
 
+    assert bias_saved.shape == bias.shape  # KL bias shapes not equal
+    assert bias == approx(bias_saved, rel=1e-2)  # KL bias is incorrect.
 
-    def test_dk_fisher(self):
-        """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo.
-        """
 
-        with h5py.File('saved_products/fisher_dk.hdf5', 'r') as f:
-            fisher_saved = f['fisher'][:]
-            bias_saved = f['bias'][:]            
-            kc_saved = f['k_center']
-            tc_saved = f['theta_center']
+def test_dk_fisher(manager, saved_products):
+    """Test the DK Fisher matrix consistency. Use an approximate test as Monte-Carlo.
+    """
 
-        ps = self.manager.psestimators['ps2']
-        fisher, bias = ps.fisher_bias()
+    with saved_products('fisher_dk.hdf5') as f:
+        fisher_saved = f['fisher'][:]
+        bias_saved = f['bias'][:]
 
-        self.assertEqual(fisher_saved.shape, fisher.shape, msg='DK Fisher shapes not equal.')
-     
-        fisher_rdiff = np.abs((fisher - fisher_saved) / (np.abs(fisher_saved) + 1e-4 * np.abs(fisher_saved).max()))
-        fisher_adiff = np.abs((fisher - fisher_saved) / np.abs(fisher_saved.max()))
+    ps = manager.psestimators['ps2']
+    fisher, bias = ps.fisher_bias()
 
-        rtest = (fisher_rdiff < 0.1).all()
-        atest = (fisher_adiff < 0.05).all()
+    assert fisher_saved.shape == fisher.shape  # DK Fisher shapes not equal
+    assert fisher == approx(fisher_saved)  # DK Fisher is incorrect
 
-        if not (rtest and atest):
-            print "Fisher difference: %f (rel) %f (abs)" % (fisher_rdiff.max(), fisher_adiff.max())
+    assert bias_saved.shape == bias.shape  # DK bias shapes not equal
+    assert bias == approx(bias_saved, rel=1e-2)  # DK bias is incorrect.
 
-        self.assertTrue(rtest, msg='DK Fisher is incorrect (relative).')
-        self.assertTrue(atest, msg='DK Fisher is incorrect (absolute).')        
 
-        self.assertEqual(bias_saved.shape, bias.shape, msg='DK bias shapes not equal.')
-        bias_diff = np.abs((bias - bias_saved) / (np.abs(bias_saved) + 1e-4 * np.abs(bias_saved).max()))        
-        self.assertTrue((bias_diff < 0.1).all(), msg='DK bias is incorrect.')
+def test_svd_mode(manager, saved_products):
+    """Test that the SVD modes are correct.
+    """
 
+    with saved_products('svd_m_14.hdf5') as f:
+        svd_saved = f['beam_svd'][:]
+        invsvd_saved = f['invbeam_svd'][:]
+        ut_saved = f['beam_ut'][:]
 
+    svd = manager.beamtransfer.beam_svd(14)
+    invsvd = manager.beamtransfer.invbeam_svd(14)
+    ut = manager.beamtransfer.beam_ut(14)
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    assert svd_saved.shape == svd.shape   # SVD beam matrix (m=14) shape has changed
+    assert svd == approx(svd_saved)  # SVD beam matrix (m=14) is incorrect
+    assert invsvd == approx(invsvd_saved)  # Inverse SVD beam matrix (m=14) is incorrect
+    assert ut == approx(ut_saved)  # SVD UT matrix (m=14) is incorrect
+
+
+def test_dk_spectrum(manager, saved_products):
+    """Check the KL spectrum (for the model with foregrounds).
+    """
+
+    with saved_products('evals_dk.hdf5') as f:
+        ev_saved = f['evals'][:]
+
+    ev = manager.kltransforms['dk'].evals_all()
+
+    assert ev_saved.shape == ev.shape  # DK spectrum shapes not equal
+    assert ev == approx(ev_saved)  # DK spectrum is incorrect

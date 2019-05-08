@@ -1,0 +1,23 @@
+language: python
+os: linux
+sudo: required
+dist: xenial
+
+python:
+    - 2.7
+    - 3.7
+addons:
+    apt:
+        packages:
+            - libhdf5-serial-dev
+            - libopenmpi-dev
+            - openmpi-bin
+env:
+    - CAPUT_SKYFIELD_PATH=/home/travis OMP_NUM_THREADS=1
+
+install:
+    - "pip install future numpy cython pytest"
+    - "pip install -r requirements.txt"
+    - "pip install -e ."
+script:
+    - "cd tests/; pytest -svv"

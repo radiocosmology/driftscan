@@ -36,6 +36,7 @@ teltype_dict = {
     "RestrictedPolarisedCylinder": restrictedcylinder.RestrictedPolarisedCylinder,
     "RestrictedExtra": restrictedcylinder.RestrictedExtra,
     "GradientCylinder": exotic_cylinder.GradientCylinder,
+    "PertCylinder": exotic_cylinder.CylinderPerturbed,
 }
 
 

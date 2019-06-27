@@ -494,19 +494,23 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         # Pre-compute all the angular power spectra for the bands
         self.genbands()
 
-        # Use parallel map to distribute Fisher calculation
-        fisher_bias = mpiutil.parallel_map(
-            self.fisher_bias_m, list(range(self.telescope.mmax + 1))
-        )
+        # Calculate Fisher and bias for each m
+        # Pair up each list item with its position.
+        zlist = list(enumerate(range(self.telescope.mmax + 1)))
+        # Partition list based on MPI rank
+        llist = mpiutil.partition_list_mpi(zlist)
+        # Operate on sublist
+        fisher_bias_list = [self.fisher_bias_m(item) for ind, item in llist]
 
         # Unpack into separate lists of the Fisher matrix and bias
-        fisher, bias = list(zip(*fisher_bias))
+        fisher_loc, bias_loc = zip(*fisher_bias_list)
 
-        # Sum over all m-modes to get the over all Fisher and bias
-        self.fisher = np.sum(
-            np.array(fisher), axis=0
-        ).real  # Be careful of the .real here
-        self.bias = np.sum(np.array(bias), axis=0).real  # Be careful of the .real here
+        # Sum over all local m-modes to get the over all Fisher and bias pe process
+        fisher_loc = np.sum(np.array(fisher_loc), axis=0).real # Be careful of the .real here
+        bias_loc = np.sum(np.array(bias_loc), axis=0).real # Be careful of the .real here
+
+        self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
+        self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
 
         # Write out all the PS estimation products
         if mpiutil.rank0:

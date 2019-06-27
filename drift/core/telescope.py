@@ -140,6 +140,14 @@ class TransitTelescope(config.Reader, ctime.Observer):
     num_freq : scalar
         The number of frequency bands (only use for setting up the frequency
         binning). Generally using `nfreq` is preferred.
+    use_chime_freq : boolean
+        Use CHIME channelization of 1024 frequencies between 400 and 800 MHz.
+    channel_bin : int, optional
+        Number of channels to bin together. <Must exactly devide the total number.
+        Binning is performed prior to selection of any subset. Default: 1.
+    channel_range : list, optional
+        Select subset of frequencies using a range of frequency channel indices,
+        either [start, stop, step], [start, stop], or [stop] is acceptable.
     tsys_flat : scalar
         The system temperature (in K). Override `tsys` for anything more
         sophisticated.
@@ -162,6 +170,9 @@ class TransitTelescope(config.Reader, ctime.Observer):
     freq_lower = config.Property(proptype=float, default=400.0)
     freq_upper = config.Property(proptype=float, default=800.0)
     num_freq = config.Property(proptype=int, default=50)
+    use_chime_freq = config.Property(proptype=bool, default=True)
+    channel_bin = config.Property(proptype=int, default=1)
+    channel_range = config.Property(proptype=list, default=[])
 
     tsys_flat = config.Property(proptype=float, default=50.0, key='tsys')
     ndays = config.Property(proptype=int, default=733)
@@ -317,9 +328,24 @@ class TransitTelescope(config.Reader, ctime.Observer):
         return self._frequencies
 
     def calculate_frequencies(self):
+        if self.use_chime_freq:
+            # Use pathfinder channelization of 1024 bins between 400 and 800 MHz.
+            basefreq = np.linspace(800.0, 400.0, 1024, endpoint=False)
 
-        #self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
-        self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * ((self.freq_upper - self.freq_lower) / self.num_freq)
+            # Bin the channels together
+            if len(basefreq) % self.channel_bin != 0:
+                raise Exception("Channel binning must exactly divide the total number of channels")
+
+            basefreq = basefreq.reshape(-1, self.channel_bin).mean(axis=-1)
+
+            if self.channel_range and (len(self.channel_range) <= 3):
+                basefreq = basefreq[slice(*self.channel_range)]
+
+            self._frequencies = basefreq
+
+        else:
+            #self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
+            self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * ((self.freq_upper - self.freq_lower) / self.num_freq)
 
     @property
     def wavelengths(self):

@@ -146,10 +146,30 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
     zenith : [theta, phi]
         The position of the zenith spherical polars (in radians). Read only.
     freq_lower, freq_higher : scalar
-        The center of the lowest and highest frequency bands.
+        The center of the lowest and highest frequency bands. Deprecated, use
+        `freq_start`, `freq_end` instead.
+    freq_start, freq_end : scalar
+        The start and end frequencies in MHz.
     num_freq : scalar
         The number of frequency bands (only use for setting up the frequency
         binning). Generally using `nfreq` is preferred.
+    freq_mode : {"centre", "edge"}
+        Choose if `freq_start` and `freq_end` are the edges of the band
+        ("edge"), or whether they are the central frequencies of the first
+        and last channel, in this case the last (Nyquist) frequency can
+        either be skipped ("centre", default) or included ("centre_nyquist").
+        The behaviour of the "centre" mode matches the output of the CASPER
+        PFB-FIR block.
+    channel_bin : int, optional
+        Number of channels to bin together. This must exactly devide the total number.
+        Binning is performed prior to selection of any subset. Default: 1.
+    channel_list : list, optional
+        List of channel indices to select. If set, this takes priority over
+        `channel_range`. Currently this is not implemented.
+    channel_range : list, optional
+        Select subset of frequencies using a range of frequency channel indices,
+        either [start, stop, step], [start, stop], or [stop] is acceptable.
+        Default selects all channels.
     tsys_flat : scalar
         The system temperature (in K). Override `tsys` for anything more
         sophisticated.
@@ -168,9 +188,18 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
         Angle).
     """
 
-    freq_lower = config.Property(proptype=float, default=400.0)
-    freq_upper = config.Property(proptype=float, default=800.0)
-    num_freq = config.Property(proptype=int, default=50)
+    freq_lower = config.Property(proptype=float, default=None)
+    freq_upper = config.Property(proptype=float, default=None)
+
+    freq_start = config.Property(proptype=float, default=800.0)
+    freq_end = config.Property(proptype=float, default=400.0)
+    num_freq = config.Property(proptype=int, default=1024)
+
+    freq_mode = config.enum(["centre", "centre_nyquist", "edge"], default="centre")
+
+    channel_bin = config.Property(proptype=int, default=1)
+    channel_range = config.Property(proptype=list)
+    channel_list = config.Property(proptype=list)
 
     tsys_flat = config.Property(proptype=float, default=50.0, key="tsys")
     ndays = config.Property(proptype=int, default=733)
@@ -320,10 +349,49 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
 
     def calculate_frequencies(self):
 
-        # self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
-        self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * (
-            (self.freq_upper - self.freq_lower) / self.num_freq
-        )
+        if self.freq_lower or self.freq_upper:
+            import warnings
+            warnings.warn("`freq_lower` and `freq_upper` parameters are deprecated",
+                          DeprecationWarning)
+            self.freq_start = self.freq_lower
+            self.freq_end = self.freq_upper
+
+        if self.freq_mode == "centre":
+            df = abs(self.freq_end - self.freq_start) / self.num_freq
+            frequencies = np.linspace(
+                self.freq_start, self.freq_end, self.num_freq, endpoint=False
+            )
+        elif self.freq_mode == "centre_nyquist":
+            df = abs(self.freq_end - self.freq_start) / (self.num_freq - 1)
+            frequencies = np.linspace(
+                self.freq_start, self.freq_end, self.num_freq, endpoint=True
+            )
+        else:
+            df = abs(self.freq_end - self.freq_start) / self.num_freq
+            frequencies = self.freq_start + df * (np.arange(self.num_freq) + 0.5)
+
+        # Rebin frequencies if needed
+        if self.channel_bin > 1:
+
+            if nf % self.channel_bin != 0:
+                raise ValueError(
+                    "Channel binning must exactly divide the total number of channels"
+                )
+
+            frequencies = frequencies.reshape(-1, self.channel_bin).mean(axis=1)
+            df = df * self.channel_bin
+
+        # Select a subset of channels if required
+        if self.channel_list is not None:
+            raise NotImplementedError(
+                "`channel_list` is not yet supported, as sparse channel selections "
+                "may break things downstream."
+            )
+        if self.channel_range is not None:
+            frequencies = frequencies[self.channel_range[0] : self.channel_range[1]]
+
+        # TODO: do something with the channel width `df` as well
+        self._frequencies = frequencies
 
     @property
     def wavelengths(self):

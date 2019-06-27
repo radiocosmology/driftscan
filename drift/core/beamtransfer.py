@@ -981,7 +981,21 @@ class BeamTransfer(object):
                     ut = ut3
                     sig = s3[:nmodes]
                     beam = np.dot(ut3, bfr)
-                    ibeam = la.pinv(beam)
+                    try:
+                        ibeam = la.pinv(beam)
+                    except la.LinAlgError as e:
+                        print "m=%i f=%i" % (mi, fi)
+                        beamfail = h5py.File('beamfail.h5', 'w')
+                        beamfail.create_dataset('beam', beamfail, compression='lzf', dtype=np.complex128)
+                        beamfail.close()
+                        self.logger.warning("Not able to pseudo invert m={0} f={1} adding regularisation".format(mi, fi))
+                        beam_reg = add_reg(beam)
+                        try:
+                            ibeam = la.pinv(beam_reg)
+                        except la.LinAlgError as e:
+                            print "Regularisation did not work for m=%i f=%i" % (mi, fi)
+                            self.logger.warning("Regularisation did not work.")
+                            raise e
 
                     # Save out the evecs (for transforming from the telescope frame into the SVD basis)
                     dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]

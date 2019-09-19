@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -20,9 +20,8 @@ from simplearray import DishArray
 tel = DishArray(latitude=30.0, longitude=0.0)
 
 # Create Beam Transfer manager, and generate products
-bt = beamtransfer.BeamTransfer('pydriver/btdir/',  telescope=tel)
+bt = beamtransfer.BeamTransfer("pydriver/btdir/", telescope=tel)
 bt.generate()
-
 
 
 ### Simulate and make a map froma timestream
@@ -34,10 +33,10 @@ m = manager.ProductManager()
 m.beamtransfer = bt
 
 # Create a timestream with no noise (ndays=0) from a given map (could be a list of maps)
-ts = timestream.simulate(m, 'pydriver/ts1/', ['simulated_map.hdf5'], ndays=0)
+ts = timestream.simulate(m, "pydriver/ts1/", ["simulated_map.hdf5"], ndays=0)
 
 # Make m-mode from the timestream
 ts.generate_mmodes()
 
 # Make a Healpix map from the m-modes (with NSIDE=256)
-ts.mapmake_full(256, 'observed_map.hdf5')
+ts.mapmake_full(256, "observed_map.hdf5")

@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -11,8 +11,6 @@ from caput import config
 
 from drift.core import telescope
 from drift.telescope import cylbeam
-
-
 
 
 class CylinderTelescope(telescope.TransitTelescope):
@@ -49,7 +47,9 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     non_commensurate = config.Property(proptype=bool, default=False)
 
-    e_width = config.Property(proptype=float, default=0.7)  # ~ factor of 0.675 from dipole model
+    e_width = config.Property(
+        proptype=float, default=0.7
+    )  # ~ factor of 0.675 from dipole model
     h_width = config.Property(proptype=float, default=1.0)
 
     # Fiducial widths
@@ -76,7 +76,6 @@ class CylinderTelescope(telescope.TransitTelescope):
     def v_width(self):
         return 0.0
 
-
     def _unique_baselines(self):
         """Calculate the unique baseline pairs.
 
@@ -98,22 +97,23 @@ class CylinderTelescope(telescope.TransitTelescope):
 
         base_map, base_mask = super(CylinderTelescope, self)._unique_baselines()
 
-
         if not self.in_cylinder:
             # Construct array of indices
             fshape = [self.nfeed, self.nfeed]
             f_ind = np.indices(fshape)
 
             # Construct array of baseline separations in complex representation
-            bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
+            bl1 = self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]]
 
-            ic_mask = np.where(bl1[..., 0] != 0.0, np.ones(fshape, dtype=np.bool), np.zeros(fshape, dtype=np.bool))
+            ic_mask = np.where(
+                bl1[..., 0] != 0.0,
+                np.ones(fshape, dtype=np.bool),
+                np.zeros(fshape, dtype=np.bool),
+            )
             base_mask = np.logical_and(base_mask, ic_mask)
             base_map = telescope._remap_keyarray(base_map, base_mask)
 
         return base_map, base_mask
-
-
 
     @property
     def _single_feedpositions(self):
@@ -137,9 +137,6 @@ class CylinderTelescope(telescope.TransitTelescope):
             if self.cylspacing is None:
                 raise Exception("Need to set cylinder spacing if not touching.")
             return self.cylspacing
-
-
-
 
     def feed_positions_cylinder(self, cylinder_index):
         """Get the feed positions on the specified cylinder.
@@ -165,7 +162,6 @@ class CylinderTelescope(telescope.TransitTelescope):
             nf = self.num_feeds - cylinder_index
             sp = self.feed_spacing / (nf - 1.0) * nf
 
-
         pos = np.empty([nf, 2], dtype=np.float64)
 
         pos[:, 0] = cylinder_index * self.cylinder_spacing
@@ -174,9 +170,9 @@ class CylinderTelescope(telescope.TransitTelescope):
         return pos
 
 
-
-
-class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarisedTelescope):
+class UnpolarisedCylinderTelescope(
+    CylinderTelescope, telescope.SimpleUnpolarisedTelescope
+):
     """A complete class for an Unpolarised Cylinder telescope.
     """
 
@@ -197,25 +193,37 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarise
             complex.
         """
 
-        return cylbeam.beam_amp(self._angpos, self.zenith,
-            self.cylinder_width / self.wavelengths[freq], self.fwhm_h, self.fwhm_h)
-
+        return cylbeam.beam_amp(
+            self._angpos,
+            self.zenith,
+            self.cylinder_width / self.wavelengths[freq],
+            self.fwhm_h,
+            self.fwhm_h,
+        )
 
 
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
     """A complete class for an Unpolarised Cylinder telescope.
     """
 
-
-    #@util.cache_last
+    # @util.cache_last
     def beamx(self, feed, freq):
 
-        return cylbeam.beam_x(self._angpos, self.zenith,
-            self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+        return cylbeam.beam_x(
+            self._angpos,
+            self.zenith,
+            self.cylinder_width / self.wavelengths[freq],
+            self.fwhm_e,
+            self.fwhm_h,
+        )
 
-
-    #@util.cache_last
+    # @util.cache_last
     def beamy(self, feed, freq):
 
-        return cylbeam.beam_y(self._angpos, self.zenith,
-            self.cylinder_width / self.wavelengths[freq], self.fwhm_e, self.fwhm_h)
+        return cylbeam.beam_y(
+            self._angpos,
+            self.zenith,
+            self.cylinder_width / self.wavelengths[freq],
+            self.fwhm_e,
+            self.fwhm_h,
+        )

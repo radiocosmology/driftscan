@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 from math import log10, floor
@@ -14,21 +14,25 @@ import healpy
 import numpy as np
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 from matplotlib import rc, colors
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 10.0})
-rc('text', usetex=True)
+
+rc("font", **{"family": "serif", "serif": ["Palatino"], "size": 10.0})
+rc("text", usetex=True)
 
 from drift.core import hputil, skysim
 
 mapfile = sys.argv[1]
 stem = sys.argv[2]
 
-f = h5py.File(mapfile, 'r')
+f = h5py.File(mapfile, "r")
+
 
 def round_sig(x, sig=2):
-    return round(x, sig-int(floor(log10(np.abs(x))))-1)
+    return round(x, sig - int(floor(log10(np.abs(x)))) - 1)
+
 
 def angular_slice(skymaps, theta, phi):
     nfreq = skymaps.shape[0]
@@ -36,7 +40,7 @@ def angular_slice(skymaps, theta, phi):
 
     for i in range(nfreq):
         za[i] = healpy.get_interp_val(skymaps[i], theta, phi)
-        
+
     return za
 
 
@@ -61,7 +65,7 @@ for mapname in f.keys():
         sky = hputil.sphtrans_inv_sky(sky, 128).real
     else:
         sky = sky.real
-    
+
     aslice = angular_slice(sky, theta, phi).real
 
     skyslice[mapname] = sky[0]
@@ -71,11 +75,11 @@ for mapname in f.keys():
     arrmin[mapname] = max(aslice.min(), sky[0].min())
 
 global_scale = True
-    
-    
+
+
 for mapname in f.keys():
 
-    fig = plt.figure(1, figsize=(13,5))
+    fig = plt.figure(1, figsize=(13, 5))
 
     ax2 = fig.add_subplot(122)
 
@@ -86,13 +90,22 @@ for mapname in f.keys():
         vmax = round_sig(arrmax[mapname])
         vmin = round_sig(arrmin[mapname])
 
-    healpy.mollview(skyslice[mapname], fig=1, sub=121, title="400 MHz", min=vmin, max=vmax)
+    healpy.mollview(
+        skyslice[mapname], fig=1, sub=121, title="400 MHz", min=vmin, max=vmax
+    )
 
-    ax2.imshow(angslice[mapname], interpolation='lanczos', aspect=1, origin='lower', extent=(45, 90, 400, 450), vmin=vmin, vmax=vmax)
+    ax2.imshow(
+        angslice[mapname],
+        interpolation="lanczos",
+        aspect=1,
+        origin="lower",
+        extent=(45, 90, 400, 450),
+        vmin=vmin,
+        vmax=vmax,
+    )
 
     ax2.set_xlabel("$\phi$ / degrees")
     ax2.set_ylabel("$f$ / MHz")
-
 
     fig.savefig(stem + "_" + mapname + ".png")
     fig.clf()

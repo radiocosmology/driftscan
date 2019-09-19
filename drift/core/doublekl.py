@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import os
@@ -37,11 +37,16 @@ class DoubleKL(kltransform.KLTransform):
 
         # Ensure that number of SVD degrees of freedom is non-zero before proceeding
         if nside == 0:
-            return np.array([]), np.array([[]]), np.array([[]]), { 'ac' : 0.0, 'f_evals' : np.array([]) }
+            return (
+                np.array([]),
+                np.array([[]]),
+                np.array([[]]),
+                {"ac": 0.0, "f_evals": np.array([])},
+            )
 
         # Construct S and F matrices and regularise foregrounds
         self.use_thermal = False
-        cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi) ]
+        cs, cn = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
 
         # Find joint eigenbasis and transformation matrix
         evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
@@ -51,7 +56,7 @@ class DoubleKL(kltransform.KLTransform):
         ind = np.where(evals > self.foreground_threshold)
 
         # Construct evextra dictionary (holding foreground ratio)
-        evextra = { 'ac' : ac, 'f_evals' : evals.copy() }
+        evextra = {"ac": ac, "f_evals": evals.copy()}
 
         # Construct inverse transformation if required
         if self.inverse:
@@ -65,7 +70,7 @@ class DoubleKL(kltransform.KLTransform):
         if evals.size > 0:
             # Generate the full S and N covariances in the truncated basis
             self.use_thermal = True
-            cs, cn = [ cv.reshape(nside, nside) for cv in self.sn_covariance(mi) ]
+            cs, cn = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
             cs = np.dot(evecs, np.dot(cs, evecs.T.conj()))
             cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
 
@@ -80,29 +85,25 @@ class DoubleKL(kltransform.KLTransform):
 
         return evals, evecs, inv, evextra
 
-
     def _ev_save_hook(self, f, evextra):
 
         kltransform.KLTransform._ev_save_hook(self, f, evextra)
 
         # Save out S/F ratios
-        f.create_dataset('f_evals', data=evextra['f_evals'])
-
+        f.create_dataset("f_evals", data=evextra["f_evals"])
 
     def _collect(self):
-
         def evfunc(mi):
-
 
             ta = np.zeros(shape, dtype=np.float64)
 
-            f = h5py.File(self._evfile % mi, 'r')
+            f = h5py.File(self._evfile % mi, "r")
 
-            if f['evals_full'].shape[0] > 0:
-                ev = f['evals_full'][:]
-                fev = f['f_evals'][:]
-                ta[0, -ev.size:] = ev
-                ta[1, -fev.size:] = fev
+            if f["evals_full"].shape[0] > 0:
+                ev = f["evals_full"][:]
+                fev = f["f_evals"][:]
+                ta[0, -ev.size :] = ev
+                ta[1, -fev.size :] = fev
 
             f.close()
 
@@ -111,7 +112,7 @@ class DoubleKL(kltransform.KLTransform):
         if mpiutil.rank0:
             print("Creating eigenvalues file (process 0 only).")
 
-        mlist = list(range(self.telescope.mmax+1))
+        mlist = list(range(self.telescope.mmax + 1))
         shape = (2, self.beamtransfer.ndofmax)
 
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
@@ -121,7 +122,7 @@ class DoubleKL(kltransform.KLTransform):
                 print("File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5"))
                 return
 
-            f = h5py.File(self.evdir + "/evals.hdf5", 'w')
-            f.create_dataset('evals', data=evarray[:, 0])
-            f.create_dataset('f_evals', data=evarray[:, 1])
+            f = h5py.File(self.evdir + "/evals.hdf5", "w")
+            f.create_dataset("evals", data=evarray[:, 0])
+            f.create_dataset("f_evals", data=evarray[:, 1])
             f.close()

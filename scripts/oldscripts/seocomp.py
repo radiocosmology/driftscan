@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -13,6 +13,7 @@ from cora.util import coord
 
 from drift.telescope import cylinder
 from drift.telescope import visibility, beamtransfer, kltransform
+
 
 class SeoTelescope(cylinder.UnpolarisedCylinderTelescope):
 
@@ -51,25 +52,33 @@ class SeoTelescope(cylinder.UnpolarisedCylinderTelescope):
         #     self._bc_freq = freq
         #     self._bc_nside = self._nside
 
-
         uhatc, vhatc = visibility.uv_plane_cart(self.zenith)
-    
-        ## Note sinc function is normalised hence lack of pi
-        bmh = np.sinc(np.inner(coord.sph_to_cart(self._angpos), self.cylinder_width * uhatc / self.wavelengths[freq]))
 
-        bmv = np.where(np.abs(np.inner(coord.sph_to_cart(self._angpos), vhatc)) * 180.0 / np.pi < self.vwidth / 2.0,
-                       np.ones_like(bmh),
-                       np.zeros_like(bmh))
+        ## Note sinc function is normalised hence lack of pi
+        bmh = np.sinc(
+            np.inner(
+                coord.sph_to_cart(self._angpos),
+                self.cylinder_width * uhatc / self.wavelengths[freq],
+            )
+        )
+
+        bmv = np.where(
+            np.abs(np.inner(coord.sph_to_cart(self._angpos), vhatc)) * 180.0 / np.pi
+            < self.vwidth / 2.0,
+            np.ones_like(bmh),
+            np.zeros_like(bmh),
+        )
 
         bmv = healpy.smoothing(bmv, degree=True, fwhm=(self.vwidth / 10.0))
 
-        return (bmv * bmh)
+        return bmv * bmh
+
 
 stel = SeoTelescope()
 stel._init_trans(256)
 
 
-bt = beamtransfer.BeamTransfer('./seocomp/', telescope=stel)
+bt = beamtransfer.BeamTransfer("./seocomp/", telescope=stel)
 bt.generate()
 
 klt = kltransform.KLTransform(bt)
@@ -79,5 +88,3 @@ klt.subset = False
 klt.inverse = False
 
 klt.generate()
-
-

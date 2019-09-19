@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -48,7 +48,6 @@ class CylinderTelescope(telescope.TransitTelescope):
 
     non_commensurate = config.Property(proptype=bool, default=False)
 
-
     ## u-width property override
     @property
     def u_width(self):
@@ -58,7 +57,6 @@ class CylinderTelescope(telescope.TransitTelescope):
     @property
     def v_width(self):
         return 0.0
-
 
     def _unique_baselines(self):
         """Calculate the unique baseline pairs.
@@ -81,22 +79,23 @@ class CylinderTelescope(telescope.TransitTelescope):
 
         base_map, base_mask = super(CylinderTelescope, self)._unique_baselines()
 
-
         if not self.in_cylinder:
             # Construct array of indices
             fshape = [self.nfeed, self.nfeed]
             f_ind = np.indices(fshape)
 
             # Construct array of baseline separations in complex representation
-            bl1 = (self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]])
+            bl1 = self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]]
 
-            ic_mask = np.where(bl1[..., 0] != 0.0, np.ones(fshape, dtype=np.bool), np.zeros(fshape, dtype=np.bool))
+            ic_mask = np.where(
+                bl1[..., 0] != 0.0,
+                np.ones(fshape, dtype=np.bool),
+                np.zeros(fshape, dtype=np.bool),
+            )
             base_mask = np.logical_and(base_mask, ic_mask)
             base_map = telescope._remap_keyarray(base_map, base_mask)
 
         return base_map, base_mask
-
-
 
     @property
     def _single_feedpositions(self):
@@ -120,9 +119,6 @@ class CylinderTelescope(telescope.TransitTelescope):
             if self.cylspacing is None:
                 raise Exception("Need to set cylinder spacing if not touching.")
             return self.cylspacing
-
-
-
 
     def feed_positions_cylinder(self, cylinder_index):
         """Get the feed positions on the specified cylinder.
@@ -148,7 +144,6 @@ class CylinderTelescope(telescope.TransitTelescope):
             nf = self.num_feeds - cylinder_index
             sp = self.feed_spacing / (nf - 1.0) * nf
 
-
         pos = np.empty([nf, 2], dtype=np.float64)
 
         pos[:, 0] = cylinder_index * self.cylinder_spacing
@@ -157,9 +152,9 @@ class CylinderTelescope(telescope.TransitTelescope):
         return pos
 
 
-
-
-class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarisedTelescope):
+class UnpolarisedCylinderTelescope(
+    CylinderTelescope, telescope.SimpleUnpolarisedTelescope
+):
     """A complete class for an Unpolarised Cylinder telescope.
     """
 
@@ -180,9 +175,9 @@ class UnpolarisedCylinderTelescope(CylinderTelescope, telescope.SimpleUnpolarise
             complex.
         """
 
-        return visibility.cylinder_beam(self._angpos, self.zenith,
-                                        self.cylinder_width / self.wavelengths[freq])
-
+        return visibility.cylinder_beam(
+            self._angpos, self.zenith, self.cylinder_width / self.wavelengths[freq]
+        )
 
 
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
@@ -195,11 +190,14 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
 
     ortho_pol = config.Property(proptype=bool, default=True)
 
-    #@util.cache_last
+    # @util.cache_last
     def beamx(self, feed, freq):
 
-        bpat = visibility.cylinder_beam(self._angpos, self.zenith,
-                                        self.illumination_x * self.cylinder_width / self.wavelengths[freq])
+        bpat = visibility.cylinder_beam(
+            self._angpos,
+            self.zenith,
+            self.illumination_x * self.cylinder_width / self.wavelengths[freq],
+        )
 
         bm = np.zeros_like(self._angpos)
         if self.ortho_pol:
@@ -212,11 +210,14 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
 
         return bm
 
-    #@util.cache_last
+    # @util.cache_last
     def beamy(self, feed, freq):
 
-        bpat = visibility.cylinder_beam(self._angpos, self.zenith,
-                                        self.illumination_y * self.cylinder_width / self.wavelengths[freq])
+        bpat = visibility.cylinder_beam(
+            self._angpos,
+            self.zenith,
+            self.illumination_y * self.cylinder_width / self.wavelengths[freq],
+        )
 
         bm = np.zeros_like(self._angpos)
         if self.ortho_pol:

@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -30,7 +30,6 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
     nsamples = config.Property(proptype=int, default=500)
 
-
     def gen_sample(self, mi, nsamples=None, noiseonly=False):
         """Generate a random set of KL-data for this m-mode.
 
@@ -53,14 +52,12 @@ class PSMonteCarlo(psestimation.PSEstimation):
         evals, evecs = self.kltrans.modes_m(mi)
 
         # Calculate C**(1/2), this is the weight to generate a draw from C
-        w = np.ones_like(evals) if noiseonly else (evals + 1.0)**0.5
+        w = np.ones_like(evals) if noiseonly else (evals + 1.0) ** 0.5
 
         # Calculate x
         x = nputil.complex_std_normal((evals.shape[0], nsamples)) * w[:, np.newaxis]
 
         return x
-
-
 
     def _work_fisher_bias_m(self, mi):
         """Worker routine for calculating the Fisher and bias for a given m.
@@ -93,13 +90,11 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         ft = np.cov(qa)
 
-        fisher = np.cov(qa) #ft[:self.nbands, :self.nbands]
-        #bias = ft[-1, :self.nbands]
-        bias = qa.mean(axis=1) #[:self.nbands]
+        fisher = np.cov(qa)  # ft[:self.nbands, :self.nbands]
+        # bias = ft[-1, :self.nbands]
+        bias = qa.mean(axis=1)  # [:self.nbands]
 
         return fisher, bias
-
-
 
 
 class PSMonteCarloAlt(psestimation.PSEstimation):
@@ -119,8 +114,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
     """
 
     nsamples = config.Property(proptype=int, default=500)
-    nswitch = config.Property(proptype=int, default=0) #200
-
+    nswitch = config.Property(proptype=int, default=0)  # 200
 
     def gen_vecs(self, mi):
         """Generate a cache of sample vectors for each bandpower.
@@ -134,10 +128,13 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         nbands = len(self.bands) - 1
 
         # Set of S/N weightings
-        cf = (evals + 1.0)**-0.5
+        cf = (evals + 1.0) ** -0.5
 
         # Generate random set of Z_2 vectors
-        xv = 2*(np.random.rand(evals.size, self.nsamples) <= 0.5).astype(np.float) - 1.0
+        xv = (
+            2 * (np.random.rand(evals.size, self.nsamples) <= 0.5).astype(np.float)
+            - 1.0
+        )
 
         # Multiply by C^-1 factorization
         xv1 = cf[:, np.newaxis] * xv
@@ -146,17 +143,23 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         xv2 = np.dot(evecs.T.conj(), xv1).reshape(bt.ndof(mi), self.nsamples)
 
         # Project back into sky basis
-        xv3 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, xv2, conj=True, temponly=True)
+        xv3 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
+            mi, xv2, conj=True, temponly=True
+        )
 
         for bi in range(nbands):
 
             # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)
             for li in range(self.telescope.lmax + 1):
-                xv4[:, 0, li, :] = np.dot(self.clarray[bi][0, 0, li], xv3[:, 0, li, :]) # TT only.
+                xv4[:, 0, li, :] = np.dot(
+                    self.clarray[bi][0, 0, li], xv3[:, 0, li, :]
+                )  # TT only.
 
             # Projection from sky back into SVD basis
-            xv5 = self.kltrans.beamtransfer.project_vector_sky_to_svd(mi, xv4, temponly=True)
+            xv5 = self.kltrans.beamtransfer.project_vector_sky_to_svd(
+                mi, xv4, temponly=True
+            )
 
             # Projection into eigenbasis
             xv6 = np.dot(evecs, xv5.reshape(bt.ndof(mi), self.nsamples))
@@ -164,7 +167,6 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
 
             # Push set of vectors into cache.
             self.vec_cache.append(xv7)
-
 
     def _work_fisher_bias_m(self, mi):
         """Worker routine for calculating the Fisher and bias for a given m.
@@ -207,10 +209,6 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         return fisher, bias
 
 
-
-
-
-
 def sim_skyvec(trans, n):
     """Simulate a set of alm(\nu)'s for a given m.
 
@@ -232,13 +230,14 @@ def sim_skyvec(trans, n):
 
     matshape = (lside, nfreq, n)
 
-    gaussvars = (np.random.standard_normal(matshape)
-                 + 1.0J * np.random.standard_normal(matshape)) / 2.0**0.5
+    gaussvars = (
+        np.random.standard_normal(matshape) + 1.0j * np.random.standard_normal(matshape)
+    ) / 2.0 ** 0.5
 
     for i in range(lside):
         gaussvars[i] = np.dot(trans[i], gaussvars[i])
 
-    return gaussvars   #.T.copy()
+    return gaussvars  # .T.copy()
 
 
 def block_root(clzz):

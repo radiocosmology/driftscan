@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import argparse
@@ -13,28 +13,28 @@ import shutil
 import yaml
 
 
-parser = argparse.ArgumentParser(description='Submit a simulation job.')
-parser.add_argument('configfile', type=argparse.FileType('r'), help='The configuration file to use.')
+parser = argparse.ArgumentParser(description="Submit a simulation job.")
+parser.add_argument(
+    "configfile", type=argparse.FileType("r"), help="The configuration file to use."
+)
 
 args = parser.parse_args()
 yconf = yaml.safe_load(args.configfile)
 
 
-
-
 ## Global configuration
 ## Create output directory and copy over params file.
-if 'config' not in yconf:
-    raise Exception('Configuration file must have an \'config\' section.')
+if "config" not in yconf:
+    raise Exception("Configuration file must have an 'config' section.")
 
-conf = yconf['config'] 
+conf = yconf["config"]
 
-outdir = conf['output_directory']
+outdir = conf["output_directory"]
 
 if not os.path.isabs(outdir):
     raise Exception("Output directory path must be absolute.")
 
-pbsdir = os.path.normpath(outdir + '/pbs/')
+pbsdir = os.path.normpath(outdir + "/pbs/")
 
 # Create directory if required
 if not os.path.exists(pbsdir):
@@ -42,18 +42,18 @@ if not os.path.exists(pbsdir):
 
 # Copy config file into output directory (check it's not already there first)
 sfile = os.path.realpath(os.path.abspath(args.configfile.name))
-dfile = os.path.realpath(os.path.abspath(pbsdir + '/config.yaml'))
+dfile = os.path.realpath(os.path.abspath(pbsdir + "/config.yaml"))
 
 if sfile != dfile:
     shutil.copy(sfile, dfile)
 
 
-conf['mpiproc'] = conf['nodes'] * conf['pernode']
-conf['pbsdir'] = pbsdir
-conf['scriptpath'] = os.path.dirname(os.path.realpath(__file__)) + '/simulate.py'
+conf["mpiproc"] = conf["nodes"] * conf["pernode"]
+conf["pbsdir"] = pbsdir
+conf["scriptpath"] = os.path.dirname(os.path.realpath(__file__)) + "/simulate.py"
 
 
-script="""#!/bin/bash
+script = """#!/bin/bash
 #PBS -l nodes=%(nodes)i:ppn=%(ppn)i
 #PBS -q %(queue)s
 #PBS -r n
@@ -75,8 +75,7 @@ script = script % conf
 
 scriptname = pbsdir + "/jobscript.sh"
 
-with open(scriptname, 'w') as f:
+with open(scriptname, "w") as f:
     f.write(script)
 
-os.system('cd %s; qsub jobscript.sh' % pbsdir)
-
+os.system("cd %s; qsub jobscript.sh" % pbsdir)

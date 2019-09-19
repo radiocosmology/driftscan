@@ -1032,6 +1032,19 @@ class SimplePolarisedTelescope(with_metaclass(abc.ABCMeta, PolarisedTelescope)):
     """
 
     @property
+    def polarization(self):
+        """
+        Polarization map.
+
+        Returns
+        -------
+        np.ndarray : One-dimensional array with the polarization for each feed ('x' or 'y').
+        """
+        return np.asarray(
+            ["X" if feed % 2 == 0 else "Y" for feed in self.beamclass], dtype=np.str
+        )
+
+    @property
     def beamclass(self):
         """Simple beam mode of dual polarisation feeds."""
         nsfeed = self._single_feedpositions.shape[0]

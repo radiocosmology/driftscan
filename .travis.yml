@@ -4,7 +4,6 @@ sudo: required
 dist: xenial
 
 python:
-    - 2.7
     - 3.7
 addons:
     apt:
@@ -16,7 +15,7 @@ env:
     - CAPUT_SKYFIELD_PATH=/home/travis OMP_NUM_THREADS=1
 
 install:
-    - "pip install future numpy cython pytest pydocstyle"
+    - "pip install future numpy cython pytest pydocstyle black"
     - "pip install -r requirements.txt"
     - "pip install -e ."
 script:

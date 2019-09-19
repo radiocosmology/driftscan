@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import os.path
@@ -22,7 +22,9 @@ from drift.core import kltransform
 class Projector(config.Reader):
 
     maps = config.Property(proptype=list, default=[])
-    thresholds = config.Property(proptype=(lambda x: [float(item) for item in list(x)]), default=[])
+    thresholds = config.Property(
+        proptype=(lambda x: [float(item) for item in list(x)]), default=[]
+    )
 
     evec_proj = config.Property(proptype=bool, default=True)
     beam_proj = config.Property(proptype=bool, default=True)
@@ -31,21 +33,18 @@ class Projector(config.Reader):
 
     nside = config.Property(proptype=int, default=256)
 
-
     def __init__(self, klt):
 
         self.kltransform = klt
         self.beamtransfer = klt.beamtransfer
         self.telescope = klt.beamtransfer.telescope
 
-
-
     def generate(self):
 
         for mentry in self.maps:
 
-            mfile = mentry['file']
-            stem = mentry['stem']
+            mfile = mentry["file"]
+            stem = mentry["stem"]
 
             if mpiutil.rank0 and not os.path.exists(os.path.dirname(stem)):
                 os.makedirs(os.path.dirname(stem))
@@ -53,7 +52,7 @@ class Projector(config.Reader):
             mpiutil.barrier()
 
             if self.copy_orig:
-                shutil.copy(mfile, stem + 'orig.hdf5')
+                shutil.copy(mfile, stem + "orig.hdf5")
 
             print("============\nProjecting file %s\n============\n" % mfile)
 
@@ -61,8 +60,8 @@ class Projector(config.Reader):
             if mpiutil.rank0:
                 # Calculate alm's and broadcast
                 print("Read in skymap.")
-                f = h5py.File(mfile, 'r')
-                skymap = f['map'][:]
+                f = h5py.File(mfile, "r")
+                skymap = f["map"][:]
                 f.close()
                 nside = healpy.get_nside(skymap[0])
                 alm = hputil.sphtrans_sky(skymap, lmax=self.telescope.lmax)
@@ -74,36 +73,46 @@ class Projector(config.Reader):
                 if mpiutil.rank0:
 
                     almp = np.squeeze(np.transpose(almp, axes=(2, 1, 3, 0)))
-                    almf = np.zeros((almp.shape[0], almp.shape[1], almp.shape[1]), dtype=np.complex128)
-                    almf[:, :, :almp.shape[2]] = almp
+                    almf = np.zeros(
+                        (almp.shape[0], almp.shape[1], almp.shape[1]),
+                        dtype=np.complex128,
+                    )
+                    almf[:, :, : almp.shape[2]] = almp
 
                     pmap = hputil.sphtrans_inv_sky(almf, self.nside)
 
-                    f = h5py.File(filename, 'w')
+                    f = h5py.File(filename, "w")
                     if attrs is not None:
                         for key, val in attrs.items():
                             f.attrs[repr(key)] = val
-                    f.create_dataset('/map', data=pmap)
+                    f.create_dataset("/map", data=pmap)
                     f.close()
 
             mpiutil.barrier()
 
             ## Broadcast set of alms to the world
             alm = mpiutil.world.bcast(alm, root=0)
-            mlist = list(range(self.kltransform.telescope.mmax+1))
+            mlist = list(range(self.kltransform.telescope.mmax + 1))
             nevals = self.beamtransfer.ntel * self.beamtransfer.nfreq
-
 
             ## Construct beam projection of map
             if self.beam_proj:
 
                 def proj_beam(mi):
                     print("Projecting %i" % mi)
-                    bproj = self.beamtransfer.project_vector_forward(mi, alm[:, :, mi]).flatten()
+                    bproj = self.beamtransfer.project_vector_forward(
+                        mi, alm[:, :, mi]
+                    ).flatten()
                     return self.beamtransfer.project_vector_backward(mi, bproj)
 
-                shape = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1)
-                almp = kltransform.collect_m_array(mlist, proj_beam, shape, np.complex128)
+                shape = (
+                    self.telescope.nfreq,
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                almp = kltransform.collect_m_array(
+                    mlist, proj_beam, shape, np.complex128
+                )
                 _write_map_from_almarray(almp, stem + "beam.hdf5")
 
             mpiutil.barrier()
@@ -116,16 +125,20 @@ class Projector(config.Reader):
                     print("Projecting %i" % mi)
                     p2 = np.zeros(nevals, dtype=np.complex128)
                     if self.kltransform.modes_m(mi)[0] is not None:
-                        p1 = self.kltransform.project_sky_vector_forward(mi, alm[:, :, mi])
-                        p2[-p1.size:] = p1
+                        p1 = self.kltransform.project_sky_vector_forward(
+                            mi, alm[:, :, mi]
+                        )
+                        p2[-p1.size :] = p1
 
                     return p2
 
                 shape = (nevals,)
-                evp = kltransform.collect_m_array(mlist, proj_evec, shape, np.complex128)
+                evp = kltransform.collect_m_array(
+                    mlist, proj_evec, shape, np.complex128
+                )
 
                 if mpiutil.rank0:
-                    f = h5py.File(stem + "ev.hdf5", 'w')
+                    f = h5py.File(stem + "ev.hdf5", "w")
                     f.create_dataset("/evec_proj", data=evp)
                     f.close()
 
@@ -143,15 +156,25 @@ class Projector(config.Reader):
                     if mvals is None:
                         return None
 
-                    ev_vec = self.kltransform.project_sky_vector_forward(mi, alm[:, :, mi], threshold=cut)
-                    tel_vec = self.kltransform.project_tel_vector_backward(mi, ev_vec, threshold=cut)
+                    ev_vec = self.kltransform.project_sky_vector_forward(
+                        mi, alm[:, :, mi], threshold=cut
+                    )
+                    tel_vec = self.kltransform.project_tel_vector_backward(
+                        mi, ev_vec, threshold=cut
+                    )
 
                     alm2 = self.beamtransfer.project_vector_backward(mi, tel_vec)
 
                     return alm2
 
-                shape = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1)
+                shape = (
+                    self.telescope.nfreq,
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
                 almp = kltransform.collect_m_array(mlist, filt_kl, shape, np.complex128)
-                _write_map_from_almarray(almp, stem + ("kl_%g.hdf5" % cut), {'threshold' : cut})
+                _write_map_from_almarray(
+                    almp, stem + ("kl_%g.hdf5" % cut), {"threshold": cut}
+                )
 
                 mpiutil.barrier()

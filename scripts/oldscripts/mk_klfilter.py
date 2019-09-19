@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import os
@@ -28,7 +28,9 @@ parser.add_argument("teldir", help="The telescope directory to use.")
 parser.add_argument("mapfile", help="Input map.")
 parser.add_argument("outfile", help="Output map.")
 parser.add_argument("threshold", help="Threshold S/N value to cut at.", type=float)
-parser.add_argument("-e", "--evsubdir", help="The subdirectory containing the eigensystem files.")
+parser.add_argument(
+    "-e", "--evsubdir", help="The subdirectory containing the eigensystem files."
+)
 args = parser.parse_args()
 
 ## Read in cylinder system
@@ -41,11 +43,10 @@ mmax = cyl.mmax
 cut = args.threshold
 
 
-    
 nside = 0
 
 
-alm = np.zeros((cyl.nfreq, cyl.lmax+1, cyl.lmax+1), dtype=np.complex128)
+alm = np.zeros((cyl.nfreq, cyl.lmax + 1, cyl.lmax + 1), dtype=np.complex128)
 
 if mpiutil.rank0:
     ## Useful output
@@ -57,18 +58,16 @@ if mpiutil.rank0:
 
     # Calculate alm's and broadcast
     print("Read in skymap.")
-    f = h5py.File(args.mapfile, 'r')
-    skymap = f['map'][:]
+    f = h5py.File(args.mapfile, "r")
+    skymap = f["map"][:]
     f.close()
     nside = healpy.get_nside(skymap[0])
 
     alm = hputil.sphtrans_sky(skymap, lmax=cyl.lmax)
-#else:
+# else:
 #    almr = None
-    
-#mpiutil.world.Bcast([alm, MPI.COMPLEX16], root=0)
 
-
+# mpiutil.world.Bcast([alm, MPI.COMPLEX16], root=0)
 
 
 def projm(mi):
@@ -76,7 +75,7 @@ def projm(mi):
     print("Projecting %i" % mi)
 
     mvals, mvecs = klt.modes_m(mi, threshold=cut)
-    
+
     if mvals is None:
         return None
 
@@ -87,8 +86,9 @@ def projm(mi):
 
     return alm2
 
+
 # Project m-modes across different processes
-mlist = list(range(mmax+1))
+mlist = list(range(mmax + 1))
 mpart = mpiutil.partition_list_mpi(mlist)
 mproj = [[mi, projm(mi)] for mi in mpart]
 
@@ -116,10 +116,9 @@ if mpiutil.rank0:
     proj_map = hputil.sphtrans_inv_sky(palm, nside)
 
     print("Saving file.")
-    f = h5py.File(args.outfile, 'w')
-    f.attrs['threshold'] = cut
+    f = h5py.File(args.outfile, "w")
+    f.attrs["threshold"] = cut
 
-    f.create_dataset('/klproj', data=proj_map)
+    f.create_dataset("/klproj", data=proj_map)
 
     f.close()
-

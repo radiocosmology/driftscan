@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 
@@ -38,25 +38,23 @@ def beam_circular(angpos, zenith, uv_diameter):
         Beam pattern at each position in angpos.
     """
 
-    x = (1.0 - coord.sph_dot(angpos, zenith)**2)**0.5 * np.pi * uv_diameter
+    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
 
-    return 2*jinc(x)
+    return 2 * jinc(x)
 
 
 def gaussian_beam(angpos, pointing, fwhm):
 
-    sigma = np.radians(fwhm) / (8.0*np.log(2.0))**0.5
-    x2 = (1.0 - coord.sph_dot(angpos, pointing)**2) / (4*sigma**2)
+    sigma = np.radians(fwhm) / (8.0 * np.log(2.0)) ** 0.5
+    x2 = (1.0 - coord.sph_dot(angpos, pointing) ** 2) / (4 * sigma ** 2)
 
     return np.exp(-x2)
 
 
 class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
-
     beam_num_u = config.Property(proptype=int, default=10)
     beam_num_v = config.Property(proptype=int, default=10)
-
 
     beam_spacing_u = config.Property(proptype=float, default=0.1)
     beam_spacing_v = config.Property(proptype=float, default=0.1)
@@ -68,11 +66,14 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     square_beam = config.Property(proptype=bool, default=False)
 
-
     @property
     def beam_pointings(self):
-        pnt_u = self.beam_spacing_u * (np.arange(self.beam_num_u) - (self.beam_num_u - 1) / 2.0)
-        pnt_v = self.beam_spacing_v * (np.arange(self.beam_num_v) - (self.beam_num_v - 1) / 2.0)
+        pnt_u = self.beam_spacing_u * (
+            np.arange(self.beam_num_u) - (self.beam_num_u - 1) / 2.0
+        )
+        pnt_v = self.beam_spacing_v * (
+            np.arange(self.beam_num_v) - (self.beam_num_v - 1) / 2.0
+        )
 
         pnt_u = np.radians(pnt_u) + self.zenith[1]
         pnt_v = np.radians(pnt_v) + self.zenith[0]
@@ -83,8 +84,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
         return pnt.reshape(-1, 2)
 
-    #== Methods for calculating the unique baselines ===
-
+    # == Methods for calculating the unique baselines ===
 
     @util.cache_last
     def beam_gaussian(self, feed, freq):
@@ -97,14 +97,19 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
         return gaussian_beam(self._angpos, pointing, fwhm)
 
-
     @util.cache_last
     def beam_square(self, feed, freq):
 
         pointing = self.beam_pointings[feed]
-        bdist = (self._angpos - pointing[np.newaxis, :])
-        bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
-        #bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
+        bdist = self._angpos - pointing[np.newaxis, :]
+        bdist = np.abs(
+            np.where(
+                (bdist[:, 1] < np.pi)[:, np.newaxis],
+                bdist,
+                bdist - np.array([0, 2 * np.pi])[np.newaxis, :],
+            )
+        ) / np.radians(self.beam_size)
+        # bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
         beam = np.logical_and(bdist[:, 0] < 0.5, bdist[:, 1] < 0.5).astype(np.float64)
 
         return beam
@@ -115,11 +120,10 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
         else:
             return self.beam_gaussian(feed, freq)
 
-
     @property
     def dish_width(self):
-        lpivot = (units.c / self.beam_pivot * 1e-6)
-        return (lpivot / np.radians(self.beam_size))
+        lpivot = units.c / self.beam_pivot * 1e-6
+        return lpivot / np.radians(self.beam_size)
 
     @property
     def u_width(self):
@@ -142,6 +146,8 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
     def _unique_beams(self):
 
         beam_mask = np.identity(self.nfeed, dtype=np.bool)
-        beam_map = telescope._remap_keyarray(np.diag(np.arange(self.nfeed)), mask=beam_mask)
+        beam_map = telescope._remap_keyarray(
+            np.diag(np.arange(self.nfeed)), mask=beam_mask
+        )
 
         return beam_map, beam_mask

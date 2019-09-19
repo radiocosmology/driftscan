@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -29,13 +29,13 @@ def beam_circular(angpos, zenith, diameter):
     beam : np.ndarray
         Beam pattern at each position in angpos.
     """
-    
+
     def jinc(x):
         return 0.5 * (jn(0, x) + jn(2, x))
 
-    x = (1.0 - coord.sph_dot(angpos, zenith)**2)**0.5 * np.pi * diameter
-    
-    return 2*jinc(x)
+    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * diameter
+
+    return 2 * jinc(x)
 
 
 class DishArray(telescope.SimplePolarisedTelescope):
@@ -54,7 +54,7 @@ class DishArray(telescope.SimplePolarisedTelescope):
     giving the telescope location and `tsys_flat` for giving the system
     temperature.
     """
-    
+
     # Set band properties (overriding baseclass)
     freq_lower = 100.0
     freq_upper = 150.0
@@ -75,14 +75,14 @@ class DishArray(telescope.SimplePolarisedTelescope):
     def v_width(self):
         return self.dish_width
 
-
     # Implement the X and Y beam patterns (assuming all feeds are identical).
     # These need to return a vector for each position on the sky
     # (self._angpos) in thetahat, phihat coordinates.
     def beamx(self, feed, freq):
         # Calculate beam amplitude
-        beam = beam_circular(self._angpos, self.zenith,
-                             self.dish_width / self.wavelengths[freq])
+        beam = beam_circular(
+            self._angpos, self.zenith, self.dish_width / self.wavelengths[freq]
+        )
 
         # Add a vector direction to beam - X beam is EW (phihat)
         beam = beam[:, np.newaxis] * np.array([0.0, 1.0])
@@ -91,15 +91,15 @@ class DishArray(telescope.SimplePolarisedTelescope):
 
     def beamy(self, feed, freq):
         # Calculate beam amplitude
-        beam = beam_circular(self._angpos, self.zenith,
-                             self.dish_width / self.wavelengths[freq])
+        beam = beam_circular(
+            self._angpos, self.zenith, self.dish_width / self.wavelengths[freq]
+        )
 
         # Add a vector direction to beam - Y beam is NS (thetahat)
         # Fine provided beam does not cross a pole.
         beam = beam[:, np.newaxis] * np.array([1.0, 0.0])
 
         return beam
-
 
     # Set the feed array of feed positions (in metres EW, NS)
     @property
@@ -110,6 +110,5 @@ class DishArray(telescope.SimplePolarisedTelescope):
             for j in range(self.gridv):
                 pos[i, j, 0] = i * self.dish_width
                 pos[i, j, 1] = j * self.dish_width
-        
+
         return pos.reshape((self.gridu * self.gridv, 2))
-            

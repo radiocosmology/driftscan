@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import functools
@@ -12,12 +12,12 @@ import numpy as np
 
 def intpattern(n):
     """Pattern that prints out a number upto `n` (integer - always shows sign)."""
-    return ("%+0" + repr(int(np.ceil(np.log10(n + 1))) + 1) + "d")
+    return "%+0" + repr(int(np.ceil(np.log10(n + 1))) + 1) + "d"
 
 
 def natpattern(n):
     """Pattern that prints out a number upto `n` (natural number - no sign)."""
-    return ("%0" + repr(int(np.ceil(np.log10(n + 1)))) + "d")
+    return "%0" + repr(int(np.ceil(np.log10(n + 1)))) + "d"
 
 
 def cache_last(func):
@@ -46,7 +46,7 @@ class ConfigReader(object):
 
     DEPRECATED!! Use routines from drift.util.config instead.
     """
-    
+
     @classmethod
     def from_config(cls, config, *args, **kwargs):
         """Create an instance of the class from the supplied config dictionary.
@@ -75,11 +75,10 @@ class ConfigReader(object):
             Configuration options supplied like this: 
             { 'paramkey1' : [ function_to_apply, 'attributename'], 'paramkey2' : ...}
         """
-        if not hasattr(self, '_config_dict'):
+        if not hasattr(self, "_config_dict"):
             self._config_dict = config_options
         else:
             self._config_dict.update(config_options)
-
 
     def read_config(self, config):
         """Set attributes from configuration dictionary.
@@ -89,7 +88,7 @@ class ConfigReader(object):
         config : dict
             Dictionary of configuration values.
         """
-        if not hasattr(self, '_config_dict'):
+        if not hasattr(self, "_config_dict"):
             return
 
         keys = set(config).intersection(self._config_dict)

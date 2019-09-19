@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import os
@@ -39,9 +39,9 @@ def beam_circular(angpos, zenith, uv_diameter):
         Beam pattern at each position in angpos.
     """
 
-    x = (1.0 - coord.sph_dot(angpos, zenith)**2)**0.5 * np.pi * uv_diameter
+    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
 
-    return 2*jinc(x)
+    return 2 * jinc(x)
 
 
 class GmrtArray(telescope.TransitTelescope):
@@ -55,15 +55,13 @@ class GmrtArray(telescope.TransitTelescope):
         Width of the dish in metres.
     """
 
-    fwhm = 3.1 # degrees
-
-
+    fwhm = 3.1  # degrees
 
     freq_lower = 139.33
     freq_upper = 156.00
     num_freq = 64
 
-    _pos_file = os.path.dirname(__file__) + '/gmrtpositions.dat'
+    _pos_file = os.path.dirname(__file__) + "/gmrtpositions.dat"
     _compact = True
 
     _bc_freq = None
@@ -80,15 +78,12 @@ class GmrtArray(telescope.TransitTelescope):
     minlength = 0.0
     maxlength = 600.0
 
-
     def __init__(self, pointing=0.0):
         super(GmrtArray, self).__init__(latitude=19.09, longitude=74.05)
 
         self._positions = np.loadtxt(self._pos_file)
-        #self._positions = self._positions[np.where((self._positions**2).sum(axis=1)**0.5 < 1000)]
+        # self._positions = self._positions[np.where((self._positions**2).sum(axis=1)**0.5 < 1000)]
         self.pointing = pointing
-
-
 
     @property
     def u_width(self):
@@ -116,11 +111,17 @@ class GmrtArray(telescope.TransitTelescope):
         """
 
         if self._bc_freq != freq or self._bc_nside != self._nside:
-            sigma = np.radians(self.fwhm) / (8.0*np.log(2.0))**0.5 / (self.frequencies[freq] / 150.0)
+            sigma = (
+                np.radians(self.fwhm)
+                / (8.0 * np.log(2.0)) ** 0.5
+                / (self.frequencies[freq] / 150.0)
+            )
 
-            pointing = np.array([np.pi / 2.0 - np.radians(self.pointing), self.zenith[1]])
+            pointing = np.array(
+                [np.pi / 2.0 - np.radians(self.pointing), self.zenith[1]]
+            )
 
-            x2 = (1.0 - coord.sph_dot(self._angpos, pointing)**2) / (4*sigma**2)
+            x2 = (1.0 - coord.sph_dot(self._angpos, pointing) ** 2) / (4 * sigma ** 2)
             self._bc_map = np.exp(-x2)
 
             self._bc_freq = freq
@@ -147,9 +148,7 @@ class GmrtArray(telescope.TransitTelescope):
         return self._positions
 
 
-
-
-
 class GmrtUnpolarised(GmrtArray, telescope.SimpleUnpolarisedTelescope):
     """Unpolarised GMRT class."""
+
     pass

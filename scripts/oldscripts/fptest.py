@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 from drift.core import focalplane, beamtransfer, kltransform, psestimation
@@ -26,18 +26,17 @@ fpa.freq_lower = 460.0
 fpa.freq_upper = 540.0
 
 
-
-bt = beamtransfer.BeamTransfer('cylinder/fpatest/', telescope=fpa)
-#bt.generate()
+bt = beamtransfer.BeamTransfer("cylinder/fpatest/", telescope=fpa)
+# bt.generate()
 
 klt = kltransform.KLTransform(bt)
 
-#klt.generate()
+# klt.generate()
 
 pse = psestimation.PSEstimation(klt)
 
 pse.bands = np.linspace(0.0, 1.0, 5)
 
-#pse.genbands()
+# pse.genbands()
 
-#pse.fisher_mpi()
+# pse.fisher_mpi()

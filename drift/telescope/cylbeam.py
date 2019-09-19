@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -40,10 +40,9 @@ def polpattern(angpos, dipole):
     polvec[..., 1] = np.dot(phatp, dipole)
 
     # Normalise length to unity.
-    polvec = polvec * (np.sum(polvec**2, axis=-1)**-0.5)[..., np.newaxis]
+    polvec = polvec * (np.sum(polvec ** 2, axis=-1) ** -0.5)[..., np.newaxis]
 
     return polvec
-
 
 
 def rotate_ypr(rot, xhat, yhat, zhat):
@@ -71,7 +70,7 @@ def rotate_ypr(rot, xhat, yhat, zhat):
 
     # Pitch rotation
     xhat2 = xhat1
-    yhat2 =  np.cos(pitch) * yhat1 + np.sin(pitch) * zhat1
+    yhat2 = np.cos(pitch) * yhat1 + np.sin(pitch) * zhat1
     zhat2 = -np.sin(pitch) * yhat1 + np.cos(pitch) * zhat1
 
     # Roll rotation
@@ -82,12 +81,12 @@ def rotate_ypr(rot, xhat, yhat, zhat):
     return xhat3, yhat3, zhat3
 
 
-
 def beam_dipole(theta, phi, squint):
     """Beam for a dipole above a ground plane.
     """
-    return ((1 - np.sin(theta)**2 * np.sin(phi)**2)**(squint/2)
-        * np.sin(0.5 * np.pi * np.cos(theta)))
+    return (1 - np.sin(theta) ** 2 * np.sin(phi) ** 2) ** (squint / 2) * np.sin(
+        0.5 * np.pi * np.cos(theta)
+    )
 
 
 def beam_exptan(theta, fwhm):
@@ -105,10 +104,9 @@ def beam_exptan(theta, fwhm):
     beam : array_like
         The amplitude beam at each requested angle.
     """
-    alpha = np.log(2.0) / (2*np.tan(fwhm / 2.0)**2)
+    alpha = np.log(2.0) / (2 * np.tan(fwhm / 2.0) ** 2)
 
-    return np.exp(-alpha*np.tan(theta)**2)
-
+    return np.exp(-alpha * np.tan(theta) ** 2)
 
 
 def fraunhofer_cylinder(antenna_func, width, res=1.0):
@@ -131,29 +129,25 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
     """
     res = int(res * 16)
     num = 512
-    hnum = 512//2 -1
+    hnum = 512 // 2 - 1
 
     ua = -1.0 * np.linspace(-1.0, 1.0, num, endpoint=False)[::-1]
 
-    ax = antenna_func(2*np.arctan(ua))
+    ax = antenna_func(2 * np.arctan(ua))
 
-    axe = np.zeros(res*num)
+    axe = np.zeros(res * num)
 
-    axe[:(hnum+2)] = ax[hnum:]
+    axe[: (hnum + 2)] = ax[hnum:]
     axe[-hnum:] = ax[:hnum]
-
 
     fx = np.fft.fft(axe).real
 
-    kx = 2 * np.fft.fftfreq(res*num, ua[1] - ua[0]) / width
+    kx = 2 * np.fft.fftfreq(res * num, ua[1] - ua[0]) / width
 
     fx = np.fft.fftshift(fx) / fx.max()
     kx = np.fft.fftshift(kx)
 
     return cubicspline.Interpolater(kx, fx)
-
-
-
 
 
 def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
@@ -193,7 +187,7 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     ew_amp = beampat(np.dot(cvec, xhat))
     ns_amp = yplane(np.arcsin(np.dot(cvec, yhat)))
 
-    return (ew_amp * ns_amp * horizon)
+    return ew_amp * ns_amp * horizon
 
 
 def beam_x(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):

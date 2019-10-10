@@ -15,9 +15,10 @@ import h5py
 import numpy as np
 import scipy.linalg as la
 
-from caput import config, mpiutil
+from caput import config, mpiutil, mpiarray
 
 from cora.signal import corr21cm
+from cora.util import nputil
 
 from drift.core import skymodel
 from drift.util import util
@@ -177,15 +178,15 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
     """
 
 
-    bandtype = config.Property(proptype=str, default='polar')
+    bandtype = config.Property(proptype=str, default='cartesian')
 
     # Properties to control polar bands
     k_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
     num_theta = config.Property(proptype=int, default=1)
 
     # Properties for cartesian bands
-    kpar_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
-    kperp_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.4, 'num' : 20 }])
+    kpar_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.2, 'num' : 3 }])
+    kperp_bands = config.Property(proptype=range_config, default=[ {'spacing' : 'linear', 'start' : 0.0, 'stop' : 0.2, 'num' : 3 }])
 
     threshold = config.Property(proptype=float, default=0.0)
 
@@ -362,20 +363,22 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
     def make_clzz_array(self):
 
-        p_bands, s_bands, e_bands = mpiutil.split_all(self.nbands)
-        p, s, e = mpiutil.split_local(self.nbands)
+        nbands = self.nbands
+        nfreq = self.telescope.nfreq
+        lmax = self.telescope.lmax
 
-        self.clarray = np.zeros((self.nbands, self.telescope.lmax + 1,
-                                 self.telescope.nfreq, self.telescope.nfreq), dtype=np.float64)
+        self.p_bands, self.s_bands, self.e_bands = mpiutil.split_all(nbands)
+        self.p_loc, self.s_band_loc, self.e_band_loc = mpiutil.split_local(nbands)
 
-        for bi in range(s, e):
-            self.clarray[bi] = self.make_clzz(self.band_pk[bi])
+        # which communicator to use ? can we set this when initializing the class?
+        self.clarray = mpiarray.MPIArray(
+            (nbands, lmax + 1, nfreq, nfreq), axis=0, dtype=np.float64, comm=MPI.COMM_WORLD)
 
-        bandsize = (self.telescope.lmax + 1) * self.telescope.nfreq * self.telescope.nfreq
-        sizes = p_bands * bandsize
-        displ = s_bands * bandsize
+        self.clarray[:] = 0.0
 
-        MPI.COMM_WORLD.Allgatherv(MPI.IN_PLACE, [self.clarray, sizes, displ, MPI.DOUBLE])
+        for bl, bg in self.clarray.enumerate(axis=0):
+            print("Make clzz", bl,bg)
+            self.clarray[bl] = self.make_clzz(self.band_pk[bg])
 
 
     def delbands(self):
@@ -460,19 +463,120 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         mpiutil.barrier()
 
-        # Pre-compute all the angular power spectra for the bands
+        # Pre-compute all the angular power spectra for the bands.
+        # MPIArray of clzz basis fcts is now distributed over bands see make_clzz_array
         self.genbands()
 
-        # Use parallel map to distribute Fisher calculation
-        fisher_bias = mpiutil.parallel_map(self.fisher_bias_m, list(range(self.telescope.mmax + 1)))
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
 
-        # Unpack into separate lists of the Fisher matrix and bias
-        fisher, bias = list(zip(*fisher_bias))
+        m_chunks, low_bound, upp_bound = self.split_single((self.telescope.mmax + 1), size)
+        num_chunks = m_chunks.shape[0]
 
-        # Sum over all m-modes to get the over all Fisher and bias
-        self.fisher = np.sum(np.array(fisher), axis=0).real # Be careful of the .real here
-        self.bias = np.sum(np.array(bias), axis=0).real # Be careful of the .real here
 
+        # Create an MPI array for the qa's distributed over bands?
+        num_realisations = 10000
+        self.qa = mpiarray.MPIArray(
+            (self.telescope.mmax + 1, self.nbands, num_realisations), axis=1, dtype=np.float64, comm=MPI.COMM_WORLD)
+
+        self.qa[:] = 0.0
+
+        # This is designed such that at each iteration one rank gets one m-mode.
+        for ci, num_m in enumerate(m_chunks):
+            if ci == 4:
+                break
+            if mpiutil.rank0:
+                print("Starting chunk %i of %i" % (ci + 1, num_chunks))
+
+            loc_num, loc_start, loc_end = mpiutil.split_local(num_m)
+            glob_num, glob_start, glob_end = mpiutil.split_all(num_m)
+
+            mi = np.arange(low_bound[ci], upp_bound[ci])[loc_start:loc_end]
+            print("Processing m-mode %i on rank %i" % (mi, rank))
+
+            nfreq = self.telescope.nfreq
+            lmax = self.telescope.lmax
+
+            # Do another loop here over numer over realisations.
+            realisation_chunks = 500
+            num, starts, ends = mpiutil.split_m(num_realisations, (num_realisations // realisation_chunks) + 1)
+
+            for n, s, e, in zip(num, starts, ends):
+                print("n,s,e", n,s,e)
+                recvbuf1 = np.zeros((num_m, nfreq, lmax + 1, n), dtype=np.complex128)
+                recvbuf2 = np.zeros((num_m, nfreq, lmax + 1, n), dtype=np.complex128)
+
+                arr_size = (nfreq * (lmax+1) * n)
+
+                if loc_num > 0:
+
+                    if self.num_evals(mi) > 0:
+                        # Generate random data
+                        x = self.gen_sample(mi, n)
+                        vec1, vec2 = self.project_vector_kl_to_sky(mi, x)
+                        # Select temperature part only for q-estimation
+                        # Make array contiguous
+                        vec1 = np.ascontiguousarray(vec1)
+                        vec2 = np.ascontiguousarray(vec2)
+
+                    # If I don't have evals at the moment return zero vector
+                    else:
+                        vec1 = np.zeros((loc_num, nfreq, lmax + 1, n),
+                                        dtype=np.complex128)
+                        vec2 = vec1
+
+                else:
+                    vec1 = np.zeros((loc_num, nfreq, lmax + 1, n), dtype=np.complex128)
+                    vec2 = vec1
+
+                vecsize = nfreq * (lmax + 1) * n
+                sizes = glob_num * vecsize
+                displ = glob_start * vecsize
+                loc_size = loc_num * vecsize
+
+                # This is the expensive part when done over all realisations.
+                comm.Allgatherv([vec1, loc_size, MPI.DOUBLE_COMPLEX], [recvbuf1, sizes, displ, MPI.DOUBLE_COMPLEX])
+                #print("CI ", ci, "recvbuf", recvbuf1[:, :2,100,0])
+                comm.Allgatherv([vec2, loc_size, MPI.DOUBLE_COMPLEX], [recvbuf2, sizes, displ, MPI.DOUBLE_COMPLEX])
+                # print("recvbuf shape", recvbuf1.shape)
+
+                noise = False
+                lside = self.telescope.lmax + 1
+
+                #for bi, bg in enumerate(range(s,e)):
+                for bi, bg in self.qa.enumerate(axis=1):
+                    print("bi, bg", bi, bg)
+                    for li in range(lside):
+                        lxvec = recvbuf1[:, :, li]
+                        lyvec = recvbuf2[:, :, li]
+
+                        self.qa[low_bound[ci]:upp_bound[ci], bi, s:e] += np.sum(lyvec.conj() * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec),
+                                                axis=1).astype(np.float64)
+            print("rank %i has this array" %(rank), self.qa.shape)
+
+                # To DO: in loop if noise block
+
+        # Once done with all the m's, redistribute qa array over m's
+        self.qa = self.qa.redistribute(axis=0)
+
+        print("qa shape", self.qa.shape)
+
+        # Make an array for local fisher an bias
+        fisher_loc = np.zeros((self.nbands, self.nbands), dtype=np.float64)
+        bias_loc = np.zeros((self.nbands,), dtype=np.float64)
+
+        # Calculate fisher for each m
+        for ml, mg in self.qa.enumerate(axis=0):
+            fisher_m = np.cov(self.qa[ml])
+            bias_m = np.mean(self.qa[ml], axis=1)
+            # Sum over all local m-modes to get the over all Fisher and bias per process
+            fisher_loc += fisher_m.real # be careful with the real?!
+            bias_loc += bias_m.real
+
+        self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
+        self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
+        """
         # Write out all the PS estimation products
         if mpiutil.rank0:
             et = time.time()
@@ -528,7 +632,73 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
 
             f.close()
+            """
+        """
+            scatter_buf = np.zeros((loc_num, self.nbands, num_realisations), dtype=np.float64)
 
+            # This doesn't work can't be redistributed over m's and subbands!! One idea is to create an MPIArray
+            # at beginning which is distributed over subbands and just
+            qa_size = self.nbands * num_realisations
+
+            qa_sizes = glob_num * qa_size
+            qa_displ = glob_start * qa_size
+            print("glob_start", glob_start)
+            loc_qa_size = loc_num * qa_size
+
+            print("glob_sizes", qa_sizes)
+            print("glob_displ", qa_displ)
+            print("loc_sizes", loc_qa_size)
+
+            print("qa all", qa[:, :, 0])
+
+            comm.Scatterv([qa, qa_sizes, qa_displ, MPI.DOUBLE], [scatter_buf, loc_qa_size, MPI.DOUBLE])
+        """
+
+        """
+            # Calculate q_a for noise power (x0^H N x0 = |x0|^2) -> put this in extra function?
+            if noise:
+
+                # If calculating crosspower don't include instrumental noise
+                noisemodes = 0.0 if self.crosspower else 1.0
+                noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
+
+                qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
+        """
+
+    def split_single(self, m, size):
+
+        quotient = m // size
+        rem = m % size
+
+        if rem != 0:
+            m_chunks = np.append((size * np.ones(quotient, dtype=int)), rem)
+        else:
+            m_chunks = size * np.ones(quotient, dtype=int)
+
+        bound = np.cumsum(np.insert(m_chunks, 0, 0))
+        ms = m_chunks.shape[0]
+
+        low_bound = bound[:ms]
+        upp_bound = bound[1:(ms + 1)]
+
+        return m_chunks, low_bound, upp_bound
+
+        """
+        # Partition list based on MPI rank
+        llist = mpiutil.partition_list_mpi(zlist)
+        # Operate on sublist
+        fisher_bias_list = [self.fisher_bias_m(item) for ind, item in llist]
+
+        # Unpack into separate lists of the Fisher matrix and bias
+        fisher_loc, bias_loc = zip(*fisher_bias_list)
+
+        # Sum over all local m-modes to get the over all Fisher and bias pe process
+        fisher_loc = np.sum(np.array(fisher_loc), axis=0).real # Be careful of the .real here
+        bias_loc = np.sum(np.array(bias_loc), axis=0).real # Be careful of the .real here
+
+        self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
+        self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
+        """
     #===================================================
 
 
@@ -554,6 +724,46 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
     #====== Estimate the q-parameters from data ========
 
+    def project_vector_kl_to_sky(self, mi, vec1, vec2=None):
+        """
+        Parameters
+        ----------
+        mi : integer
+            The m-mode we are calculating for.
+        vec : np.ndarray[num_kl, num_realisatons]
+            The vector(s) of data in the KL-basis
+
+        Returns
+        -------
+        x2, y2 : np.ndarray[nfreq, lmax+1, num_realisations]
+            The vectors(s) of data in the sky basis.
+        """
+
+        evals, evecs = self.kltrans.modes_m(mi)
+
+        #if evals is None:
+        #    return np.zeros((self.nbands + 1 if noise else self.nbands,))
+
+        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
+        x0 = (vec1.T / (evals + 1.0)).T
+
+        # Project back into SVD basis
+        x1 = np.dot(evecs.T.conj(), x0)
+
+        # Project back into sky basis
+        print("Reading beam transfer matrix for m=%i" %mi)
+        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, temponly=True, conj=True)
+
+        if vec2 is not None:
+            y0 = (vec2.T / (evals + 1.0)).T
+            y1 = np.dot(evecs.T.conj(), x0)
+            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, temponly=True,conj=True)
+        else:
+            y0 = x0
+            y2 = x2
+
+        return x2, y2
+
     def q_estimator(self, mi, vec1, vec2=None, noise=False):
         """Estimate the q-parameters from given data (see paper).
 
@@ -561,9 +771,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         ----------
         mi : integer
             The m-mode we are calculating for.
-        vec : np.ndarray[num_kl, num_realisatons]
-            The vector(s) of data we are estimating from. These are KL-mode
-            coefficients.
         noise : boolean, optional
             Whether we should project against the noise matrix. Used for
             estimating the bias by Monte-Carlo. Default is False.
@@ -574,28 +781,7 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             Array of q-parameters. If noise=True then the array is one longer,
             and the last parameter is the projection against the noise.
         """
-
-        evals, evecs = self.kltrans.modes_m(mi)
-
-        if evals is None:
-            return np.zeros((self.nbands + 1 if noise else self.nbands,))
-
-        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
-        x0 = (vec1.T / (evals + 1.0)).T
-
-        # Project back into SVD basis
-        x1 = np.dot(evecs.T.conj(), x0)
-
-        # Project back into sky basis
-        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
-
-        if vec2 is not None:
-            y0 = (vec2.T / (evals + 1.0)).T
-            y1 = np.dot(evecs.T.conj(), x0)
-            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
-        else:
-            y0 = x0
-            y2 = x2
+        sky_vec1, sky_vec2 = self.project_vector_kl_to_sky(mi, vec1, vec2=None)
 
         # Create empty q vector (length depends on if we're calculating the noise term too)
         qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec1.shape[1:])
@@ -607,8 +793,8 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
             for li in range(lside):
 
-                lxvec = x2[:, 0, li]
-                lyvec = y2[:, 0, li]
+                lxvec = sky_vec1[:, 0, li]
+                lyvec = sky_vec2[:, 0, li]
 
                 qa[bi] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li].astype(np.complex128), lxvec), axis=0).astype(np.float64) # TT only.
 

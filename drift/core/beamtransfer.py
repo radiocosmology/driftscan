@@ -68,21 +68,6 @@ def svd_gen(A, errmsg=None, *args, **kwargs):
 
     return res
 
-def add_reg(A):
-    try:
-        res = la.svd(A)
-    except la.LinAlgError:
-        sv = la.svdvals(A)[0]
-        At = A + sv * 1e-10 * np.eye(A.shape[0], A.shape[1])
-        try:
-            res = la.svd(At)
-        except la.LinAlgError as e:
-            print "Failed completely"
-            raise e
-
-        return At
-    return A
-
 
 def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
 

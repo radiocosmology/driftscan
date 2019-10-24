@@ -473,10 +473,13 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         m_chunks, low_bound, upp_bound = self.split_single((self.telescope.mmax + 1), size)
         num_chunks = m_chunks.shape[0]
+        print("m chunks", m_chunks, low_bound, upp_bound)
 
 
         # Create an MPI array for the qa's distributed over bands?
-        num_realisations = 10000
+        num_realisations = 500
+        n = num_realisations
+
         self.qa = mpiarray.MPIArray(
             (self.telescope.mmax + 1, self.nbands, num_realisations), axis=1, dtype=np.float64, comm=MPI.COMM_WORLD)
 
@@ -490,24 +493,18 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                 print("Starting chunk %i of %i" % (ci + 1, num_chunks))
 
             loc_num, loc_start, loc_end = mpiutil.split_local(num_m)
+            print("local number of m's", loc_num)
             glob_num, glob_start, glob_end = mpiutil.split_all(num_m)
 
+            # This doesn't work when you have multiple processes on a node... figure out why.
             mi = np.arange(low_bound[ci], upp_bound[ci])[loc_start:loc_end]
+            print("This is mi", mi)
             print("Processing m-mode %i on rank %i" % (mi, rank))
 
             nfreq = self.telescope.nfreq
             lmax = self.telescope.lmax
 
-            # Do another loop here over numer over realisations.
-            realisation_chunks = 500
-            num, starts, ends = mpiutil.split_m(num_realisations, (num_realisations // realisation_chunks) + 1)
-
-            for n, s, e, in zip(num, starts, ends):
-                print("n,s,e", n,s,e)
-                recvbuf1 = np.zeros((num_m, nfreq, lmax + 1, n), dtype=np.complex128)
-                recvbuf2 = np.zeros((num_m, nfreq, lmax + 1, n), dtype=np.complex128)
-
-                arr_size = (nfreq * (lmax+1) * n)
+            for ir in range(size):
 
                 if loc_num > 0:
 
@@ -517,29 +514,21 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                         vec1, vec2 = self.project_vector_kl_to_sky(mi, x)
                         # Select temperature part only for q-estimation
                         # Make array contiguous
-                        vec1 = np.ascontiguousarray(vec1)
-                        vec2 = np.ascontiguousarray(vec2)
+                        vec1 = np.ascontiguousarray(vec1[:, 0]).reshape(loc_num, nfreq, lmax + 1, n)
+                        vec2 = np.ascontiguousarray(vec2[:, 0]).reshape(loc_num, nfreq, lmax + 1, n)
+                        print("vec1.shape in if:", vec1.shape)
 
                     # If I don't have evals at the moment return zero vector
                     else:
                         vec1 = np.zeros((loc_num, nfreq, lmax + 1, n),
                                         dtype=np.complex128)
+                        print("vec1.shape in else", vec1.shape)
                         vec2 = vec1
 
                 else:
                     vec1 = np.zeros((loc_num, nfreq, lmax + 1, n), dtype=np.complex128)
                     vec2 = vec1
-
-                vecsize = nfreq * (lmax + 1) * n
-                sizes = glob_num * vecsize
-                displ = glob_start * vecsize
-                loc_size = loc_num * vecsize
-
-                # This is the expensive part when done over all realisations.
-                comm.Allgatherv([vec1, loc_size, MPI.DOUBLE_COMPLEX], [recvbuf1, sizes, displ, MPI.DOUBLE_COMPLEX])
-                #print("CI ", ci, "recvbuf", recvbuf1[:, :2,100,0])
-                comm.Allgatherv([vec2, loc_size, MPI.DOUBLE_COMPLEX], [recvbuf2, sizes, displ, MPI.DOUBLE_COMPLEX])
-                # print("recvbuf shape", recvbuf1.shape)
+                    print("vec1.shape", vec1.shape)
 
                 noise = False
                 lside = self.telescope.lmax + 1
@@ -548,14 +537,38 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                 for bi, bg in self.qa.enumerate(axis=1):
                     print("bi, bg", bi, bg)
                     for li in range(lside):
-                        lxvec = recvbuf1[:, :, li]
-                        lyvec = recvbuf2[:, :, li]
+                        lxvec = vec1[:, :, li]
+                        lyvec = vec1[:, :, li]
+                        #print("lxvec", lxvec.shape)
+                        #print("cl shape", self.clarray[bi][li].shape)
+                        interm = np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec)
+                        #print("interm shape", interm.shape)
+                        #print("lyvec shape", lyvec.shape)
+                        # This code doesn't work if you have more than 1 process on a node....
+                        #self.qa[mi, bi, :] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li].astype(np.complex128), lxvec), axis=0).astype(np.float64) # TT only.
+                        self.qa[mi, bi, :] += np.sum(lyvec.conj() * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec), axis=1).astype(np.float64)
 
-                        self.qa[low_bound[ci]:upp_bound[ci], bi, s:e] += np.sum(lyvec.conj() * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec),
-                                                axis=1).astype(np.float64)
-            print("rank %i has this array" %(rank), self.qa.shape)
-
+                print("Finished calculating qa")
                 # To DO: in loop if noise block
+                # The MPI communications we only have to do (size - 1) times
+                if ir == (size - 1):
+                    break
+
+                recv_rank = (rank - 1) % size
+                send_rank = (rank + 1) % size
+                print("This is rank %i receiving from rank %i" % (rank, recv_rank))
+
+                recv_buffer = np.zeros(vec1.shape, dtype=np.complex128)
+                # recv_buffer2 = np.zeros(vec2.shape, dtype=np.complex128)
+                request = comm.Irecv([recv_buffer, MPI.DOUBLE_COMPLEX], source=recv_rank, tag=send_rank)
+
+                #print("Requested to receive data with tag %i" % (send_rank))
+
+                comm.Send([vec1, MPI.DOUBLE_COMPLEX], dest=send_rank, tag=rank)
+
+                request.Wait()
+                print("Waiting to receive from source %i with tag %i on rank %i" % (recv_rank, send_rank, rank))
+                vec1 = recv_buffer
 
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)

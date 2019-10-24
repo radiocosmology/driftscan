@@ -91,6 +91,7 @@ class ProductManager(object):
     gen_proj = False
 
     skip_svd = False
+    skip_svd_inv = False
 
     @classmethod
     def from_config(cls, configfile):
@@ -221,7 +222,11 @@ class ProductManager(object):
         if "skip_svd" in yconf["config"] and yconf["config"]["skip_svd"]:
             self.skip_svd = True
 
-        self.kltransforms = {}
+        if 'skip_svd_inv' in yconf['config'] and yconf['config']['skip_svd_inv']:
+            self.skip_svd_inv = True
+
+        self.kltransforms  = {}
+
 
         if "kltransform" in yconf:
 
@@ -268,7 +273,7 @@ class ProductManager(object):
     def generate(self):
 
         if self.gen_beams:
-            self.beamtransfer.generate(skip_svd=self.skip_svd)
+            self.beamtransfer.generate(skip_svd=self.skip_svd, skip_svd_inv=self.skip_svd_inv)
 
         if self.gen_kl:
 

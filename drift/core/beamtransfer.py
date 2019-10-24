@@ -548,7 +548,7 @@ class BeamTransfer(object):
 
     #====== Generation of all the cache files ==========
 
-    def generate(self, regen=False, skip_svd=False):
+    def generate(self, regen=False, skip_svd=False, skip_svd_inv=False):
         """Save out all beam transfer matrices to disk.
 
         Parameters
@@ -572,7 +572,7 @@ class BeamTransfer(object):
         self._generate_mfiles(regen)
 
         if not skip_svd:
-            self._generate_svdfiles(regen)
+            self._generate_svdfiles(regen, skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
@@ -781,7 +781,7 @@ class BeamTransfer(object):
 
 
 
-    def _generate_svdfiles(self, regen=False):
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
         ## Generate all the SVD transfer matrices by simply iterating over all
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
@@ -808,10 +808,11 @@ class BeamTransfer(object):
             csize_bsvd = (1, min(10, self.svd_len), self.telescope.num_pol_sky, self.telescope.lmax+1)
             dset_bsvd = fs.create_dataset('beam_svd', dsize_bsvd, chunks=csize_bsvd, compression='lzf', dtype=np.complex128)
 
-            # Create a chunked dataset for writing the inverse SVD beam matrix into.
-            dsize_ibsvd = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1, self.svd_len)
-            csize_ibsvd = (1, self.telescope.num_pol_sky, self.telescope.lmax+1, min(10, self.svd_len))
-            dset_ibsvd = fs.create_dataset('invbeam_svd', dsize_ibsvd, chunks=csize_ibsvd, compression='lzf', dtype=np.complex128)
+            if not skip_svd_inv:
+                # Create a chunked dataset for writing the inverse SVD beam matrix into.
+                dsize_ibsvd = (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax+1, self.svd_len)
+                csize_ibsvd = (1, self.telescope.num_pol_sky, self.telescope.lmax+1, min(10, self.svd_len))
+                dset_ibsvd = fs.create_dataset('invbeam_svd', dsize_ibsvd, chunks=csize_ibsvd, compression='lzf', dtype=np.complex128)
 
             # Create a chunked dataset for the stokes T U-matrix (left evecs)
             dsize_ut = (self.telescope.nfreq, self.svd_len, self.ntel)
@@ -876,7 +877,6 @@ class BeamTransfer(object):
                     ut = ut3
                     sig = s3[:nmodes]
                     beam = np.dot(ut3, bfr)
-                    ibeam = la.pinv(beam)
 
                     # Save out the evecs (for transforming from the telescope frame into the SVD basis)
                     dset_ut[fi, :nmodes] = (ut * noisew[np.newaxis, :])
@@ -884,8 +884,10 @@ class BeamTransfer(object):
                     # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
                     dset_bsvd[fi, :nmodes] = beam.reshape(nmodes, self.telescope.num_pol_sky, self.telescope.lmax + 1)
 
-                    # Find the pseudo-inverse of the beam matrix and save to disk.
-                    dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes)
+                    if not skip_svd_inv:
+                        ibeam = la.pinv(beam)
+                        # Find the pseudo-inverse of the beam matrix and save to disk.
+                        dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes)
 
                     # Save out the singular values for each block
                     dset_sig[fi, :nmodes] = sig
@@ -1325,6 +1327,8 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
+        print("temponly", temponly)
+        print("npol", npol)
 
         # if not conj:
         #     raise Exception("Not implemented non conj yet.")

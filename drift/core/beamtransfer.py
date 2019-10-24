@@ -24,6 +24,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 import pickle
 import os
 import time
+import logging
 
 import numpy as np
 import scipy.linalg as la
@@ -66,6 +67,21 @@ def svd_gen(A, errmsg=None, *args, **kwargs):
             print("Matrix SVD did not converge (%s)." % errmsg)
 
     return res
+
+def add_reg(A):
+    try:
+        res = la.svd(A)
+    except la.LinAlgError:
+        sv = la.svdvals(A)[0]
+        At = A + sv * 1e-10 * np.eye(A.shape[0], A.shape[1])
+        try:
+            res = la.svd(At)
+        except la.LinAlgError as e:
+            print "Failed completely"
+            raise e
+
+        return At
+    return A
 
 
 def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
@@ -247,6 +263,8 @@ class BeamTransfer(object):
         self.directory = directory
         self.telescope = telescope
 
+        logging.basicConfig(level=logging.DEBUG, filename='svdfail.log')
+        self.logger = logging.getLogger('beam_transfer')
         # Create directory if required
         if mpiutil.rank0 and not os.path.exists(directory):
             os.makedirs(directory)
@@ -981,7 +999,21 @@ class BeamTransfer(object):
                     ut = ut3
                     sig = s3[:nmodes]
                     beam = np.dot(ut3, bfr)
-                    ibeam = la.pinv(beam)
+                    try:
+                        ibeam = la.pinv(beam)
+                    except la.LinAlgError as e:
+                        print "m=%i f=%i" % (mi, fi)
+                        beamfail = h5py.File('beamfail.h5', 'w')
+                        beamfail.create_dataset('beam', beamfail, compression='lzf', dtype=np.complex128)
+                        beamfail.close()
+                        self.logger.warning("Not able to pseudo invert m={0} f={1} adding regularisation".format(mi, fi))
+                        beam_reg = add_reg(beam)
+                        try:
+                            ibeam = la.pinv(beam_reg)
+                        except la.LinAlgError as e:
+                            print "Regularisation did not work for m=%i f=%i" % (mi, fi)
+                            self.logger.warning("Regularisation did not work.")
+                            raise e
 
                     # Save out the evecs (for transforming from the telescope frame into the SVD basis)
                     dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]

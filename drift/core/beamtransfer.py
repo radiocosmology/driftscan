@@ -197,6 +197,18 @@ class BeamTransfer(object):
     svcut = 1e-6
     polsvcut = 1e-4
 
+    # Directory containing files defining external SVD basis (determined
+    # directly from measured visibilities, using draco.analysis.svdfilter.SVDFilter)
+    external_svd_basis_dir = None
+
+    # Thresholds for filtering modes defined in external SVD basis:
+    #  global ->    Remove modes with singular value higher than external_svthreshold_global
+    #               times the largest mode on any m
+    #  local  ->    Remove modes with singular value higher than external_svthreshold_local
+    #               times the largest mode on each m
+    external_svthreshold_global = None
+    external_svthreshold_local = None
+
     # ====== Properties giving internal filenames =======
 
     @property

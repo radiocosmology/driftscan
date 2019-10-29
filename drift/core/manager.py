@@ -215,6 +215,19 @@ class ProductManager(object):
         if "polsvcut" in yconf["config"]:
             self.beamtransfer.polsvcut = float(yconf["config"]["polsvcut"])
 
+        ## Set the directory holding an externally-defined SVD basis, which
+        ## will have some of its modes projected out of the visibilities
+        ## before the beam transfer SVDs or KL basis are defined
+        if "external_svd_basis_dir" in yconf["config"]:
+            self.beamtransfer.external_svd_basis_dir = yconf["config"]["external_svd_basis_dir"]
+
+        ## Set the global and local singular value thresholds for modes defined by
+        ## an external SV
+        if "external_svthreshold_global" in yconf["config"]:
+            self.beamtransfer.external_svthreshold_global = float(yconf["config"]["external_svthreshold_global"])
+        if "external_svthreshold_local" in yconf["config"]:
+            self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
+
         if yconf["config"]["beamtransfers"]:
             self.gen_beams = True
 

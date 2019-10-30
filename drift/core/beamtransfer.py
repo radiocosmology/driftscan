@@ -28,11 +28,13 @@ import time
 import numpy as np
 import scipy.linalg as la
 import h5py
+from mpi4py import MPI
 
 from caput import mpiutil
 
 from drift.util import util, blockla
 from drift.core import kltransform
+from draco.analysis.svdfilter import external_svdfile
 
 
 def svd_gen(A, errmsg=None, *args, **kwargs):
@@ -171,7 +173,10 @@ class BeamTransfer(object):
     nfreq
     svd_len
     ndofmax
-
+    external_svd_basis_dir
+    external_svthreshold_global
+    external_svthreshold_local
+    external_global_max_sv
 
     Methods
     -------
@@ -246,6 +251,14 @@ class BeamTransfer(object):
         )
 
         return pat % mi
+
+    def _external_svdfile(self, mi):
+        """File containing external SVD basis for a given m.
+        """
+        if self.external_svd_basis_dir is None:
+            raise RuntimeError("Directory containing external SVD basis not specified!")
+        else:
+            return external_svdfile(self.external_svd_basis_dir, mi, self.telescope.mmax)
 
     # ===================================================
 
@@ -842,6 +855,20 @@ class BeamTransfer(object):
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
 
+        # If external SVD basis is specified, loop over all m's to find the
+        # maximum singular value
+        if self.external_svd_basis_dir is not None:
+            max_sv = 0.
+
+            for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+                fe = h5py.File(self._external_svdfile(mi))
+                ext_sig = fe["sig"][:]
+                max_sv = max(ext_sig[0], max_sv)
+                fe.close()
+
+            self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
+            # print("Rank %d: max_sv=%g" % (mpiutil.rank,self.external_global_max_sv ))
+
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file. Use MPI if available.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
@@ -857,6 +884,18 @@ class BeamTransfer(object):
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), "r")
+
+            # If external SVD basis is specified...
+            if self.external_svd_basis_dir is not None:
+                # Open file for this m, and read U and singular values
+                fe = h5py.File(self._external_svdfile(mi))
+                ext_u = fe["u"][:]
+                ext_sig = fe["sig"][:]
+                # Determine how many modes to cut, based on global and local thresholds
+                global_ext_sv_cut = (ext_sig > self.external_svthreshold_global * self.external_global_max_sv).sum()
+                local_ext_sv_cut = (ext_sig > self.external_svthreshold_local * ext_sig[0]).sum()
+                cut = max(global_ext_sv_cut, local_ext_sv_cut)
+                ext_sig[:cut] = 0.0
 
             # Open file to write SVD results into.
             fs = h5py.File(self._svdfile(mi), "w")
@@ -926,6 +965,10 @@ class BeamTransfer(object):
                 bf = fm["beam_m"][fi][:].reshape(
                     self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
                 )
+
+                # Apply external SVD projection to B matrix by acting
+                # from the left
+                bf = self._project_beam_with_ext_svd(bf, ext_u, ext_sig)
 
                 noisew = self.telescope.noisepower(
                     np.arange(self.telescope.npairs), fi
@@ -1019,11 +1062,18 @@ class BeamTransfer(object):
             fs.close()
             fm.close()
 
+            if self.external_svd_basis_dir is not None:
+                fe.close()
+
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
+
+        # If external SVD basis was used, make marker file to indicate that
+        if mpiutil.rank0:
+            open(self.directory + "/beam_m/EXT_SVD_USED", "a").close()
 
     def _collect_svd_spectrum(self):
         """Gather the SVD spectrum into a single file."""
@@ -1486,6 +1536,36 @@ class BeamTransfer(object):
                 vecf[fi, pi] += np.dot(fbeam, lvec)
 
         return vecf
+
+    def _project_beam_with_ext_svd(self, bf, u, sig):
+        """Project modes from external SVD basis out from beam transfer matrix
+
+        Parameters
+        ----------
+        bfr : np.array
+            Beam transfer matrix at a given m and frequency, packed as
+            [ntel, npol, lmax+1]
+        u : np.array
+            U matrix from external SVD, packed as [nmodes, ntel]
+        sig : np.array
+            Singular values from external SVD, packed as [nmodes]
+
+        Returns
+        -------
+        bfp : np.array
+            Beam transfer matrix with some SVD modes projected out,
+            in original packing
+        """
+
+        bfp = bf.reshape(self.ntel, -1)
+        bfp = np.dot( u, sig[:, np.newaxis] * np.dot(u.T.conj(),bfp) )
+        bfp = bfp.reshape(
+            self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+            )
+        # print("%s" % str(bfr_proj.shape))
+
+        return bfp
+
 
     # ===================================================
 

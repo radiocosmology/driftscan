@@ -211,8 +211,10 @@ class BeamTransfer(object):
     #               times the largest mode on any m
     #  local  ->    Remove modes with singular value higher than external_svthreshold_local
     #               times the largest mode on each m
-    external_svthreshold_global = None
-    external_svthreshold_local = None
+    # Default values are such that no modes are filtered out - user must specify something
+    # for filtering to take place!
+    external_svthreshold_global = 1000.
+    external_svthreshold_local = 1000.
 
     # ====== Properties giving internal filenames =======
 

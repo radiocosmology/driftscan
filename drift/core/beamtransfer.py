@@ -24,7 +24,6 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 import pickle
 import os
 import time
-import logging
 
 import numpy as np
 import scipy.linalg as la
@@ -248,8 +247,6 @@ class BeamTransfer(object):
         self.directory = directory
         self.telescope = telescope
 
-        logging.basicConfig(level=logging.DEBUG, filename='svdfail.log')
-        self.logger = logging.getLogger('beam_transfer')
         # Create directory if required
         if mpiutil.rank0 and not os.path.exists(directory):
             os.makedirs(directory)
@@ -1444,8 +1441,6 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
-        print("temponly", temponly)
-        print("npol", npol)
 
         # if not conj:
         #     raise Exception("Not implemented non conj yet.")

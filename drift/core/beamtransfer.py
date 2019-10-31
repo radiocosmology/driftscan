@@ -897,7 +897,10 @@ class BeamTransfer(object):
                 global_ext_sv_cut = (ext_sig > self.external_svthreshold_global * self.external_global_max_sv).sum()
                 local_ext_sv_cut = (ext_sig > self.external_svthreshold_local * ext_sig[0]).sum()
                 cut = max(global_ext_sv_cut, local_ext_sv_cut)
-                ext_sig[:cut] = 0.0
+                # Define vector of ones with same length as ext_sig, and put zeros
+                # for modes we want to cut
+                Z_ext_vec = np.ones_like(ext_sig)
+                Z_ext_vec[:cut] = 0.0
 
             # Open file to write SVD results into.
             fs = h5py.File(self._svdfile(mi), "w")
@@ -970,7 +973,8 @@ class BeamTransfer(object):
 
                 # Apply external SVD projection to B matrix by acting
                 # from the left
-                bf = self._project_beam_with_ext_svd(bf, ext_u, ext_sig)
+                if self.external_svd_basis_dir is not None:
+                    bf = self._project_beam_with_ext_svd(bf, ext_u, Z_ext_vec)
 
                 noisew = self.telescope.noisepower(
                     np.arange(self.telescope.npairs), fi
@@ -1539,7 +1543,7 @@ class BeamTransfer(object):
 
         return vecf
 
-    def _project_beam_with_ext_svd(self, bf, u, sig):
+    def _project_beam_with_ext_svd(self, bf, u, Z):
         """Project modes from external SVD basis out from beam transfer matrix
 
         Parameters
@@ -1549,8 +1553,9 @@ class BeamTransfer(object):
             [ntel, npol, lmax+1]
         u : np.array
             U matrix from external SVD, packed as [nmodes, ntel]
-        sig : np.array
-            Singular values from external SVD, packed as [nmodes]
+        Z : np.array
+            Vector of zeros and ones, packed as [nmodes], with zeros for modes
+            we want to cut and ones for modes we
 
         Returns
         -------
@@ -1560,11 +1565,13 @@ class BeamTransfer(object):
         """
 
         bfp = bf.reshape(self.ntel, -1)
-        bfp = np.dot( u, sig[:, np.newaxis] * np.dot(u.T.conj(),bfp) )
+        bfp = np.dot( u, Z[:, np.newaxis] * np.dot(u.T.conj(),bfp) )
         bfp = bfp.reshape(
             self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
             )
         # print("%s" % str(bfr_proj.shape))
+        print("%s" % str(np.dot(u, u.T.conj())))
+
 
         return bfp
 

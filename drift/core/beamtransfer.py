@@ -899,7 +899,7 @@ class BeamTransfer(object):
                 cut = max(global_ext_sv_cut, local_ext_sv_cut)
                 # Define vector of ones with same length as ext_sig, and put zeros
                 # for modes we want to cut
-                Z_ext_vec = np.ones_like(ext_sig)
+                Z_ext_vec = np.ones(ext_u.shape[0])
                 Z_ext_vec[:cut] = 0.0
 
             # Open file to write SVD results into.
@@ -1565,13 +1565,10 @@ class BeamTransfer(object):
         """
 
         bfp = bf.reshape(self.ntel, -1)
-        bfp = np.dot( u, Z[:, np.newaxis] * np.dot(u.T.conj(),bfp) )
+        bfp = np.dot( u, np.dot(np.diag(Z), np.dot(u.T.conj(), bfp) ) )
         bfp = bfp.reshape(
             self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
             )
-        # print("%s" % str(bfr_proj.shape))
-        print("%s" % str(np.dot(u, u.T.conj())))
-
 
         return bfp
 

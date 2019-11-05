@@ -1078,7 +1078,7 @@ class BeamTransfer(object):
         self._collect_svd_spectrum()
 
         # If external SVD basis was used, make marker file to indicate that
-        if mpiutil.rank0:
+        if mpiutil.rank0 and self.external_svd_basis_dir is not None:
             open(self.directory + "/beam_m/EXT_SVD_USED", "a").close()
 
     def _collect_svd_spectrum(self):

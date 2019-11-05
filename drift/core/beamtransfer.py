@@ -1552,7 +1552,7 @@ class BeamTransfer(object):
             Beam transfer matrix at a given m and frequency, packed as
             [ntel, npol, lmax+1]
         u : np.array
-            U matrix from external SVD, packed as [nmodes, ntel]
+            U matrix from external SVD, packed as [ntel,nmodes]
         Z : np.array
             Vector of zeros and ones, packed as [nmodes], with zeros for modes
             we want to cut and ones for modes we

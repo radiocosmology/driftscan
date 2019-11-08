@@ -336,7 +336,9 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
 
             # Bin the channels together
             if len(basefreq) % self.channel_bin != 0:
-                raise Exception("Channel binning must exactly divide the total number of channels")
+                raise Exception(
+                    "Channel binning must exactly divide the total number of channels"
+                )
 
             basefreq = basefreq.reshape(-1, self.channel_bin).mean(axis=-1)
 
@@ -346,8 +348,10 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
             self._frequencies = basefreq
 
         else:
-            #self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
-            self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * ((self.freq_upper - self.freq_lower) / self.num_freq)
+            # self._frequencies = np.linspace(self.freq_lower, self.freq_upper, self.num_freq)
+            self._frequencies = self.freq_lower + (np.arange(self.num_freq) + 0.5) * (
+                (self.freq_upper - self.freq_lower) / self.num_freq
+            )
 
     @property
     def wavelengths(self):

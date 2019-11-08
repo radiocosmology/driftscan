@@ -506,8 +506,12 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         fisher_loc, bias_loc = zip(*fisher_bias_list)
 
         # Sum over all local m-modes to get the over all Fisher and bias pe process
-        fisher_loc = np.sum(np.array(fisher_loc), axis=0).real # Be careful of the .real here
-        bias_loc = np.sum(np.array(bias_loc), axis=0).real # Be careful of the .real here
+        fisher_loc = np.sum(
+            np.array(fisher_loc), axis=0
+        ).real  # Be careful of the .real here
+        bias_loc = np.sum(
+            np.array(bias_loc), axis=0
+        ).real  # Be careful of the .real here
 
         self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
         self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)

@@ -116,9 +116,9 @@ def spt():
     return DummyTelescope()
 
 
-def test_polarization_map(spt):
+def test_polarisation_map(spt):
     """Test that the polarization map is ['x','x','x',...,'y','y','y']."""
     expected_pol_map = np.concatenate(
         (np.full(spt.nfeed // 2, "X"), np.full(spt.nfeed // 2, "Y"))
     )
-    assert np.all(spt.polarization == expected_pol_map)
+    assert np.all(spt.polarisation == expected_pol_map)

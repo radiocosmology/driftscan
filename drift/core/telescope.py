@@ -925,16 +925,29 @@ class UnpolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
 class PolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
     """A base for a polarised telescope.
 
-    Again, an abstract class, but the only things that require implementing are
-    the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
+    Again, an abstract class, but the only things that require implementing
+    are the `feedpositions`, `_get_unique` and the `beam` function, as well
+    as the polarization property.
 
     Abstract Methods
     ----------------
-    beamx, beamy : methods
+    beam : methods
         Routines giving the field pattern for the x and y feeds.
     """
 
     _npol_sky_ = 4
+
+    @property
+    def polarisation(self):
+        """
+        Polarisation map.
+
+        Returns
+        -------
+        pol : np.ndarray
+            One-dimensional array of strings describing the polarisation.
+        """
+        raise NotImplementedError("`polarisation` must be implemented.")
 
     def _beam_map_single(self, bl_index, f_index):
 
@@ -1032,13 +1045,14 @@ class SimplePolarisedTelescope(with_metaclass(abc.ABCMeta, PolarisedTelescope)):
     """
 
     @property
-    def polarization(self):
+    def polarisation(self):
         """
-        Polarization map.
+        Polarisation map.
 
         Returns
         -------
-        np.ndarray : One-dimensional array with the polarization for each feed ('x' or 'y').
+        pol : np.ndarray
+            One-dimensional array with the polarization for each feed ('X' or 'Y').
         """
         return np.asarray(
             ["X" if feed % 2 == 0 else "Y" for feed in self.beamclass], dtype=np.str
@@ -1051,7 +1065,7 @@ class SimplePolarisedTelescope(with_metaclass(abc.ABCMeta, PolarisedTelescope)):
         return np.concatenate((np.zeros(nsfeed), np.ones(nsfeed))).astype(np.int)
 
     def beam(self, feed, freq):
-        if self.beamclass[feed] % 2 == 0:
+        if self.polarisation[feed] == "X":
             return self.beamx(feed, freq)
         else:
             return self.beamy(feed, freq)

@@ -351,8 +351,11 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
 
         if self.freq_lower or self.freq_upper:
             import warnings
-            warnings.warn("`freq_lower` and `freq_upper` parameters are deprecated",
-                          DeprecationWarning)
+
+            warnings.warn(
+                "`freq_lower` and `freq_upper` parameters are deprecated",
+                DeprecationWarning,
+            )
             self.freq_start = self.freq_lower
             self.freq_end = self.freq_upper
 

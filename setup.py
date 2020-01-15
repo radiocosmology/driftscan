@@ -25,10 +25,15 @@ setup(
         "healpy>=1.8",
         "h5py",
         "caput>=0.3",
+        "click",
         "cora",
     ],
     package_data=drift_data,
-    scripts=["scripts/drift-makeproducts", "scripts/drift-runpipeline"],
+    entry_points="""
+        [console_scripts]
+        drift-makeproducts=drift.scripts.makeproducts:cli
+        drift-runpipeline=drift.scripts.runpipeline:cli
+    """,
     # metadata for upload to PyPI
     author="J. Richard Shaw",
     author_email="richard@phas.ubc.ca",

@@ -376,7 +376,7 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
         # Rebin frequencies if needed
         if self.channel_bin > 1:
 
-            if nf % self.channel_bin != 0:
+            if self.num_freq % self.channel_bin != 0:
                 raise ValueError(
                     "Channel binning must exactly divide the total number of channels"
                 )

@@ -243,3 +243,6 @@ mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s
 script_templates = {}
 script_templates["pbs"] = pbs_script
 script_templates["slurm"] = slurm_script
+
+if __name__ == '__main__':
+    cli()

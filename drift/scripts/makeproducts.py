@@ -244,5 +244,6 @@ script_templates = {}
 script_templates["pbs"] = pbs_script
 script_templates["slurm"] = slurm_script
 
+# This is needed because the queue script calls this file directly.
 if __name__ == '__main__':
     cli()

@@ -96,15 +96,20 @@ def eigh_gen(A, B):
         except la.LinAlgError as e:
             print("Error occured in eigenvalue solve.")
             # Get error number
-            mo = re.search("order (\\d+)", e.message)
-
+            ### SJF hotfix: e.message appears not to exist, so I swapped it for str(e)
+            mo = re.search("order (\\d+)", str(e))
+            #mo = re.search("order (\\d+)", e.message)
+            
             # If exception unrecognised then re-raise.
             if mo is None:
                 raise e
 
             errno = mo.group(1)
 
-            if errno < (A.shape[0] + 1):
+            ### SJF hotfix: comparison operation doesn't work (errnon is a str),
+            ### so I convert arrno to an int
+            if int(errno) < (A.shape[0] + 1):
+            # if errno < (A.shape[0] + 1):
 
                 print(
                     "Matrix probably not positive definite due to numerical issues. \

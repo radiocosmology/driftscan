@@ -130,8 +130,8 @@ def queue(configfile, submit):
 
     # Set queueing system w. defaults
     cluster_defaults = {
-        "pbs": {"ppn": 8, "mem": "16000M", "account": None, "submit": "qsub",},
-        "slurm": {"ppn": 32, "mem": "0", "account": None, "submit": "sbatch",},
+        "pbs": {"ppn": 8, "mem": "16000M", "account": None, "submit": "qsub"},
+        "slurm": {"ppn": 32, "mem": "0", "account": None, "submit": "sbatch"},
     }
 
     if queue_sys in cluster_defaults:
@@ -245,5 +245,5 @@ script_templates["pbs"] = pbs_script
 script_templates["slurm"] = slurm_script
 
 # This is needed because the queue script calls this file directly.
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

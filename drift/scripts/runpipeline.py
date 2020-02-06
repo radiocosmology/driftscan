@@ -123,6 +123,7 @@ mpirun --mca btl self,sm,tcp -np %(mpiproc)i -npernode %(pernode)i python %(scri
     if submit:
         os.system("cd %s; qsub jobscript.sh" % pbsdir)
 
+
 # This is needed because the queue script calls this file directly.
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

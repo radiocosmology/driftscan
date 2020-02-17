@@ -8,7 +8,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 from future.utils import bytes_to_native_str
 from setuptools import setup, find_packages
 
-import drift
+import versioneer
 
 drift_data = {
     # TODO: Py3 remove this hack needed to work around a setuptools bug
@@ -17,7 +17,8 @@ drift_data = {
 
 setup(
     name="driftscan",
-    version=drift.__version__,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
     install_requires=[
         "numpy>=1.7",

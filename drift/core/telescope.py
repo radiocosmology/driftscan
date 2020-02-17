@@ -411,6 +411,20 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
     # ======== Properties related to the feeds ==========
 
     @property
+    def input_index(self):
+        """Override to add custom labelling of the inputs, e.g. serial numbers.
+
+        This should give an identifier that uniquely labels a correlator input and so
+        can be used to match inputs through subsetting and reordering.
+
+        There are two conventional fields used in the output, either a `chan_id`
+        field for an integer label, or a `correlator_input` for a string labelling
+        (useful for serial number strings). If both are present, `correlator_input`
+        is used.
+        """
+        return np.array(np.arange(self.nfeed), dtype=[("chan_id", "u2")])
+
+    @property
     def nfeed(self):
         """The number of feeds."""
         return self.feedpositions.shape[0]

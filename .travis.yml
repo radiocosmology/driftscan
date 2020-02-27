@@ -4,7 +4,6 @@ sudo: required
 dist: xenial
 
 python:
-    - 2.7
     - 3.7
 addons:
     apt:
@@ -16,8 +15,13 @@ env:
     - CAPUT_SKYFIELD_PATH=/home/travis OMP_NUM_THREADS=1
 
 install:
-    - "pip install future numpy cython pytest"
+    - "pip install -U future numpy cython pytest pydocstyle black"
     - "pip install -r requirements.txt"
     - "pip install -e ."
 script:
+    - black --check .
+
+    # TODO: add the rest of the project to this test
+    - pydocstyle --convention=numpy tests/test_simplepolarizationtelescope.py
+
     - "cd tests/; pytest -svv"

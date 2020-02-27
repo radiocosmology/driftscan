@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 ## An example of how to calculate the KL modes, and Power spectrum fisher matrix for a cylinder
@@ -18,7 +18,9 @@ from drift.core import psmc
 cyl = cylinder.UnpolarisedCylinderTelescope()
 
 # Check to see if there is a SCRATCH directory and use it if possible.
-teldir = ((os.environ['SCRATCH'] if 'SCRATCH' in os.environ else ".") + '/cylinder/voltest')
+teldir = (
+    os.environ["SCRATCH"] if "SCRATCH" in os.environ else "."
+) + "/cylinder/voltest"
 
 # Set the measured frequencies of the telescope
 cyl.num_freq = 10
@@ -33,13 +35,13 @@ cyl.num_feeds = 5
 
 # Set the thermal noise (T_sys flat across spectrum)
 cyl.tsys_flat = 10.0
-#cyl.tsys_flat = 0.0
+# cyl.tsys_flat = 0.0
 cyl.l_boost = 1.2
 
 cyl.auto_correlations = False
 
 cyl.positive_m_only = False
-#cyl.in_cylinder = False
+# cyl.in_cylinder = False
 
 # Generate all the beam transfer functions
 bt = beamtransfer.BeamTransfer(teldir, telescope=cyl)
@@ -53,12 +55,10 @@ klt.use_foregrounds = True
 klt.generate()
 
 # Performing DoubleKL transform
-#dk = doublekl.DoubleKL(bt, subdir="dk1")
-#dk.subset = False
-#dk.generate()
+# dk = doublekl.DoubleKL(bt, subdir="dk1")
+# dk.subset = False
+# dk.generate()
 # Perform the power spectrum estimations
-#ps = psmc.PSMonteCarlo(klt)
-#ps.genbands()
-#ps.fisher_mpi()
-
-
+# ps = psmc.PSMonteCarlo(klt)
+# ps.genbands()
+# ps.fisher_mpi()

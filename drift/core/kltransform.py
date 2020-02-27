@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import time
@@ -23,7 +23,7 @@ from drift.core import skymodel
 
 def collect_m_arrays(mlist, func, shapes, dtype):
 
-    data = [ (mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist) ]
+    data = [(mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist)]
 
     mpiutil.barrier()
 
@@ -32,8 +32,8 @@ def collect_m_arrays(mlist, func, shapes, dtype):
     else:
         p_all = mpiutil.world.gather(data, root=0)
 
-    mpiutil.barrier() # Not sure if this barrier really does anything,
-                      # but hoping to stop collect breaking
+    mpiutil.barrier()  # Not sure if this barrier really does anything,
+    # but hoping to stop collect breaking
 
     marrays = None
     if mpiutil.rank0:
@@ -57,8 +57,6 @@ def collect_m_array(mlist, func, shape, dtype):
     res = collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)
 
     return res[0] if mpiutil.rank0 else None
-
-
 
 
 def eigh_gen(A, B):
@@ -86,7 +84,10 @@ def eigh_gen(A, B):
     add_const = 0.0
 
     if (A == 0).all():
-        evals, evecs = np.zeros(A.shape[0], dtype=A.real.dtype), np.identity(A.shape[0], dtype=A.dtype)
+        evals, evecs = (
+            np.zeros(A.shape[0], dtype=A.real.dtype),
+            np.identity(A.shape[0], dtype=A.dtype),
+        )
 
     else:
 
@@ -95,7 +96,7 @@ def eigh_gen(A, B):
         except la.LinAlgError as e:
             print("Error occured in eigenvalue solve.")
             # Get error number
-            mo = re.search('order (\\d+)', e.message)
+            mo = re.search("order (\\d+)", e.message)
 
             # If exception unrecognised then re-raise.
             if mo is None:
@@ -103,10 +104,12 @@ def eigh_gen(A, B):
 
             errno = mo.group(1)
 
-            if errno < (A.shape[0]+1):
+            if errno < (A.shape[0] + 1):
 
-                print("Matrix probably not positive definite due to numerical issues. \
-                Trying to add a constant diagonal....")
+                print(
+                    "Matrix probably not positive definite due to numerical issues. \
+                Trying to add a constant diagonal...."
+                )
 
                 evb = la.eigvalsh(B)
                 add_const = 1e-15 * evb[-1] - 2.0 * evb[0] + 1e-60
@@ -115,8 +118,12 @@ def eigh_gen(A, B):
                 evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
 
             else:
-                print("Strange convergence issue. Trying non divide and conquer routine.")
-                evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True, turbo=False)
+                print(
+                    "Strange convergence issue. Trying non divide and conquer routine."
+                )
+                evals, evecs = la.eigh(
+                    A, B, overwrite_a=True, overwrite_b=True, turbo=False
+                )
 
     return evals, evecs, add_const
 
@@ -143,7 +150,6 @@ def inv_gen(A):
     return inv
 
 
-
 class KLTransform(config.Reader):
     """Perform KL transform.
 
@@ -162,12 +168,14 @@ class KLTransform(config.Reader):
         size reg * cf.max(). Default is 2e-15
     """
 
-    subset = config.Property(proptype=bool, default=True, key='subset')
-    inverse = config.Property(proptype=bool, default=False, key='inverse')
+    subset = config.Property(proptype=bool, default=True, key="subset")
+    inverse = config.Property(proptype=bool, default=False, key="inverse")
 
-    threshold = config.Property(proptype=float, default=0.1, key='threshold')
+    threshold = config.Property(proptype=float, default=0.1, key="threshold")
 
-    _foreground_regulariser = config.Property(proptype=float, default=1e-14, key='regulariser')
+    _foreground_regulariser = config.Property(
+        proptype=float, default=1e-14, key="regulariser"
+    )
 
     use_thermal = config.Property(proptype=bool, default=True)
     use_foregrounds = config.Property(proptype=bool, default=True)
@@ -185,7 +193,6 @@ class KLTransform(config.Reader):
         # Pattern to form the `m` ordered file.
         return self.evdir + "/ev_m_" + util.natpattern(self.telescope.mmax) + ".hdf5"
 
-
     def __init__(self, bt, subdir=None):
         self.beamtransfer = bt
         self.telescope = self.beamtransfer.telescope
@@ -200,7 +207,6 @@ class KLTransform(config.Reader):
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
-
     def foreground(self):
         """Compute the foreground covariance matrix (on the sky).
 
@@ -214,21 +220,25 @@ class KLTransform(config.Reader):
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3 and npol != 4:
-                raise Exception("Can only handle unpolarised only (num_pol_sky \
-                                 = 1), or I, Q and U (num_pol_sky = 3).")
+                raise Exception(
+                    "Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3)."
+                )
 
             # If not polarised then zero out the polarised components of the array
             if self.use_polarised:
-                self._cvfg = skymodel.foreground_model(self.telescope.lmax,
-                                                       self.telescope.frequencies,
-                                                       npol, pol_length=self.pol_length)
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax,
+                    self.telescope.frequencies,
+                    npol,
+                    pol_length=self.pol_length,
+                )
             else:
-                self._cvfg = skymodel.foreground_model(self.telescope.lmax,
-                                                       self.telescope.frequencies,
-                                                       npol, pol_frac=0.0)
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax, self.telescope.frequencies, npol, pol_frac=0.0
+                )
 
         return self._cvfg
-
 
     def signal(self):
         """Compute the signal covariance matrix (on the sky).
@@ -242,14 +252,16 @@ class KLTransform(config.Reader):
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3 and npol != 4:
-                raise Exception("Can only handle unpolarised only (num_pol_sky \
-                                = 1), or I, Q and U (num_pol_sky = 3).")
+                raise Exception(
+                    "Can only handle unpolarised only (num_pol_sky \
+                                = 1), or I, Q and U (num_pol_sky = 3)."
+                )
 
-            self._cvsg = skymodel.im21cm_model(self.telescope.lmax,
-                                               self.telescope.frequencies, npol)
+            self._cvsg = skymodel.im21cm_model(
+                self.telescope.lmax, self.telescope.frequencies, npol
+            )
 
         return self._cvsg
-
 
     def sn_covariance(self, mi):
         """Compute the signal and noise covariances (on the telescope).
@@ -269,7 +281,9 @@ class KLTransform(config.Reader):
         """
 
         if not (self.use_foregrounds or self.use_thermal):
-            raise Exception("Either `use_thermal` or `use_foregrounds`, or both must be True.")
+            raise Exception(
+                "Either `use_thermal` or `use_foregrounds`, or both must be True."
+            )
 
         # Project the signal and foregrounds from the sky onto the telescope.
         cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
@@ -287,19 +301,19 @@ class KLTransform(config.Reader):
         # noise, so we multiply by a constant to turn Tsys -> 1 mK.
         nc = 1.0
         if not self.use_thermal:
-            nc =  (1e-3 / self.telescope.tsys_flat)**2
+            nc = (1e-3 / self.telescope.tsys_flat) ** 2
 
         # Construct diagonal noise power in telescope basis
         bl = np.arange(self.telescope.npairs)
         bl = np.concatenate((bl, bl))
-        npower = nc * self.telescope.noisepower(bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
+        npower = nc * self.telescope.noisepower(
+            bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]
+        ).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
 
         # Project into SVD basis and add into noise matrix
         cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
 
-
         return cvb_s, cvb_n
-
 
     def _transform_m(self, mi):
         """Perform the KL-transform for a single m.
@@ -324,17 +338,17 @@ class KLTransform(config.Reader):
 
         # Ensure that number of SVD degrees of freedom is non-zero before proceeding
         if nside == 0:
-            return np.array([]), np.array([[]]), np.array([[]]), { 'ac' : 0.0 }
+            return np.array([]), np.array([[]]), np.array([[]]), {"ac": 0.0}
 
         cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
         et = time.time()
-        print("Time =", (et-st))
+        print("Time =", (et - st))
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
         evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
-        et=time.time()
-        print("Time =", (et-st))
+        et = time.time()
+        print("Time =", (et - st))
 
         evecs = evecs.T.conj()
 
@@ -344,11 +358,9 @@ class KLTransform(config.Reader):
             inv = inv_gen(evecs).T
 
         # Construct dictionary of extra parameters to return
-        evextra = {'ac' : ac}
+        evextra = {"ac": ac}
 
         return evals, evecs, inv, evextra
-
-
 
     def transform_save(self, mi):
         """Save the KL-modes for a given m.
@@ -374,17 +386,17 @@ class KLTransform(config.Reader):
 
         # Create file and set some metadata
         print("Creating file %s ...." % (self._evfile % mi))
-        f = h5py.File(self._evfile % mi, 'w')
-        f.attrs['m'] = mi
-        f.attrs['SUBSET'] = self.subset
+        f = h5py.File(self._evfile % mi, "w")
+        f.attrs["m"] = mi
+        f.attrs["SUBSET"] = self.subset
 
         ## If modes have been already truncated (e.g. DoubleKL) then pad out
         ## with zeros at the lower end.
         nside = self.beamtransfer.ndof(mi)
         evalsf = np.zeros(nside, dtype=np.float64)
         if evals.size != 0:
-            evalsf[(-evals.size):] = evals
-        f.create_dataset('evals_full', data=evalsf)
+            evalsf[(-evals.size) :] = evals
+        f.create_dataset("evals_full", data=evalsf)
 
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
@@ -392,18 +404,21 @@ class KLTransform(config.Reader):
 
             evals = evals[i_ev:]
             evecs = evecs[i_ev:]
-            print("Modes with S/N > %f: %i of %i" % (self.threshold, evals.size, evalsf.size))
+            print(
+                "Modes with S/N > %f: %i of %i"
+                % (self.threshold, evals.size, evalsf.size)
+            )
 
         # Write out potentially reduced eigen spectrum.
-        f.create_dataset('evals', data=evals)
-        f.create_dataset('evecs', data=evecs)
-        f.attrs['num_modes'] = evals.size
+        f.create_dataset("evals", data=evals)
+        f.create_dataset("evecs", data=evecs)
+        f.attrs["num_modes"] = evals.size
 
         if self.inverse:
             if self.subset:
                 inv = inv[i_ev:]
 
-            f.create_dataset('evinv', data=inv)
+            f.create_dataset("evinv", data=inv)
 
         # Call hook which allows derived classes to save special information
         # into the EV file.
@@ -413,20 +428,18 @@ class KLTransform(config.Reader):
 
         return evals, evecs
 
-
     def _ev_save_hook(self, f, evextra):
 
-        ac = evextra['ac']
+        ac = evextra["ac"]
 
         # If we had to regularise because the noise spectrum is numerically ill
         # conditioned, write out the constant we added to the diagonal (see
         # eigh_gen).
         if ac != 0.0:
-            f.attrs['add_const'] = ac
-            f.attrs['FLAGS'] = 'NotPositiveDefinite'
+            f.attrs["add_const"] = ac
+            f.attrs["FLAGS"] = "NotPositiveDefinite"
         else:
-            f.attrs['FLAGS'] = 'Normal'
-
+            f.attrs["FLAGS"] = "Normal"
 
     def evals_all(self):
         """Collects the full eigenvalue spectrum for all m-modes.
@@ -439,22 +452,20 @@ class KLTransform(config.Reader):
             The full set of eigenvalues across all m-modes.
         """
 
-        f = h5py.File(self.evdir + "/evals.hdf5", 'r')
-        ev = f['evals'][:]
+        f = h5py.File(self.evdir + "/evals.hdf5", "r")
+        ev = f["evals"][:]
         f.close()
 
         return ev
 
-
     def _collect(self):
-
         def evfunc(mi):
             evf = np.zeros(self.beamtransfer.ndofmax)
 
-            f = h5py.File(self._evfile % mi, 'r')
-            if f['evals_full'].shape[0] > 0:
-                ev = f['evals_full'][:]
-                evf[-ev.size:] = ev
+            f = h5py.File(self._evfile % mi, "r")
+            if f["evals_full"].shape[0] > 0:
+                ev = f["evals_full"][:]
+                evf[-ev.size :] = ev
             f.close()
 
             return evf
@@ -462,8 +473,8 @@ class KLTransform(config.Reader):
         if mpiutil.rank0:
             print("Creating eigenvalues file (process 0 only).")
 
-        mlist = list(range(self.telescope.mmax+1))
-        shape = (self.beamtransfer.ndofmax, )
+        mlist = list(range(self.telescope.mmax + 1))
+        shape = (self.beamtransfer.ndofmax,)
         evarray = collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
@@ -471,10 +482,9 @@ class KLTransform(config.Reader):
                 print("File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5"))
                 return
 
-            f = h5py.File(self.evdir + "/evals.hdf5", 'w')
-            f.create_dataset('evals', data=evarray)
+            f = h5py.File(self.evdir + "/evals.hdf5", "w")
+            f.create_dataset("evals", data=evarray)
             f.close()
-
 
     def generate(self, regen=False):
         """Perform the KL-transform for all m-modes and save the result.
@@ -492,9 +502,12 @@ class KLTransform(config.Reader):
             print("======== Starting KL calculation ========")
 
         # Iterate list over MPI processes.
-        for mi in mpiutil.mpirange(self.telescope.mmax+1):
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._evfile % mi) and not regen:
-                print("m index %i. File: %s exists. Skipping..." % (mi, (self._evfile % mi)))
+                print(
+                    "m index %i. File: %s exists. Skipping..."
+                    % (mi, (self._evfile % mi))
+                )
                 continue
 
             self.transform_save(mi)
@@ -506,11 +519,8 @@ class KLTransform(config.Reader):
             et = time.time()
             print("======== Ending KL calculation (time=%f) ========" % (et - st))
 
-
         # Collect together the eigenvalues
         self._collect()
-
-
 
     olddatafile = False
 
@@ -546,27 +556,30 @@ class KLTransform(config.Reader):
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
         else:
-            f = h5py.File(self._evfile % mi, 'r')
+            f = h5py.File(self._evfile % mi, "r")
 
             # If no modes are in the file, return None, None
-            if f['evals'].shape[0] == 0:
+            if f["evals"].shape[0] == 0:
                 modes = None, None
             else:
                 # Find modes satisfying threshold (if required).
-                evals = f['evals'][:]
-                startind = np.searchsorted(evals, threshold) if threshold is not None else 0
+                evals = f["evals"][:]
+                startind = (
+                    np.searchsorted(evals, threshold) if threshold is not None else 0
+                )
 
                 if startind == evals.size:
                     modes = None, None
                 else:
-                    modes = ( evals[startind:], f['evecs'][startind:] )
+                    modes = (evals[startind:], f["evecs"][startind:])
 
                     # If old data file perform complex conjugate
-                    modes = modes if not self.olddatafile else ( modes[0], modes[1].conj() )
+                    modes = (
+                        modes if not self.olddatafile else (modes[0], modes[1].conj())
+                    )
             f.close()
 
         return modes
-
 
     @util.cache_last
     def evals_m(self, mi, threshold=None):
@@ -600,15 +613,17 @@ class KLTransform(config.Reader):
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
         else:
-            f = h5py.File(self._evfile % mi, 'r')
+            f = h5py.File(self._evfile % mi, "r")
 
             # If no modes are in the file, return None, None
-            if f['evals'].shape[0] == 0:
+            if f["evals"].shape[0] == 0:
                 modes = None
             else:
                 # Find modes satisfying threshold (if required).
-                evals = f['evals'][:]
-                startind = np.searchsorted(evals, threshold) if threshold is not None else 0
+                evals = f["evals"][:]
+                startind = (
+                    np.searchsorted(evals, threshold) if threshold is not None else 0
+                )
 
                 if startind == evals.size:
                     modes = None
@@ -640,9 +655,9 @@ class KLTransform(config.Reader):
 
         evals = self.evals_m(mi, threshold)
 
-        with h5py.File(self._evfile % mi, 'r') as f:
-            if 'evinv' in f:
-                inv = f['evinv'][:]
+        with h5py.File(self._evfile % mi, "r") as f:
+            if "evinv" in f:
+                inv = f["evinv"][:]
 
                 if threshold != None:
                     nevals = evals.size
@@ -653,7 +668,6 @@ class KLTransform(config.Reader):
             else:
                 print("Inverse not cached, generating pseudo-inverse.")
                 return la.pinv(self.modes_m(mi, threshold)[1])
-
 
     @util.cache_last
     def skymodes_m(self, mi, threshold=None):
@@ -702,9 +716,6 @@ class KLTransform(config.Reader):
 
         return evsky
 
-
-
-
     def project_vector_svd_to_kl(self, mi, vec, threshold=None):
         """Project a telescope data vector into the eigenbasis.
 
@@ -733,7 +744,6 @@ class KLTransform(config.Reader):
             raise Exception("Vectors are incompatible.")
 
         return np.dot(evecs, vec)
-
 
     def project_vector_kl_to_svd(self, mi, vec, threshold=None):
         """Project a vector in the Eigenbasis back into the telescope space.
@@ -767,8 +777,6 @@ class KLTransform(config.Reader):
 
         return np.dot(invmodes, vec)
 
-
-
     def project_vector_sky_to_kl(self, mi, vec, threshold=None):
         """Project an m-vector from the sky into the eigenbasis.
 
@@ -791,7 +799,6 @@ class KLTransform(config.Reader):
         tvec = self.beamtransfer.project_vector_sky_to_svd(mi, vec)
 
         return self.project_vector_svd_to_kl(mi, tvec, threshold)
-
 
     def project_matrix_svd_to_kl(self, mi, mat, threshold=None):
         """Project a matrix from the telescope basis into the eigenbasis.
@@ -819,7 +826,6 @@ class KLTransform(config.Reader):
 
         return np.dot(np.dot(evecs, mat), evecs.T.conj())
 
-
     def project_matrix_sky_to_kl(self, mi, mat, threshold=None):
         """Project a covariance matrix from the sky into the eigenbasis.
 
@@ -840,11 +846,9 @@ class KLTransform(config.Reader):
             The matrix projected into the eigenbasis.
         """
 
-
         mproj = self.beamtransfer.project_matrix_sky_to_svd(mi, mat)
 
         return self.project_matrix_svd_to_kl(mi, mproj, threshold)
-
 
     def project_sky_matrix_forward_old(self, mi, mat, threshold=None):
 
@@ -857,7 +861,7 @@ class KLTransform(config.Reader):
         evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
         et = time.time()
 
-        #print "Evsky: %f" % (et-st)
+        # print "Evsky: %f" % (et-st)
 
         st = time.time()
         ev1n = np.transpose(evsky, (2, 3, 0, 1)).copy()
@@ -871,14 +875,11 @@ class KLTransform(config.Reader):
 
         et = time.time()
 
-        #print "Rest: %f" % (et-st)
-
+        # print "Rest: %f" % (et-st)
 
         return matf
 
-
-
-    def project_sky(self, sky, mlist = None, threshold=None, harmonic=False):
+    def project_sky(self, sky, mlist=None, threshold=None, harmonic=False):
 
         # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
@@ -891,12 +892,11 @@ class KLTransform(config.Reader):
         # If sky is alm fine, if not perform spherical harmonic transform.
         alm = sky if harmonic else hputil.sphtrans_sky(sky, lmax=self.telescope.lmax)
 
-
         ## Routine to project sky onto eigenmodes
         def _proj(mi):
             p1 = self.project_sky_vector_forward(mi, alm[:, :, mi], threshold)
             p2 = np.zeros(nmodes, dtype=np.complex128)
-            p2[-p1.size:] = p1
+            p2[-p1.size :] = p1
             return p2
 
         # Map over list of m's and project sky onto eigenbasis
@@ -909,7 +909,9 @@ class KLTransform(config.Reader):
 
         if mpiutil.rank0:
             # Create array to put projections into
-            proj_arr = np.zeros((2*self.telescope.mmax + 1, nmodes), dtype=np.complex128)
+            proj_arr = np.zeros(
+                (2 * self.telescope.mmax + 1, nmodes), dtype=np.complex128
+            )
 
             # Iterate over all gathered projections and insert into the array
             for proc_rank in proj_all:

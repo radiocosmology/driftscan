@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import argparse
@@ -12,14 +12,34 @@ from drift.pipeline import timestream
 
 
 ## Read arguments in.
-parser = argparse.ArgumentParser(description="Create the visibility timeseries corresponding to a map.")
+parser = argparse.ArgumentParser(
+    description="Create the visibility timeseries corresponding to a map."
+)
 parser.add_argument("teldir", help="The telescope directory to use.")
 parser.add_argument("outdir", help="Output directory for timeseries.")
-parser.add_argument("--map", help="Each map argument is a map which contributes to the timeseries.", action='append')
-parser.add_argument("--noise", help="Number of days of co-added data (affects noise amplitude).", metavar='NDAYS', default=None, type=int)
-parser.add_argument("--resolution", help="Approximate time resolution in seconds.", metavar='NSEC', default=0, type=float)
+parser.add_argument(
+    "--map",
+    help="Each map argument is a map which contributes to the timeseries.",
+    action="append",
+)
+parser.add_argument(
+    "--noise",
+    help="Number of days of co-added data (affects noise amplitude).",
+    metavar="NDAYS",
+    default=None,
+    type=int,
+)
+parser.add_argument(
+    "--resolution",
+    help="Approximate time resolution in seconds.",
+    metavar="NSEC",
+    default=0,
+    type=float,
+)
 args = parser.parse_args()
 
 m = manager.ProductManager.from_config(args.teldir)
 
-timestream.simulate(m, args.outdir, args.map, ndays=args.noise, resolution=args.resolution)
+timestream.simulate(
+    m, args.outdir, args.map, ndays=args.noise, resolution=args.resolution
+)

@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import sys
@@ -19,7 +19,6 @@ nside = int(sys.argv[2])
 outfile = sys.argv[3]
 
 
-
 bt = beamtransfer.BeamTransfer(btdir)
 
 cyl = bt.telescope
@@ -30,7 +29,7 @@ print("Making map with T_sys = %f" % cyl.tsys_flat)
 shape = (cyl.nfreq, cyl.nbase)
 ind = np.indices(shape)
 
-noise = np.squeeze(cyl.noisepower(ind[1], ind[0]) / 2.0)**0.5
+noise = np.squeeze(cyl.noisepower(ind[1], ind[0]) / 2.0) ** 0.5
 
 if not cyl.positive_m_only:
     shape = (shape[0], 2, shape[1])
@@ -44,13 +43,16 @@ def noisem(mi):
 
     print("Noise vector %i" % mi)
 
-    vis = (np.random.standard_normal(shape + (2,)) * np.array([1.0, 1.0J])).sum(axis=-1) * noise
+    vis = (np.random.standard_normal(shape + (2,)) * np.array([1.0, 1.0j])).sum(
+        axis=-1
+    ) * noise
     sbinv = bt.project_vector_backward(mi, vis)
 
     return sbinv
 
+
 # Project m-modes across different processes
-mlist = list(range(mmax+1))
+mlist = list(range(mmax + 1))
 mpart = mpiutil.partition_list_mpi(mlist)
 mproj = [[mi, noisem(mi)] for mi in mpart]
 
@@ -62,10 +64,10 @@ p_all = mpiutil.world.gather(mproj, root=0)
 # Save out results
 if mpiutil.rank0:
 
-    nalm = np.zeros((cyl.nfreq, cyl.lmax+1, cyl.lmax+1), dtype=np.complex128)
-    
+    nalm = np.zeros((cyl.nfreq, cyl.lmax + 1, cyl.lmax + 1), dtype=np.complex128)
+
     print("Combining results.")
-    
+
     for p_process in p_all:
 
         for mi, proj in p_process:
@@ -79,9 +81,8 @@ if mpiutil.rank0:
     noise_map = hputil.sphtrans_inv_sky(nalm, nside)
 
     print("Saving file.")
-    f = h5py.File(outfile, 'w')
+    f = h5py.File(outfile, "w")
 
-    f.create_dataset('/map', data=noise_map)
-    
+    f.create_dataset("/map", data=noise_map)
+
     f.close()
-

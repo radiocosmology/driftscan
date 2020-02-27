@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import os.path
@@ -51,7 +51,7 @@ class PipelineManager(config.Reader):
     """
 
     # Directories
-    product_directory = config.Property(proptype=str, default='')
+    product_directory = config.Property(proptype=str, default="")
 
     # Actions to perform
     generate_modes = config.Property(proptype=bool, default=True)
@@ -77,7 +77,6 @@ class PipelineManager(config.Reader):
 
     collect_klmodes = config.Property(proptype=bool, default=True)
 
-
     @classmethod
     def from_configfile(cls, configfile):
 
@@ -86,50 +85,46 @@ class PipelineManager(config.Reader):
 
         return c
 
-
     def load_configfile(self, configfile):
 
-
-        with open(configfile, 'r') as f:
+        with open(configfile, "r") as f:
             yconf = yaml.safe_load(f)
 
         ## Global configuration
         ## Create output directory and copy over params file.
-        if 'config' not in yconf:
-            raise Exception('Configuration file must have an \'config\' section.')
+        if "config" not in yconf:
+            raise Exception("Configuration file must have an 'config' section.")
 
         # Load config in from file.
-        self.read_config(yconf['config'])
+        self.read_config(yconf["config"])
 
         # Load in timestream information
-        if 'timestreams' not in yconf:
-            raise Exception('Configuration file must have an \'timestream\' section.')
+        if "timestreams" not in yconf:
+            raise Exception("Configuration file must have an 'timestream' section.")
 
-        for tsconf in yconf['timestreams']:
+        for tsconf in yconf["timestreams"]:
 
-            name = tsconf['name']
-            tsdir = fixpath(tsconf['directory'])
+            name = tsconf["name"]
+            tsdir = fixpath(tsconf["directory"])
 
             # Load ProductManager and Timestream
             pm = manager.ProductManager.from_config(self.product_directory)
             ts = timestream.Timestream(tsdir, pm)
 
-            if 'output_directory' in tsconf:
-                outdir = fixpath(tsconf['output_directory'])
+            if "output_directory" in tsconf:
+                outdir = fixpath(tsconf["output_directory"])
                 ts.output_directory = outdir
 
             ts.no_m_zero = self.no_m_zero
 
             self.timestreams[name] = ts
 
-            if 'simulate' in tsconf:
-                self.simulations[name] = tsconf['simulate']
+            if "simulate" in tsconf:
+                self.simulations[name] = tsconf["simulate"]
 
-        if 'crosspower' in yconf:
+        if "crosspower" in yconf:
 
-            self.crosspower = [ xp for xp in yconf['crosspower'] ]
-
-
+            self.crosspower = [xp for xp in yconf["crosspower"]]
 
     def simulate(self):
 
@@ -140,11 +135,8 @@ class PipelineManager(config.Reader):
             if os.path.exists(ts._ffile(0)):
                 print("Looks like timestream already exists. Skipping....")
             else:
-                m = manager.ProductManager.from_config(simconf['product_directory'])
+                m = manager.ProductManager.from_config(simconf["product_directory"])
                 timestream.simulate(m, ts.directory, **simconf)
-
-
-
 
     def generate(self):
         """Generate pipeline outputs."""
@@ -170,15 +162,14 @@ class PipelineManager(config.Reader):
                     if self.collect_klmodes:
                         tsobj.collect_mmodes_kl()
 
-
         if self.generate_powerspectra:
 
             for tsname, tsobj in self.timestreams.items():
 
                 for ps in self.powerspectra:
 
-                    psname = ps['psname']
-                    klname = ps['klname']
+                    psname = ps["psname"]
+                    klname = ps["klname"]
 
                     print("Estimating powerspectra (%s:%s)" % (tsname, psname))
 
@@ -187,16 +178,14 @@ class PipelineManager(config.Reader):
 
                     tsobj.powerspectrum()
 
-
-
             for xp in self.crosspower:
 
-                psname = xp['psname']
-                klname = xp['klname']
+                psname = xp["psname"]
+                klname = xp["klname"]
 
                 tslist = []
 
-                for tsname in xp['timestreams']:
+                for tsname in xp["timestreams"]:
 
                     tsobj = self.timestreams[tsname]
 
@@ -205,10 +194,11 @@ class PipelineManager(config.Reader):
 
                     tslist.append(tsobj)
 
-                psfile = os.path.abspath(os.path.expandvars(os.path.expanduser(xp['psfile'])))
+                psfile = os.path.abspath(
+                    os.path.expandvars(os.path.expanduser(xp["psfile"]))
+                )
 
                 timestream.cross_powerspectrum(tslist, psname, psfile)
-
 
         if self.generate_maps:
 
@@ -217,20 +207,15 @@ class PipelineManager(config.Reader):
                 for klname in self.klmaps:
                     print("Generating KL map (%s:%s)" % (tsname, klname))
 
-                    mapfile = 'map_%s.hdf5' % klname
+                    mapfile = "map_%s.hdf5" % klname
 
                     tsobj.set_kltransform(klname)
                     tsobj.mapmake_kl(self.nside, mapfile, wiener=self.wiener)
 
-
-
                 print("Generating SVD map (%s)" % tsname)
-                tsobj.mapmake_svd(self.nside, 'map_svd.hdf5')
+                tsobj.mapmake_svd(self.nside, "map_svd.hdf5")
 
                 print("Generating full map (%s)" % tsname)
-                tsobj.mapmake_full(self.nside, 'map_full.hdf5')
-
-
-
+                tsobj.mapmake_full(self.nside, "map_full.hdf5")
 
     run = generate

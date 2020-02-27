@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -34,9 +34,9 @@ def svd_dm(matrix, full_matrices=True):
     nblocks, n, m = matrix.shape
     dt = matrix.dtype
     k = min(n, m)
-    
+
     sig = np.zeros((nblocks, k), dtype=dt)
-    
+
     if full_matrices:
         u = np.zeros((nblocks, n, n), dtype=dt)
         v = np.zeros((nblocks, m, m), dtype=dt)
@@ -45,12 +45,11 @@ def svd_dm(matrix, full_matrices=True):
         v = np.zeros((nblocks, k, m), dtype=dt)
 
     for ib in range(nblocks):
-        u[ib], sig[ib], v[ib] = scipy.linalg.svd(matrix[ib], full_matrices=full_matrices)
+        u[ib], sig[ib], v[ib] = scipy.linalg.svd(
+            matrix[ib], full_matrices=full_matrices
+        )
 
     return u, sig, v
-
-
-
 
 
 def multiply_dm_v(matrix, vector, conj=False):
@@ -104,11 +103,9 @@ def multiply_dm_dm(matrix1, matrix2):
     nmatrix : (nblocks, n, k) np.ndarray
          An array containing `nblocks` diagonal blocks of size (`n`, `k`).
     """
-   
 
     nblocks, n, m = matrix1.shape
     k = matrix2.shape[2]
-
 
     if matrix2.shape[:2] != (nblocks, m):
         raise Exception("Shapes not compatible.")
@@ -137,7 +134,7 @@ def pinv_dm(matrix, *args, **kwargs):
     pinv_matrix : (nblocks, m, n) np.ndarray
          An array containing the pseudo-inverse.
     """
-    
+
     nblocks, n, m = matrix.shape
 
     pinv_matrix = np.empty((nblocks, m, n), dtype=matrix.dtype)
@@ -146,4 +143,3 @@ def pinv_dm(matrix, *args, **kwargs):
         pinv_matrix[i] = scipy.linalg.pinv(matrix[i], *args, **kwargs)
 
     return pinv_matrix
-

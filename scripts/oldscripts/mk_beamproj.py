@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import os
@@ -43,17 +43,15 @@ nside = 0
 if mpiutil.rank0:
     print("Read in skymap.")
     f = h5py.File(args.mapfile)
-    skymap = f['map'][:]
+    skymap = f["map"][:]
     f.close()
     nside = healpy.npix2nside(skymap[0].size)
 
     alm = hputil.sphtrans_sky(skymap, lmax=cyl.lmax)
 else:
     alm = None
-    
+
 alm = mpiutil.world.bcast(alm, root=0)
-
-
 
 
 def projm(mi):
@@ -66,8 +64,9 @@ def projm(mi):
 
     return [sbdirty, sbinv]
 
+
 # Project m-modes across different processes
-mlist = list(range(mmax+1))
+mlist = list(range(mmax + 1))
 mpart = mpiutil.partition_list_mpi(mlist)
 mproj = [[mi, projm(mi)] for mi in mpart]
 
@@ -98,10 +97,9 @@ if mpiutil.rank0:
     dirty_map = hputil.sphtrans_inv_sky(dalm, nside)
 
     print("Saving file.")
-    f = h5py.File(args.outfile, 'w')
+    f = h5py.File(args.outfile, "w")
 
-    f.create_dataset('/beamproj', data=beamp_map)
-    f.create_dataset('/dirtymap', data=dirty_map)
+    f.create_dataset("/beamproj", data=beamp_map)
+    f.create_dataset("/dirtymap", data=dirty_map)
 
     f.close()
-

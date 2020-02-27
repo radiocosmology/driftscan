@@ -1,9 +1,9 @@
 """Routines for calculating visibilities on the full sky."""
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 
@@ -46,9 +46,9 @@ def horizon(sph_arr, zenith):
         The horizon function (including an angular projection term at
         each position).
     """
-    
+
     proj = coord.sph_dot(sph_arr, zenith)
-    
+
     return np.signbit(-proj)
 
 
@@ -74,7 +74,7 @@ def cylinder_beam(sph_arr, zenith, cylwidth):
     """
     # Construct uhat.
     uhatc, vhatc = uv_plane_cart(zenith)
-    
+
     ## Note sinc function is normalised hence lack of pi
     return np.sinc(np.inner(coord.sph_to_cart(sph_arr), cylwidth * uhatc))
 
@@ -109,7 +109,7 @@ def pol_IQU(sph_arr, zenith, feed1, feed2):
     The co-ordinate system defining the polarisation at each point is
     :math:`(\hat{\theta}, \hat{\phi})`.
     """
-    
+
     # Get theta, phi plane at each point.
     t_hat, p_hat = coord.thetaphi_plane_cart(sph_arr)
 
@@ -124,13 +124,11 @@ def pol_IQU(sph_arr, zenith, feed1, feed2):
     f2_t = np.inner(t_hat, f2c)
     f2_p = np.inner(p_hat, f2c)
 
-    pI = 0.5*(f1_t*f2_t + f1_p*f2_p)  # I
-    pQ = 0.5*(f1_t*f2_t - f1_p*f2_p)  # Q
-    pU = 0.5*(f1_t*f2_p + f1_p*f2_t)  # U
+    pI = 0.5 * (f1_t * f2_t + f1_p * f2_p)  # I
+    pQ = 0.5 * (f1_t * f2_t - f1_p * f2_p)  # Q
+    pU = 0.5 * (f1_t * f2_p + f1_p * f2_t)  # U
 
     return pI, pQ, pU
-
-
 
 
 def fringe(sph_arr, zenith, baseline):
@@ -158,9 +156,7 @@ def fringe(sph_arr, zenith, baseline):
 
     """
     uhatc, vhatc = uv_plane_cart(zenith)
-    
+
     uv = baseline[0] * uhatc + baseline[1] * vhatc
 
-    return np.exp(2j*np.pi* np.inner(coord.sph_to_cart(sph_arr), uv))
-    
-
+    return np.exp(2j * np.pi * np.inner(coord.sph_to_cart(sph_arr), uv))

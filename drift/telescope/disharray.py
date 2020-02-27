@@ -1,8 +1,8 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 import numpy as np
@@ -34,10 +34,10 @@ def beam_circular(angpos, zenith, uv_diameter):
     beam : np.ndarray
         Beam pattern at each position in angpos.
     """
-    
-    x = (1.0 - coord.sph_dot(angpos, zenith)**2)**0.5 * np.pi * uv_diameter
-    
-    return 2*jinc(x)
+
+    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
+
+    return 2 * jinc(x)
 
 
 class DishArray(telescope.TransitTelescope):
@@ -50,7 +50,7 @@ class DishArray(telescope.TransitTelescope):
     dish_width : scalar
         Width of the dish in metres.
     """
-    
+
     dish_width = 3.5
 
     gridu = 4
@@ -60,9 +60,6 @@ class DishArray(telescope.TransitTelescope):
     freq_upper = 1200
     num_freq = 100
 
-
-    
-    
     _bc_freq = None
     _bc_nside = None
 
@@ -92,8 +89,9 @@ class DishArray(telescope.TransitTelescope):
         """
 
         if self._bc_freq != freq or self._bc_nside != self._nside:
-            self._bc_map = beam_circular(self._angpos, self.zenith,
-                                         self.dish_width / self.wavelengths[freq])
+            self._bc_map = beam_circular(
+                self._angpos, self.zenith, self.dish_width / self.wavelengths[freq]
+            )
 
             self._bc_freq = freq
             self._bc_nside = self._nside
@@ -117,12 +115,10 @@ class DishArray(telescope.TransitTelescope):
 
         for i in range(self.gridu):
             for j in range(self.gridv):
-                pos[i,j,0] = i*self.dish_width
-                pos[i,j,1] = j*self.dish_width
-        
-        return pos.reshape((self.gridu*self.gridv, 2))
-            
+                pos[i, j, 0] = i * self.dish_width
+                pos[i, j, 1] = j * self.dish_width
 
+        return pos.reshape((self.gridu * self.gridv, 2))
 
     def _get_unique(self, feedpairs):
         """Calculate the unique baseline pairs.
@@ -148,17 +144,20 @@ class DishArray(telescope.TransitTelescope):
         bl1 = telescope.map_half_plane(bl1)
 
         # Turn separation into a complex number and find unique elements
-        ub, ind, inv = np.unique(bl1[..., 0] + 1.0J * bl1[..., 1], return_index=True, return_inverse=True)
+        ub, ind, inv = np.unique(
+            bl1[..., 0] + 1.0j * bl1[..., 1], return_index=True, return_inverse=True
+        )
 
         # Bin to find redundancy of each pair
         redundancy = np.bincount(inv)
 
         # Construct array of pairs
-        upairs = feedpairs[:,ind]
-        
+        upairs = feedpairs[:, ind]
+
         return upairs, redundancy
 
 
 class UnpolarisedDishArray(CMUTelescope, telescope.UnpolarisedTelescope):
     """Unpolarised dish array class."""
+
     pass

@@ -1,12 +1,13 @@
 # === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+
 # === End Python 2/3 compatibility
 
 
 import numpy as np
+
 
 def regrid_polar(polar_img, r_bins, theta_bins, res=1024):
     """Regrid an (r, theta) quarter plane onto (rx, ry).
@@ -34,14 +35,16 @@ def regrid_polar(polar_img, r_bins, theta_bins, res=1024):
     rpar = ra[:, np.newaxis]
     rperp = ra[np.newaxis, :]
 
-    r = (rpar**2 + rperp**2)**0.5
+    r = (rpar ** 2 + rperp ** 2) ** 0.5
     th = np.arccos(rpar / r)
-    th[0, 0]=0.0
+    th[0, 0] = 0.0
 
     rbin = (np.digitize(r.flatten(), r_bins) - 1).reshape(r.shape)
     tbin = (np.digitize(th.flatten(), theta_bins) - 1).reshape(th.shape)
 
-    ia = np.where(np.logical_and(tbin < (len(theta_bins) - 1), rbin < (len(r_bins) - 1)))
+    ia = np.where(
+        np.logical_and(tbin < (len(theta_bins) - 1), rbin < (len(r_bins) - 1))
+    )
 
     cart_img = np.zeros((res, res), dtype=polar_img.dtype)
     cart_img[:] = np.nan

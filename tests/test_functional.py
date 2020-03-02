@@ -4,6 +4,7 @@ generation."""
 from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+from future.moves.urllib.request import urlretrieve
 
 # === End Python 2/3 compatibility
 
@@ -16,7 +17,6 @@ import sys
 import numpy as np
 import pytest
 import h5py
-
 
 # Ensure we're using the correct package
 _basedir = os.path.realpath(os.path.dirname(__file__))
@@ -97,7 +97,14 @@ def manager(products_run):
 def saved_products(tmpdir_factory):
 
     _base = str(tmpdir_factory.mktemp("saved_products"))
+
     prodfile = os.path.join(_basedir, "drift_testproducts.tar.gz")
+
+    # Download the test products if they don't exist locally
+    if not os.path.exists(prodfile):
+        print("Downloading test verification data.")
+        url = "http://bao.chimenet.ca/testcache/drift_testproducts.tar.gz"
+        urlretrieve(url, prodfile)
 
     with tarfile.open(prodfile, "r:gz") as tf:
         tf.extractall(path=_base)

@@ -99,7 +99,7 @@ tau = np.fft.fftfreq(cyl.nfreq, (cyl.frequencies[1] - cyl.frequencies[0]) * 1e6)
 # bl3 = np.exp(-np.where(bl2 > 0, bl2, 0)**2 / 2.0)
 
 # blmask = bl3
-blmask = np.exp(-(np.arange(50.0) - 25.0) ** 2 / (2 * (3.0 ** 2)))[:, np.newaxis]
+blmask = np.exp(-((np.arange(50.0) - 25.0) ** 2) / (2 * (3.0 ** 2)))[:, np.newaxis]
 
 
 def projm(mi):

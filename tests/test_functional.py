@@ -11,6 +11,7 @@ import shutil
 import os
 import subprocess
 import tarfile
+import sys
 
 import numpy as np
 import pytest
@@ -52,8 +53,14 @@ def products_run(tmpdir_factory):
 
         shutil.copy("testparams.yaml", testdir + "/params.yaml")
 
-        nproc = 2  # Use a fixed number to check that the MPI code works
-        cmd = "mpirun -np %i drift-makeproducts run params.yaml" % nproc
+        cmd = "drift-makeproducts run params.yaml"
+
+        # If we're not on macOS try running under MPI
+        # On macOS this has recently been giving problems when running the MPI
+        # job from within pytest
+        if sys.platform != "darwin":
+            nproc = 2  # Use a fixed number to check that the MPI code works
+            cmd = ("mpirun -np %i " % nproc) + cmd
 
         print("Running test in: %s" % testdir)
         print("Generating products:", cmd)

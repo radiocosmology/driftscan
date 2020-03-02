@@ -1,3 +1,5 @@
+"""Manage access to and generation of driftscan analysis products.
+"""
 # === Start Python 2/3 compatibility
 from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
@@ -36,6 +38,7 @@ teltype_dict = {
     "RestrictedPolarisedCylinder": restrictedcylinder.RestrictedPolarisedCylinder,
     "RestrictedExtra": restrictedcylinder.RestrictedExtra,
     "GradientCylinder": exotic_cylinder.GradientCylinder,
+    "PertCylinder": exotic_cylinder.CylinderPerturbed,
 }
 
 
@@ -82,6 +85,11 @@ def _resolve_class(clstype, clsdict, objtype=""):
 
 
 class ProductManager(object):
+    """Manage access and generation to analysis products.
+
+    This is telescope objects, beam transfer matrices, KL filters and power
+    spectrum estimators.
+    """
 
     directory = None
 
@@ -91,9 +99,24 @@ class ProductManager(object):
     gen_proj = False
 
     skip_svd = False
+    skip_svd_inv = False
 
     @classmethod
     def from_config(cls, configfile):
+        """Create a ProductManager from a config file.
+
+        This will create both the directory specified as the output directory
+        *and* copy the configuration file into it.
+
+        Parameters
+        ----------
+        configfile : string
+            Path to configuration file to load.
+
+        Returns
+        -------
+        m : ProductManager
+        """
 
         configfile = os.path.normpath(
             os.path.expandvars(os.path.expanduser(configfile))
@@ -111,14 +134,15 @@ class ProductManager(object):
 
         outdir = yconf["config"]["output_directory"]
 
+        # Path of directory-local config.yaml file
+        dfile = os.path.join(outdir, "config.yaml")
+
+        ## Create output directory and copy over params file.
         if mpiutil.rank0:
 
             # Create directory if required
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
-
-            # Path of directory-local config.yaml file
-            dfile = os.path.join(outdir, "config.yaml")
 
             # Rewrite config file to make output path absolute (and put in <outdir>/config.yaml)
             if not os.path.exists(dfile) or not os.path.samefile(configfile, dfile):
@@ -143,101 +167,99 @@ class ProductManager(object):
                 with open(dfile, "w+") as f:
                     f.write(config_contents)
 
+        # Need to wait until the dumped file has been created by rank=0
+        mpiutil.barrier()
+
         # Load config into a new class and return
         c = cls()
-        c.load_config(configfile)
+
+        with open(dfile) as f:
+            yconf = yaml.safe_load(f)
+
+        c.apply_config(yconf)
 
         return c
 
-    def load_config(self, configfile):
+    def apply_config(self, yconf):
+        """Apply config from a dictionary.
 
-        with open(configfile) as f:
-            yconf = yaml.safe_load(f)
+        This does not create anything on disk.
+
+        Parameters
+        ----------
+        yconf : dict
+            Dictionary containing the configuration of the Product Manager.
+        """
+
+        # Check for required sections in files
+        if "config" not in yconf:
+            raise ValueError("Configuration file must have an 'config' section.")
+
+        if "telescope" not in yconf:
+            raise ValueError("Configuration file must have an 'telescope' section.")
+
+        # Keep a copy of the config
+        self.config = yconf
 
         ## Global configuration
-        ## Create output directory and copy over params file.
-        if "config" not in yconf:
-            raise Exception("Configuration file must have an 'config' section.")
-
         self.directory = yconf["config"]["output_directory"]
         self.directory = os.path.expanduser(self.directory)
         self.directory = os.path.expandvars(self.directory)
-
-        if not os.path.isabs(self.directory):
-            self.directory = os.path.normpath(
-                os.path.join(
-                    os.path.abspath(os.path.dirname(configfile)), self.directory
-                )
-            )
 
         if mpiutil.rank0:
             print("Product directory:", self.directory)
 
         ## Telescope configuration
-        if "telescope" not in yconf:
-            raise Exception("Configuration file must have an 'telescope' section.")
-
         teltype = yconf["telescope"]["type"]
-
         telclass = _resolve_class(teltype, teltype_dict, "telescope")
-
         self.telescope = telclass.from_config(yconf["telescope"])
 
-        if "reionisation" in yconf["config"]:
-            if yconf["config"]["reionisation"]:
-                skymodel._reionisation = True
+        if yconf["config"].get("reionisation"):
+            skymodel._reionisation = True
 
         ## Beam transfer generation
-        if "nosvd" in yconf["config"] and yconf["config"]["nosvd"]:
-            self.beamtransfer = beamtransfer.BeamTransferNoSVD(
-                self.directory + "/bt/", telescope=self.telescope
-            )
-        else:
-            self.beamtransfer = beamtransfer.BeamTransfer(
-                self.directory + "/bt/", telescope=self.telescope
-            )
 
-        ## Use the full SVD if requested
-        if "fullsvd" in yconf["config"] and yconf["config"]["fullsvd"]:
-            self.beamtransfer = beamtransfer.BeamTransferFullSVD(
-                self.directory + "/bt/", telescope=self.telescope
-            )
-        else:
-            self.beamtransfer = beamtransfer.BeamTransfer(
-                self.directory + "/bt/", telescope=self.telescope
-            )
+        # Decide on type of beam transfers
+        btclass = beamtransfer.BeamTransfer
+        if yconf["config"].get("nosvd"):  # Use no SVD if requested
+            btclass = beamtransfer.BeamTransferNoSVD
+        if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
+            btclass = beamtransfer.BeamTransferFullSVD
 
-        ## Set the singular value cut for the beamtransfers
+        # Create the beam transfer manager
+        self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)
+
+        # Set the singular value cut for the beamtransfers
         if "svcut" in yconf["config"]:
             self.beamtransfer.svcut = float(yconf["config"]["svcut"])
 
-        ## Set the singular value cut for the *polarisation* beamtransfers
+        # Set the singular value cut for the *polarisation* beamtransfers
         if "polsvcut" in yconf["config"]:
             self.beamtransfer.polsvcut = float(yconf["config"]["polsvcut"])
 
-        ## Set the directory holding an externally-defined SVD basis, which
-        ## will have some of its modes projected out of the visibilities
-        ## before the beam transfer SVDs or KL basis are defined
+        # Set the directory holding an externally-defined SVD basis, which
+        # will have some of its modes projected out of the visibilities
+        # before the beam transfer SVDs or KL basis are defined
         if "external_svd_basis_dir" in yconf["config"]:
             self.beamtransfer.external_svd_basis_dir = yconf["config"]["external_svd_basis_dir"]
 
-        ## Set the global and local singular value thresholds for modes defined by
-        ## an external SV
+        # Set the global and local singular value thresholds for modes defined by
+        # an external SV
         if "external_svthreshold_global" in yconf["config"]:
             self.beamtransfer.external_svthreshold_global = float(yconf["config"]["external_svthreshold_global"])
         if "external_svthreshold_local" in yconf["config"]:
             self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
 
-        if yconf["config"]["beamtransfers"]:
+        if yconf["config"].get("beamtransfers"):
             self.gen_beams = True
 
-        if "skip_svd" in yconf["config"] and yconf["config"]["skip_svd"]:
+        if yconf["config"].get("skip_svd"):
             self.skip_svd = True
 
+        ## Configure the KL Transforms
         self.kltransforms = {}
 
         if "kltransform" in yconf:
-
             for klentry in yconf["kltransform"]:
                 kltype = klentry["type"]
                 klname = klentry["name"]
@@ -247,12 +269,13 @@ class ProductManager(object):
                 kl = klclass.from_config(klentry, self.beamtransfer, subdir=klname)
                 self.kltransforms[klname] = kl
 
-        if yconf["config"]["kltransform"]:
+        if yconf["config"].get("kltransform"):
             self.gen_kl = True
 
+        ## Configure the PS estimators
         self.psestimators = {}
 
-        if yconf["config"]["psfisher"]:
+        if yconf["config"].get("psfisher"):
             self.gen_ps = True
 
             if "psfisher" not in yconf:
@@ -279,17 +302,28 @@ class ProductManager(object):
                     )
 
     def generate(self):
+        """Calculate the analysis products.
+        """
 
+        # Create the directory if it does not exist
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+
+        # Dump the config from the internal setup
+        with open(os.path.join(self.directory, "configdump.yaml"), "w") as fh:
+            yaml.dump(self.config, fh)
+
+        # Generate the transfer matrices
         if self.gen_beams:
             self.beamtransfer.generate(skip_svd=self.skip_svd)
 
+        # Generate the KLs
         if self.gen_kl:
-
             for klname, klobj in self.kltransforms.items():
                 klobj.generate()
 
+        # Generate the PS estimators
         if self.gen_ps:
-
             for psname, psobj in self.psestimators.items():
                 psobj.generate()
                 psobj.delbands()

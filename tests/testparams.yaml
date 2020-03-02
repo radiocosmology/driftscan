@@ -1,5 +1,5 @@
 ## This is the configuration file for specifying what analysis products will be generated.
-## There isn't great documentation. Essentially in the code, any class with an attribute 
+## There isn't great documentation. Essentially in the code, any class with an attribute
 ## set as config.Property will attempt to set that attribute from the correct section of
 ## the config file.
 
@@ -16,7 +16,7 @@ config:
     polsvcut:           1.0
 
     ## Cluster configuration (ignored unless on a cluster)
-    ## This section is interpreted by mkjob_simulate.py to work out the job 
+    ## This section is interpreted by mkjob_simulate.py to work out the job
     ## configuration when run on a cluster.
     name:               kljob1                  # PBS jobname
     nodes:              20                      # Number of nodes to run on
@@ -36,8 +36,9 @@ telescope:
 
     # Frequency channels (common to all telescope types)
     num_freq:           8
-    freq_lower:         400.0
-    freq_upper:         450.0
+    freq_start:         400.0
+    freq_end:           450.0
+    freq_mode:          edge
 
     # Setup class specific parameters (in this case defining the cylinder layout)
     num_cylinders:      2

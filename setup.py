@@ -8,7 +8,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 from future.utils import bytes_to_native_str
 from setuptools import setup, find_packages
 
-import drift
+import versioneer
 
 drift_data = {
     # TODO: Py3 remove this hack needed to work around a setuptools bug
@@ -17,7 +17,8 @@ drift_data = {
 
 setup(
     name="driftscan",
-    version=drift.__version__,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
     install_requires=[
         "numpy>=1.7",
@@ -25,10 +26,15 @@ setup(
         "healpy>=1.8",
         "h5py",
         "caput>=0.3",
+        "click",
         "cora",
     ],
     package_data=drift_data,
-    scripts=["scripts/drift-makeproducts", "scripts/drift-runpipeline"],
+    entry_points="""
+        [console_scripts]
+        drift-makeproducts=drift.scripts.makeproducts:cli
+        drift-runpipeline=drift.scripts.runpipeline:cli
+    """,
     # metadata for upload to PyPI
     author="J. Richard Shaw",
     author_email="richard@phas.ubc.ca",

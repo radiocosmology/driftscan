@@ -46,7 +46,10 @@ class DoubleKL(kltransform.KLTransform):
 
         # Construct S and F matrices and regularise foregrounds
         self.use_thermal = False
-        cs, cn = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
+        cs, cn = self.sn_covariance(mi)
+        if self.external_svd_basis_dir is None:
+            cs = cs.reshape(nside, nside)
+            cn = cn.reshape(nside, nside)
 
         # Find joint eigenbasis and transformation matrix
         evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
@@ -61,6 +64,9 @@ class DoubleKL(kltransform.KLTransform):
         # Construct inverse transformation if required
         if self.inverse:
             inv = kltransform.inv_gen(evecs).T
+            # TODO: for external SVD filtering, also need to add elements
+            # to inverse evecs matrix to account for tel-SVD modes that were
+            # omitted
 
         # Construct the foreground removed subset of the space
         evals = evals[ind]
@@ -70,7 +76,10 @@ class DoubleKL(kltransform.KLTransform):
         if evals.size > 0:
             # Generate the full S and N covariances in the truncated basis
             self.use_thermal = True
-            cs, cn = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
+            cs, cn = self.sn_covariance(mi)
+            if self.external_svd_basis_dir is None:
+                cs = cs.reshape(nside, nside)
+                cn = cn.reshape(nside, nside)
             cs = np.dot(evecs, np.dot(cs, evecs.T.conj()))
             cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
 
@@ -82,6 +91,17 @@ class DoubleKL(kltransform.KLTransform):
             if self.inverse:
                 inv2 = kltransform.inv_gen(evecs2)
                 inv = np.dot(inv2, inv)
+                # TODO: for external SVD filtering, also need to add elements
+                # to inverse evecs matrix to account for tel-SVD modes that were
+                # omitted
+
+            # If we've used an external SVD basis, the number of tel-SVD modes
+            # assumed by the KL eigenvectors will not match the true number of tel-SVD
+            # modes. To make the KL eigenvectors compatible with the original tel-SVD
+            # basis, we need to add zero elements to those tel-SVD modes into the
+            # KL vectors.
+            if self.external_svd_basis_dir is not None:
+                evecs = self._reshape_evecs_for_ext_svd(mi, evecs)
 
         return evals, evecs, inv, evextra
 

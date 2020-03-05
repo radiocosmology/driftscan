@@ -12,6 +12,7 @@ import re
 import numpy as np
 import scipy.linalg as la
 import h5py
+from mpi4py import MPI
 
 from caput import config, mpiutil
 
@@ -19,6 +20,8 @@ from cora.util import hputil
 
 from drift.util import util
 from drift.core import skymodel
+
+from draco.analysis.svdfilter import external_svdfile
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):
@@ -99,15 +102,15 @@ def eigh_gen(A, B):
             ### SJF hotfix: e.message appears not to exist, so I swapped it for str(e)
             mo = re.search("order (\\d+)", str(e))
             #mo = re.search("order (\\d+)", e.message)
-            
+
             # If exception unrecognised then re-raise.
             if mo is None:
                 raise e
 
             errno = mo.group(1)
 
-            ### SJF hotfix: comparison operation doesn't work (errnon is a str),
-            ### so I convert arrno to an int
+            ### SJF hotfix: comparison operation doesn't work (errno is a str),
+            ### so I convert errno to an int
             if int(errno) < (A.shape[0] + 1):
             # if errno < (A.shape[0] + 1):
 
@@ -171,6 +174,19 @@ class KLTransform(config.Reader):
     _foreground_regulariser : scalar
         The regularisation constant for the foregrounds. Adds in a diagonal of
         size reg * cf.max(). Default is 2e-15
+    external_svd_basis_dir : string, optional
+        Directory containing files defining external SVD basis (determined
+        directly from measured visibilities, using
+        draco.analysis.svdfilter.SVDFilter). If specified, model covariance
+        matrices are filtered according to thresholds below before KL modes
+        are defined. Default: None.
+    external_sv_threshold_global : float, optional
+        Global external-SVD mode filtering threshold: removes external SVD
+        modes with SV higher than this value times the largest mode at any m.
+        Default: 1000 (i.e. no filtering).
+    external_sv_threshold_local : float, optional
+        As above, but removes modes with SV higher than this value times the
+        largest mode at each m. Default: 1000 (i.e. no filtering).
     """
 
     subset = config.Property(proptype=bool, default=True, key="subset")
@@ -188,6 +204,11 @@ class KLTransform(config.Reader):
 
     pol_length = config.Property(proptype=float, default=None)
 
+    external_svd_basis_dir = config.Property(proptype=str, default=None)
+
+    external_sv_threshold_global = config.Property(proptype=float, default=1000.)
+    external_sv_threshold_local = config.Property(proptype=float, default=1000.)
+
     evdir = ""
 
     _cvfg = None
@@ -197,6 +218,33 @@ class KLTransform(config.Reader):
     def _evfile(self):
         # Pattern to form the `m` ordered file.
         return self.evdir + "/ev_m_" + util.natpattern(self.telescope.mmax) + ".hdf5"
+
+    def _external_svdfile(self, mi):
+        """File containing external SVD basis for a given m.
+        """
+        if self.external_svd_basis_dir is None:
+            raise RuntimeError("Directory containing external SVD basis not specified!")
+        else:
+            return external_svdfile(self.external_svd_basis_dir, mi, self.telescope.mmax)
+
+    def set_external_global_max_sv(self):
+        if self.external_svd_basis_dir is not None:
+            # Loop over all m's to find the maximum singular value
+            max_sv = 0.
+
+            for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+                # Skip this m if SVD basis file doesn't exist.
+                if not os.path.exists(self._external_svdfile(mi)):
+                    continue
+
+                fe = h5py.File(self._external_svdfile(mi), 'r')
+                sig = fe["sig"][:]
+                max_sv = max(sig[0], max_sv)
+                fe.close()
+
+            self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
+            print("Max external SV over all m: %g" % self.external_global_max_sv)
+
 
     def __init__(self, bt, subdir=None):
         self.beamtransfer = bt
@@ -211,6 +259,7 @@ class KLTransform(config.Reader):
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
+
 
     def foreground(self):
         """Compute the foreground covariance matrix (on the sky).
@@ -268,7 +317,7 @@ class KLTransform(config.Reader):
 
         return self._cvsg
 
-    def sn_covariance(self, mi):
+    def sn_covariance(self, mi, do_ext_svd_filtering=True):
         """Compute the signal and noise covariances (on the telescope).
 
         The signal is formed from the 21cm signal, whereas the noise includes
@@ -278,6 +327,10 @@ class KLTransform(config.Reader):
         ----------
         mi : integer
             The m-mode to calculate at.
+        do_ext_svd_filtering : bool, optional
+            Whether to do external-SVD filtering of the covariance matrices.
+            Defaults to True, but filtering will only take place if
+            external_svd_basis_dir attribute has been specified in task.
 
         Returns
         -------
@@ -318,7 +371,93 @@ class KLTransform(config.Reader):
         # Project into SVD basis and add into noise matrix
         cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
 
+        # If external-SVD filtering is desired:
+        if do_ext_svd_filtering and self.external_svd_basis_dir is not None \
+            and os.path.exists(self._external_svdfile(mi)):
+
+            # Open file for this m, and read U and singular values
+            fe = h5py.File(self._external_svdfile(mi), 'r')
+            u = fe["u"][:]
+            sig = fe["sig"][:]
+            fe.close()
+
+            # Determine how many modes to cut, based on global and local thresholds
+            global_ext_sv_cut = (sig > self.external_sv_threshold_global
+                                 * self.external_global_max_sv).sum()
+            local_ext_sv_cut = (sig > self.external_sv_threshold_local * sig[0]).sum()
+            cut = max(global_ext_sv_cut, local_ext_sv_cut)
+
+            # Construct identity matrix with zeros corresponding to cut modes
+            Z_diag = np.ones(u.shape[0])
+            Z_diag[:cut] = 0.0
+            Z = np.diag(Z_diag)
+
+            # Project out unwanted modes from S and N covariances
+            cvb_s = self._project_cov_with_ext_svd(mi, cvb_s, u, Z)
+            cvb_n = self._project_cov_with_ext_svd(mi, cvb_n, u, Z)
+
         return cvb_s, cvb_n
+
+    def _project_cov_with_ext_svd(self, mi, cov, u, Z):
+        """Project external-SVD modes out of a telescope-SVD-basis matrix.
+
+        Note that this changes the shape of the matrix, since the external-SVD
+        acts on fewer telescope-SVD modes than the entire set.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate at.
+        cov : array
+            Matrix to do projection on, assumed to correspond to m-mode mi.
+        u : array
+            U matrix from external SVD, packed as [n_tel_sv,n_ext_sv].
+        Z : array
+            Diagonal matrix of shape [n_ext_sv,n_ext_sv] with ones corresponding
+            to modes that are kept and zeros for modes that are projected out.
+
+        Returns
+        -------
+        cov_new : array
+            Matrix with external SVD modes projected out.
+        """
+
+        svd_num, svd_bounds = self.beamtransfer._svd_num(mi)
+        nfreq = self.telescope.nfreq
+        ntelsvd_per_freq = u.shape[0]
+
+        # The U matrix for the external SVD assumes that each frequency
+        # has the same number of tel-SVD modes, which is not generally true,
+        # so we need to remove rows and columns from C which correspond to
+        # tel-SVD modes that are not used by the external SVD. We do this
+        # by copying C block by block to a new array.
+        cov_new = np.zeros((ntelsvd_per_freq*nfreq, ntelsvd_per_freq*nfreq),
+                            dtype=np.complex128)
+        for fi in range(nfreq):
+            for fj in range(nfreq):
+                cov_new[fi*ntelsvd_per_freq : (fi+1)*ntelsvd_per_freq,
+                        fj*ntelsvd_per_freq : (fj+1)*ntelsvd_per_freq] \
+                    = cov[svd_bounds[fi] : svd_bounds[fi]+ntelsvd_per_freq,
+                          svd_bounds[fj] : svd_bounds[fj]+ntelsvd_per_freq]
+
+        # We then act on each frequency-frequency block of C with
+        # the same projection matrix (U Z U^\dagger)
+        proj = np.dot(u, np.dot(Z, u.T.conj()))
+        for fi in range(nfreq):
+            for fj in range(nfreq):
+                cov_new[fi*ntelsvd_per_freq : (fi+1)*ntelsvd_per_freq,
+                        fj*ntelsvd_per_freq : (fj+1)*ntelsvd_per_freq] \
+                    = np.dot(
+                        proj,
+                        np.dot(
+                            cov_new[fi*ntelsvd_per_freq : (fi+1)*ntelsvd_per_freq,
+                                    fj*ntelsvd_per_freq : (fj+1)*ntelsvd_per_freq],
+                            proj.T.conj()
+                        )
+                    )
+
+        return cov_new
+
 
     def _transform_m(self, mi):
         """Perform the KL-transform for a single m.
@@ -345,15 +484,18 @@ class KLTransform(config.Reader):
         if nside == 0:
             return np.array([]), np.array([[]]), np.array([[]]), {"ac": 0.0}
 
-        cvb_sr, cvb_nr = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
+        cvb_sr, cvb_nr = self.sn_covariance(mi)
+        if self.external_svd_basis_dir is None:
+            cvb_sr = cvb_sr.reshape(nside, nside)
+            cvb_nr = cvb_nr.reshape(nside, nside)
         et = time.time()
-        print("Time =", (et - st))
+        print("Time to generate covariances =\t\t", (et - st))
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
         evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
         et = time.time()
-        print("Time =", (et - st))
+        print("Time to solve generalized EV problem =\t", (et - st))
 
         evecs = evecs.T.conj()
 
@@ -361,11 +503,41 @@ class KLTransform(config.Reader):
         inv = None
         if self.inverse:
             inv = inv_gen(evecs).T
+            # TODO: for external SVD filtering, also need to add elements
+            # to inverse evecs matrix to account for tel-SVD modes that were
+            # omitted
+
+        # If we've used an external SVD basis, the number of tel-SVD modes
+        # assumed by the KL eigenvectors will not match the true number of tel-SVD
+        # modes. To make the KL eigenvectors compatible with the original tel-SVD
+        # basis, we need to add zero elements to those tel-SVD modes into the
+        # KL vectors.
+        if self.external_svd_basis_dir is not None:
+            evecs = self._reshape_evecs_for_ext_svd(mi, evecs)
 
         # Construct dictionary of extra parameters to return
         evextra = {"ac": ac}
 
         return evals, evecs, inv, evextra
+
+    def _reshape_evecs_for_ext_svd(self, mi, evecs):
+        """Reshape matrix of KL eigenvectors to correct shape after ext-SVD projection.
+        """
+        svd_num, svd_bounds = self.beamtransfer._svd_num(mi)
+        nfreq = self.telescope.nfreq
+        nmodes_per_freq_ext = int(evecs.shape[0]/nfreq)
+
+        evecs_new = np.zeros(
+            (evecs.shape[0], self.beamtransfer.ndof(mi)),
+            dtype=np.complex128
+        )
+        for fi in range(nfreq):
+            evecs_new[:, svd_bounds[fi] : svd_bounds[fi]+nmodes_per_freq_ext] \
+                = evecs[:, fi*nmodes_per_freq_ext : (fi+1)*nmodes_per_freq_ext]
+
+        return evecs_new
+
+
 
     def transform_save(self, mi):
         """Save the KL-modes for a given m.
@@ -505,6 +677,9 @@ class KLTransform(config.Reader):
         if mpiutil.rank0:
             st = time.time()
             print("======== Starting KL calculation ========")
+
+        # If external SVD filtering is desired
+        self.set_external_global_max_sv()
 
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):

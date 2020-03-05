@@ -894,6 +894,7 @@ class BeamTransfer(object):
                 fe = h5py.File(self._external_svdfile(mi))
                 ext_u = fe["u"][:]
                 ext_sig = fe["sig"][:]
+                fe.close()
                 # Determine how many modes to cut, based on global and local thresholds
                 global_ext_sv_cut = (ext_sig > self.external_svthreshold_global * self.external_global_max_sv).sum()
                 local_ext_sv_cut = (ext_sig > self.external_svthreshold_local * ext_sig[0]).sum()
@@ -1573,7 +1574,7 @@ class BeamTransfer(object):
         bfp = np.dot( u, np.dot(np.diag(Z), np.dot(u.T.conj(), bfp) ) )
         bfp = bfp.reshape(
             self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
-            )
+        )
 
         return bfp
 

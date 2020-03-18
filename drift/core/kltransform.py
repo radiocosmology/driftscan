@@ -173,7 +173,7 @@ class KLTransform(config.Reader):
         Whether to use instrumental noise/foregrounds (default: both True)
     _foreground_regulariser : scalar
         The regularisation constant for the foregrounds. Adds in a diagonal of
-        size reg * cf.max(). Default is 2e-15
+        size reg * cf.max(). Default is 1e-14
     external_svd_basis_dir : string, optional
         Directory containing files defining external SVD basis (determined
         directly from measured visibilities, using

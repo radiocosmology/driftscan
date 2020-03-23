@@ -174,6 +174,9 @@ class KLTransform(config.Reader):
     _foreground_regulariser : scalar
         The regularisation constant for the foregrounds. Adds in a diagonal of
         size reg * cf.max(). Default is 1e-14
+    do_NoverS : boolean
+        Whether to internally find N/S eigenmodes (if True) or S/N eigenmodes
+        (if False). Default: False.
     external_svd_basis_dir : string, optional
         Directory containing files defining external SVD basis (determined
         directly from measured visibilities, using
@@ -203,6 +206,8 @@ class KLTransform(config.Reader):
     use_polarised = config.Property(proptype=bool, default=True)
 
     pol_length = config.Property(proptype=float, default=None)
+
+    do_NoverS = config.Property(proptype=bool, default=False)
 
     external_svd_basis_dir = config.Property(proptype=str, default=None)
 
@@ -492,8 +497,18 @@ class KLTransform(config.Reader):
         print("Time to generate covariances =\t\t", (et - st))
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
+        # If doing N/S instead of S/N, we only do N/S internally, and then
+        # flip the order of the eigenvalues and invert the values,
+        # and flip the order of the eigenvectors, so that it
+        # matches the ordering in the S/N case.
         st = time.time()
-        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
+        if not self.do_NoverS:
+            evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
+        else:
+            evals, evecs, ac = eigh_gen(cvb_nr, cvb_sr)
+            evals = 1./evals[::-1]
+            evecs = evecs[:, ::-1]
+
         et = time.time()
         print("Time to solve generalized EV problem =\t", (et - st))
 
@@ -515,8 +530,12 @@ class KLTransform(config.Reader):
         if self.external_svd_basis_dir is not None:
             evecs = self._reshape_evecs_for_ext_svd(mi, evecs)
 
-        # Construct dictionary of extra parameters to return
+        # Construct dictionary of extra parameters to return.
+        # Includes regularization constant if KL transform failed on first
+        # attempt, and flag indicating that N/S transform was performed.
         evextra = {"ac": ac}
+        if self.do_NoverS:
+            evextra["NoverS"] = True
 
         return evals, evecs, inv, evextra
 
@@ -617,6 +636,10 @@ class KLTransform(config.Reader):
             f.attrs["FLAGS"] = "NotPositiveDefinite"
         else:
             f.attrs["FLAGS"] = "Normal"
+
+        # If N/S flag exists, write it to file
+        if "NoverS" in evextra.keys():
+            f.attrs["NoverS"] = "True"
 
     def evals_all(self):
         """Collects the full eigenvalue spectrum for all m-modes.

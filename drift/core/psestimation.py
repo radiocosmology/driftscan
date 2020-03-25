@@ -312,6 +312,7 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         elif self.bandtype == "cartesian":
 
+            stb = time.time()
             # Broadcast the bounds against each other to make the 2D array of bands
             kparb, kperpb = np.broadcast_arrays(
                 self.kpar_bands[np.newaxis, :], self.kperp_bands[:, np.newaxis]
@@ -350,11 +351,15 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             self.band_pk = self.band_func
             self.band_power = cr.ps_vv(self.k_center)
 
+        etb = time.time()
+        print("Time to make band functions and power", etb-stb)
+
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
 
             self.make_clzz_array()
 
+        print("Time to make clzz array", time.time() - etb)
         print("Done.")
 
     def make_clzz(self, pk):
@@ -403,8 +408,9 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         self.clarray[:] = 0.0
 
         for bl, bg in self.clarray.enumerate(axis=0):
-            print("Make clzz", bl, bg)
             self.clarray[bl] = self.make_clzz(self.band_pk[bg])
+
+        #self.clarray.to_hdf5(self.psdir + "clzz.hdf5", "clzz/", create=True)
 
     def delbands(self):
         """Delete power spectrum bands to save memory."""
@@ -484,12 +490,13 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         mpiutil.barrier()
 
         # Pre-compute all the angular power spectra for the bands.
-        # MPIArray of clzz basis fcts is now distributed over bands see make_clzz_array
         self.genbands()
 
         comm = MPI.COMM_WORLD
         size = comm.Get_size()
         rank = comm.Get_rank()
+
+        st = time.time()
 
         m_chunks, low_bound, upp_bound = self.split_single(
             (self.telescope.mmax + 1), size
@@ -497,99 +504,103 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         num_chunks = m_chunks.shape[0]
         print("m chunks", m_chunks, low_bound, upp_bound)
 
-        # Create an MPI array for the qa's distributed over bands?
-        num_realisations = 500
+        num_realisations  = 10000
         n = num_realisations
 
         self.qa = mpiarray.MPIArray(
             (self.telescope.mmax + 1, self.nbands, num_realisations),
             axis=1,
-            dtype=np.float64,
             comm=MPI.COMM_WORLD,
+            dtype=np.float64
         )
 
         self.qa[:] = 0.0
 
         # This is designed such that at each iteration one rank gets one m-mode.
         for ci, num_m in enumerate(m_chunks):
-            if ci == 4:
-                break
             if mpiutil.rank0:
-                print("Starting chunk %i of %i" % (ci + 1, num_chunks))
+                print("Starting chunk %i of %i" % (ci, num_chunks))
 
+            # ok I am going to hack this for now as well: set num_m = size if smaller than size.
+            #if num_m < size:
             loc_num, loc_start, loc_end = mpiutil.split_local(num_m)
-            print("local number of m's", loc_num)
-            glob_num, glob_start, glob_end = mpiutil.split_all(num_m)
-
-            # This doesn't work when you have multiple processes on a node... figure out why.
             mi = np.arange(low_bound[ci], upp_bound[ci])[loc_start:loc_end]
-            print("This is mi", mi)
-            print("Processing m-mode %i on rank %i" % (mi, rank))
+            if len(mi) == 0:
+                mi = np.array([low_bound[ci] + rank])
+                print("rank, mi", rank, mi)
+
+            if len(mi) != 0:
+                print("Processing m-mode %i on rank %i" % (mi, rank))
 
             nfreq = self.telescope.nfreq
             lmax = self.telescope.lmax
-
+            stv = time.time()
             if loc_num > 0:
-
                 if self.num_evals(mi) > 0:
-                    # Generate random data
+                    # Generate random KL data
                     x = self.gen_sample(mi, n)
                     vec1, vec2 = self.project_vector_kl_to_sky(mi, x)
-                    # Select temperature part only for q-estimation
                     # Make array contiguous
-                    vec1 = np.ascontiguousarray(vec1[:, 0]).reshape(
-                        loc_num, nfreq, lmax + 1, n
-                    )
-                    vec2 = np.ascontiguousarray(vec2[:, 0]).reshape(
-                        loc_num, nfreq, lmax + 1, n
-                    )
-                    print("vec1.shape in if:", vec1.shape)
-
-                # If I don't have evals at the moment return zero vector
+                    vec1 = np.ascontiguousarray(vec1.reshape(loc_num, nfreq, lmax + 1, n))
+                    vec2 = np.ascontiguousarray(vec2.reshape(loc_num, nfreq, lmax + 1, n))
+                # If I don't have evals - return zero vector
                 else:
-                    vec1 = np.zeros((loc_num, nfreq, lmax + 1, n), dtype=np.complex128)
-                    print("vec1.shape in else", vec1.shape)
+                    vec1 = np.zeros((loc_num, nfreq, lmax + 1, n),
+                                    dtype=np.complex128)
                     vec2 = vec1
 
             else:
-                vec1 = np.zeros((loc_num, nfreq, lmax + 1, n), dtype=np.complex128)
+                vec1 = np.zeros((1, nfreq, lmax + 1, n), dtype=np.complex128)
                 vec2 = vec1
-                print("vec1.shape", vec1.shape)
+            
 
             noise = False
             lside = self.telescope.lmax + 1
+            et = time.time()
+            #print("Time needed for vector projection", et-stv)
+
+            dsize = np.prod(vec1.shape)
 
             for ir in range(size):
-                # for bi, bg in enumerate(range(s,e)):
-                for bi, bg in self.qa.enumerate(axis=1):
-                    print("bi, bg", bi, bg)
-                    for li in range(lside):
-                        lxvec = vec1[:, :, li]
-                        lyvec = vec1[:, :, li]
-                        # This code doesn't work if you have more than 1 process on a node....
-                        # self.qa[mi, bi, :] += np.sum(lyvec.conj() * np.dot(self.clarray[bi][li].astype(np.complex128), lxvec), axis=0).astype(np.float64) # TT only.
-                        self.qa[mi, bi, :] += np.sum(
-                            lyvec.conj()
-                            * np.matmul(
-                                self.clarray[bi][li].astype(np.complex128), lxvec
-                            ),
-                            axis=1,
-                        ).astype(np.float64)
+                st_ir = time.time()
+                # Only fill qa if we haven't reached mmax
+                if mi < (self.telescope.mmax + 1):
+                    for bi, bg in self.qa.enumerate(axis=1):
+                        for li in range(lside):
+                            lxvec = vec1[:, :, li]
+                            lyvec = vec1[:, :, li]
+                            self.qa[mi, bi, :] += np.sum(
+                                lyvec.conj()
+                                * np.matmul(
+                                    self.clarray[bi][li].astype(np.complex128), lxvec
+                                ),
+                                axis=1,
+                            ).astype(np.float64)
 
-                print("Finished calculating qa")
+                etq = time.time()
+                print("Time needed for calculating qa one round", etq-st_ir)
                 # To DO: in loop if noise block
                 # The MPI communications we only have to do (size - 1) times
                 if ir == (size - 1):
                     break
-
-                print("before receive send")
+                    
                 recv_buffer = self.recv_send_data(vec1, axis=-1)
+
                 vec1 = recv_buffer
+
+                # Sent data to (rank + 1) % size, hence local mi must be updated to (mi -1) % size
+                mi = low_bound[ci] + (mi - 1) % size
+
+
+            etallq = time.time()
+            print("Time needed for qa calculation all ranks ", etallq-et)
+
+        em = time.time()
+        print("Time needed for qa calculation all m chunks ", em-et)
+        # self.qa.to_hdf5(self.psdir + "qa.hdf5", "qa/", create=True)
 
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)
-
-        print("qa shape", self.qa.shape)
 
         # Make an array for local fisher an bias
         fisher_loc = np.zeros((self.nbands, self.nbands), dtype=np.float64)
@@ -598,19 +609,106 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         # Calculate fisher for each m
         for ml, mg in self.qa.enumerate(axis=0):
             fisher_m = np.cov(self.qa[ml])
+            #print("Local m, global m, fisher_m[10,10]", ml, mg, fisher_m[10,10])
             bias_m = np.mean(self.qa[ml], axis=1)
             # Sum over all local m-modes to get the over all Fisher and bias per process
             fisher_loc += fisher_m.real  # be careful with the real?!
+            #print("fisher_loc", ml, fisher_loc[10,10])
             bias_loc += bias_m.real
+
+        etf = time.time()
+        #print("Time needed for calculation of fisher for all m ", etf-em)
 
         self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
         self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
 
-        # Write out all the PS estimation products
         if mpiutil.rank0:
             et = time.time()
             print("======== Ending PS calculation (time=%f) ========" % (et - st))
 
+        self.write_fisher_file()
+
+        """
+            # Calculate q_a for noise power (x0^H N x0 = |x0|^2) -> put this in extra function?
+            if noise:
+
+                # If calculating crosspower don't include instrumental noise
+                noisemodes = 0.0 if self.crosspower else 1.0
+                noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
+
+                qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
+        """
+
+    def recv_send_data(self, data, axis):
+
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+
+        shape = data.shape
+        dtype = data.dtype
+
+        recv_rank = (rank - 1) % size
+        send_rank = (rank + 1) % size
+
+        recv_buffer = np.zeros(shape, dtype=dtype)
+
+        # Need to send in 4GB chunks due to some MPI library.
+        message_size = 4 * 2 ** 30.0
+        dsize = np.prod(shape) * 16.0
+        num_messages = int(np.ceil(dsize / message_size))
+        print("number of messages: %i" % num_messages)
+        # If dsize =0.0 you get 0 num_messages and it throws error. hack.
+        if num_messages == 0:
+            num_messages = 1
+
+        num, sm, em = mpiutil.split_m(shape[axis], num_messages)
+
+        for i in range(num_messages):
+            slc = [slice(None)] * len(shape)
+            slc[axis] = slice(sm[i], em[i])
+
+            di = np.ascontiguousarray(data[slc], dtype=dtype)
+            bi = np.zeros(di.shape, dtype=dtype)
+
+            # Initiate non-blocking receive
+            request = comm.Irecv(
+                [bi, MPI.DOUBLE_COMPLEX], source=recv_rank, tag=(i * size) + recv_rank
+            )
+            # Initiate send
+            comm.Send([di, MPI.DOUBLE_COMPLEX], dest=send_rank, tag=(i * size) + rank)
+            # Wait for receive
+            request.Wait()
+
+            # Fill recv buffer with messages
+            recv_buffer[slc] = bi
+
+        return recv_buffer
+
+    def split_single(self, m, size):
+
+        quotient = m // size
+        rem = m % size
+
+        if rem != 0:
+            m_chunks = np.append((size * np.ones(quotient, dtype=int)), rem)
+        else:
+            m_chunks = size * np.ones(quotient, dtype=int)
+
+        bound = np.cumsum(np.insert(m_chunks, 0, 0))
+        ms = m_chunks.shape[0]
+
+        low_bound = bound[:ms]
+        upp_bound = bound[1 : (ms + 1)]
+
+        return m_chunks, low_bound, upp_bound
+
+    # ===================================================
+
+    def write_fisher_file(self):
+        """Write PS estimation products into hdf5 file"""
+        # Write out all the PS estimation products
+        if mpiutil.rank0:
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
                 # Generate derived quantities (covariance, errors..)
@@ -622,7 +720,7 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                 err = cv.diagonal()
                 cr = np.zeros_like(self.fisher)
 
-            f = h5py.File(self.psdir + "/fisher.hdf5", "w")
+            f = h5py.File(self.psdir + "/fisher_carolin_0313.hdf5", "w")
             f.attrs["bandtype"] = np.string_(self.bandtype)  # HDF5 string issues
 
             f.create_dataset("fisher/", data=self.fisher)
@@ -659,81 +757,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                 f.create_dataset("kperp_bands", data=self.kperp_bands)
 
             f.close()
-
-        """
-            # Calculate q_a for noise power (x0^H N x0 = |x0|^2) -> put this in extra function?
-            if noise:
-
-                # If calculating crosspower don't include instrumental noise
-                noisemodes = 0.0 if self.crosspower else 1.0
-                noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
-
-                qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
-        """
-
-    def recv_send_data(self, data, axis):
-
-        comm = MPI.COMM_WORLD
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-
-        shape = data.shape
-        dtype = data.dtype
-
-        recv_rank = (rank - 1) % size
-        send_rank = (rank + 1) % size
-
-        print("This is rank %i receiving from rank %i" % (rank, recv_rank))
-
-        recv_buffer = np.zeros(shape, dtype=dtype)
-
-        # Need to send in 4GB chunks due to some MPI library.
-        message_size = 4 * 2 ** 30.0
-        dsize = np.prod(shape) * 16.0
-        num_messages = int(np.ceil(dsize / message_size))
-        print("number of messages: %i", num_messages)
-        num, sm, em = mpiutil.split_m(shape[axis], num_messages)
-
-        for i in range(num_messages):
-            print("message %i", i)
-            slc = [slice(None)] * len(shape)
-            slc[axis] = slice(sm[i], em[i])
-            print(slc)
-
-            # Initiate non-blocking receive
-            request = comm.Irecv(
-                [recv_buffer[slc], MPI.DOUBLE_COMPLEX], source=recv_rank, tag=send_rank
-            )
-            # Initiate send
-            comm.Send([data[slc], MPI.DOUBLE_COMPLEX], dest=send_rank, tag=rank)
-            # Wait for receive
-            request.Wait()
-            print(
-                "Waiting to receive from source %i with tag %i on rank %i"
-                % (recv_rank, send_rank, rank)
-            )
-
-        return recv_buffer
-
-    def split_single(self, m, size):
-
-        quotient = m // size
-        rem = m % size
-
-        if rem != 0:
-            m_chunks = np.append((size * np.ones(quotient, dtype=int)), rem)
-        else:
-            m_chunks = size * np.ones(quotient, dtype=int)
-
-        bound = np.cumsum(np.insert(m_chunks, 0, 0))
-        ms = m_chunks.shape[0]
-
-        low_bound = bound[:ms]
-        upp_bound = bound[1 : (ms + 1)]
-
-        return m_chunks, low_bound, upp_bound
-
-    # ===================================================
 
     def fisher_file(self):
         """Fetch the h5py file handle for the Fisher matrix.
@@ -772,8 +795,8 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         evals, evecs = self.kltrans.modes_m(mi)
 
-        # if evals is None:
-        #    return np.zeros((self.nbands + 1 if noise else self.nbands,))
+        if evals is None:
+            return np.zeros((0,), dtype=np.complex128), np.zeros((0,), dtype=np.complex128)
 
         # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
         x0 = (vec1.T / (evals + 1.0)).T
@@ -782,10 +805,12 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         x1 = np.dot(evecs.T.conj(), x0)
 
         # Project back into sky basis
-        print("Reading beam transfer matrix for m=%i" % mi)
+        # print("Reading beam transfer matrix for m=%i" % mi)
         x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
             mi, x1, temponly=True, conj=True
         )
+        # Slice array for temponly
+        x2 = x2[:, 0]
 
         if vec2 is not None:
             y0 = (vec2.T / (evals + 1.0)).T
@@ -793,6 +818,9 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
                 mi, x1, temponly=True, conj=True
             )
+            # Slice array for temponly
+            y2 = y2[:, 0]
+
         else:
             y0 = x0
             y2 = x2
@@ -818,26 +846,30 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         """
         sky_vec1, sky_vec2 = self.project_vector_kl_to_sky(mi, vec1, vec2=None)
 
+        if (sky_vec1.shape[0], sky_vec2.shape[0]) == (0, 0):
+            return np.zeros((self.nbands + 1 if noise else self.nbands,))
+
+        # This code only works if noise is False.
+        noise = False
         # Create empty q vector (length depends on if we're calculating the noise term too)
-        qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec1.shape[1:])
+        # qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec1.shape[1:])
+
+        self.qa = mpiarray.MPIArray(
+            (self.telescope.mmax + 1, self.nbands + 1 if noise else self.nbands) + vec1.shape[1:],
+            axis=1,
+            comm=MPI.COMM_WORLD,
+            dtype=np.float64
+        )
 
         lside = self.telescope.lmax + 1
 
-        # Calculate q_a for each band
-        for bi in range(self.nbands):
-
+        for bi, bg in self.qa.enumerate(axis=1):
             for li in range(lside):
-
-                lxvec = sky_vec1[:, 0, li]
-                lyvec = sky_vec2[:, 0, li]
-
-                qa[bi] += np.sum(
-                    lyvec.conj()
-                    * np.dot(self.clarray[bi][li].astype(np.complex128), lxvec),
-                    axis=0,
-                ).astype(
-                    np.float64
-                )  # TT only.
+                lxvec = sky_vec1[:, li]
+                lyvec = sky_vec2[:, li]
+                self.qa[mi, bi, :] += np.sum(lyvec.conj() * np.matmul(
+                                self.clarray[bi][li].astype(np.complex128), lxvec),
+                                axis=1).astype(np.float64)
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:

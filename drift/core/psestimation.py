@@ -516,6 +516,12 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
         self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
 
+        self.write_fisher_file()
+
+    # ===================================================
+
+    def write_fisher_file(self):
+        """Write PS estimation products into hdf5 file"""
         # Write out all the PS estimation products
         if mpiutil.rank0:
             et = time.time()
@@ -570,8 +576,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
             f.close()
 
-    # ===================================================
-
     def fisher_file(self):
         """Fetch the h5py file handle for the Fisher matrix.
 
@@ -591,6 +595,57 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
     # ===================================================
 
     # ====== Estimate the q-parameters from data ========
+
+    def project_vector_kl_to_sky(self, mi, vec1, vec2=None):
+        """
+        Parameters
+        ----------
+        mi : integer
+            M-mode index to fetch for.
+        vec : np.ndarrays
+            The vector(s) of data in the KL-basis packed as [num_kl, num_realisatons]
+
+        Returns
+        -------
+        x2, y2 : np.ndarray
+            The vectors(s) of data in the sky basis packed as [nfreq, lmax+1, num_realisations]
+        """
+
+        evals, evecs = self.kltrans.modes_m(mi)
+
+        if evals is None:
+            return (
+                np.zeros((0,), dtype=np.complex128),
+                np.zeros((0,), dtype=np.complex128),
+            )
+
+        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
+        x0 = (vec1.T / (evals + 1.0)).T
+
+        # Project back into SVD basis
+        x1 = np.dot(evecs.T.conj(), x0)
+
+        # Project back into sky basis
+        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
+            mi, x1, temponly=True, conj=True
+        )
+        # Slice array for temponly
+        x2 = x2[:, 0]
+
+        if vec2 is not None:
+            y0 = (vec2.T / (evals + 1.0)).T
+            y1 = np.dot(evecs.T.conj(), x0)
+            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
+                mi, x1, temponly=True, conj=True
+            )
+            # Slice array for temponly
+            y2 = y2[:, 0]
+
+        else:
+            y0 = x0
+            y2 = x2
+
+        return x2, y2
 
     def q_estimator(self, mi, vec1, vec2=None, noise=False):
         """Estimate the q-parameters from given data (see paper).
@@ -615,25 +670,10 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         evals, evecs = self.kltrans.modes_m(mi)
 
-        if evals is None:
+        x2, y2 = self.project_vector_kl_to_sky(mi, vec1, vec2=None)
+
+        if (x2.shape[0], y2.shape[0]) == (0, 0):
             return np.zeros((self.nbands + 1 if noise else self.nbands,))
-
-        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
-        x0 = (vec1.T / (evals + 1.0)).T
-
-        # Project back into SVD basis
-        x1 = np.dot(evecs.T.conj(), x0)
-
-        # Project back into sky basis
-        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
-
-        if vec2 is not None:
-            y0 = (vec2.T / (evals + 1.0)).T
-            y1 = np.dot(evecs.T.conj(), x0)
-            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
-        else:
-            y0 = x0
-            y2 = x2
 
         # Create empty q vector (length depends on if we're calculating the noise term too)
         qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec1.shape[1:])
@@ -645,8 +685,8 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
             for li in range(lside):
 
-                lxvec = x2[:, 0, li]
-                lyvec = y2[:, 0, li]
+                lxvec = x2[:, li]
+                lyvec = y2[:, li]
 
                 qa[bi] += np.sum(
                     lyvec.conj()

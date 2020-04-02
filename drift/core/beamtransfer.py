@@ -1048,6 +1048,13 @@ class BeamTransfer(object):
 
                     # Save out the evecs (for transforming from the telescope frame into the SVD basis)
                     dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
+                    # If doing ext-SVD projection, include that as first operation
+                    # in tel-SVD projection (prior to noise pre-whitening)
+                    if self.external_svd_basis_dir is not None:
+                        dset_ut[fi, :nmodes] = np.dot(
+                            dset_ut[fi, :nmodes],
+                            self._projection_matrix_from_ext_svd(ext_u, Z_ext_vec)
+                        )
 
                     # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
                     dset_bsvd[fi, :nmodes] = beam.reshape(
@@ -1571,12 +1578,33 @@ class BeamTransfer(object):
         """
 
         bfp = bf.reshape(self.ntel, -1)
-        bfp = np.dot( u, np.dot(np.diag(Z), np.dot(u.T.conj(), bfp) ) )
+        p = self._projection_matrix_from_ext_svd(u, Z)
+        bfp = np.dot(p, bfp)
+        # bfp = np.dot( u, np.dot(np.diag(Z), np.dot(u.T.conj(), bfp) ) )
         bfp = bfp.reshape(
             self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
         )
 
         return bfp
+
+    def _projection_matrix_from_ext_svd(self, u, Z):
+        """Construct projection matrix that gets applied to beam transfer matrix
+
+        Parameters
+        ----------
+        u : np.array
+            U matrix from external SVD, packed as [ntel,nmodes]
+        Z : np.array
+            Vector of zeros and ones, packed as [nmodes], with zeros for modes
+            we want to cut and ones for modes we want to keep
+
+        Returns
+        -------
+        p : np.array
+            Projection matrix that zeros external-SVD modes as specified by Z,
+            packed as [ntel, ntel]
+        """
+        return np.dot(u, np.dot(np.diag(Z), u.T.conj()))
 
 
     # ===================================================

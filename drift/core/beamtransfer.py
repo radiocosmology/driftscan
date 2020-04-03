@@ -177,6 +177,7 @@ class BeamTransfer(object):
     external_svthreshold_global
     external_svthreshold_local
     external_global_max_sv
+    prewhiten_with_ext_svd_projection
 
     Methods
     -------
@@ -215,6 +216,13 @@ class BeamTransfer(object):
     # for filtering to take place!
     external_svthreshold_global = 1000.
     external_svthreshold_local = 1000.
+
+    # If using an external SVD basis, this controls whether the beam transfer
+    # matrices should be prewhitened using a noise matrix that also has the
+    # ext-SVD projection applied. False by default, because doing this is actually
+    # nontrivial, due to the possibility that the noise matrix because
+    # non-positive-definite after ext-SVD projection
+    prewhiten_with_ext_svd_projection = False
 
     # ====== Properties giving internal filenames =======
 
@@ -979,14 +987,53 @@ class BeamTransfer(object):
                 if self.external_svd_basis_dir is not None:
                     bf = self._project_beam_with_ext_svd(bf, ext_u, Z_ext_vec)
 
-                noisew = self.telescope.noisepower(
-                    np.arange(self.telescope.npairs), fi
-                ).flatten() ** (-0.5)
-                noisew = np.concatenate([noisew, noisew])
-                bf = bf * noisew[:, np.newaxis, np.newaxis]
+                # If desired, apply external SVD projection to noise matrix
+                # before pre-whitening B matrix. This involves sandwiching
+                # N between the ext-SVD projection matrix, inverting the
+                # projected N, doing a Cholesky decomposition, and applying the
+                # result to B
+                if self.external_svd_basis_dir is not None \
+                        and self.prewhiten_with_ext_svd_projection:
+                    noise_matrix = self.telescope.noisepower(
+                        np.arange(self.telescope.npairs), fi
+                    ).flatten()
+                    noise_matrix = np.concatenate([noise_matrix, noise_matrix])
+                    noise_matrix = np.diag(noise_matrix)
+                    p = self._projection_matrix_from_ext_svd(ext_u, Z_ext_vec)
+                    noise_matrix = np.dot(p, np.dot(noise_matrix, p.T.conj()))
 
-                # Reshape total beam to a 2D matrix
-                bfr = bf.reshape(self.ntel, -1)
+                    noise_matrix_inv = la.inv(noise_matrix)
+
+                    # This is a bad hack that has not been tested much: if
+                    # Cholesky of projected N^-1 fails, regularize the diagonal
+                    # and try again.
+                    try:
+                        noise_matrix_inv_chol = la.cholesky(noise_matrix_inv).T.conj()
+                    except np.linalg.LinAlgError:
+                        print('Cholesky of inverse noise matrix failed! Regularizing...')
+                        noise_matrix[np.diag_indices_from(noise_matrix)] \
+                            += 1e-5 * noise_matrix.max()
+                        noise_matrix_inv = la.inv(noise_matrix)
+                        noise_matrix_inv_chol = la.cholesky(noise_matrix_inv).T.conj()
+
+                    # noise_matrix_inv_chol = la.cholesky(noise_matrix)
+                    # noise_matrix_inv_chol = la.pinv(noise_matrix_inv_chol)
+
+                    bfr = bf.reshape(self.ntel, -1)
+                    for i in range(bfr.shape[-1]):
+                        bfr[:,i] = np.dot(noise_matrix_inv_chol, bfr[:,i])
+
+                # If not doing ext-SVD on noise matrix before pre-whitening B,
+                # things are much easier
+                else:
+                    noisew = self.telescope.noisepower(
+                        np.arange(self.telescope.npairs), fi
+                    ).flatten() ** (-0.5)
+                    noisew = np.concatenate([noisew, noisew])
+                    bf = bf * noisew[:, np.newaxis, np.newaxis]
+
+                    # Reshape total beam to a 2D matrix
+                    bfr = bf.reshape(self.ntel, -1)
 
                 # If unpolarised skip straight to the final SVD, otherwise
                 # project onto the polarised null space.
@@ -1046,8 +1093,14 @@ class BeamTransfer(object):
                     sig = s3[:nmodes]
                     beam = np.dot(ut3, bfr)
 
-                    # Save out the evecs (for transforming from the telescope frame into the SVD basis)
-                    dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
+                    # Save out the evecs (for transforming from the telescope frame
+                    # into the SVD basis). If ext-SVD is applied to N before
+                    # prewhitening, need to do the same thing here.
+                    if self.external_svd_basis_dir is not None \
+                            and self.prewhiten_with_ext_svd_projection:
+                        dset_ut[fi, :nmodes] = np.dot(ut, noise_matrix_inv_chol)
+                    else:
+                        dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
                     # If doing ext-SVD projection, include that as first operation
                     # in tel-SVD projection (prior to noise pre-whitening)
                     if self.external_svd_basis_dir is not None:

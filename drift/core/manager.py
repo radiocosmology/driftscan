@@ -250,6 +250,10 @@ class ProductManager(object):
         if "external_svthreshold_local" in yconf["config"]:
             self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
 
+        # Set whether to prewhiten beam transfers with ext-SVD projection
+        if "prewhiten_with_ext_svd_projection" in yconf["config"]:
+            self.beamtransfer.prewhiten_with_ext_svd_projection = bool(yconf["config"]["prewhiten_with_ext_svd_projection"])
+
         if yconf["config"].get("beamtransfers"):
             self.gen_beams = True
 

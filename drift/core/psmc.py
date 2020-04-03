@@ -5,11 +5,15 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 
 # === End Python 2/3 compatibility
 
+import os
+import time
+
 import numpy as np
+from mpi4py import MPI
 
 from cora.util import nputil
 
-from caput import mpiutil, config
+from caput import mpiutil, config, mpiarray
 
 from drift.core import psestimation
 
@@ -209,7 +213,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         return fisher, bias
 
 
-class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
+class PSMonteCarloXLarge(PSMonteCarlo):
     """An extension of the PSEstimation class to support estimation of the
     Fisher matrix via Monte-Carlo simulations for very large arrays.
 
@@ -225,7 +229,6 @@ class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
 
     def make_clzz_array(self):
         """Store clarray for power spectrum bands in parallel with MPIArray."""
-
         nbands = self.nbands
         nfreq = self.telescope.nfreq
         lmax = self.telescope.lmax
@@ -250,10 +253,9 @@ class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
         regen : boolean, optional
             Force regeneration if products already exist (default `False`).
         """
-
         if mpiutil.rank0:
             st = time.time()
-            print("======== Starting PS calculation ========")
+            print("======== Starting PS calculation MC XLARGE ========")
 
         ffile = self.psdir + "/fisher.hdf5"
 
@@ -314,7 +316,6 @@ class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
                     vec2 = np.ascontiguousarray(
                         vec2.reshape(loc_num, nfreq, lmax + 1, n)
                     )
-
                 # If I don't have evals - return zero vector
                 else:
                     vec1 = np.zeros((loc_num, nfreq, lmax + 1, n), dtype=np.complex128)
@@ -343,9 +344,6 @@ class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
                 if mi < (self.telescope.mmax + 1):
                     self.q_estimator(mi, vec1, vec2)
 
-                etq = time.time()
-                print("Time needed for calculating qa one round", etq - st_ir)
-
                 # We do the MPI communications only (size - 1) times
                 if ir == (size - 1):
                     break
@@ -361,7 +359,6 @@ class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
 
         em = time.time()
         print("Time needed for qa calculation all m chunks ", em - et)
-
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)
 
@@ -379,6 +376,10 @@ class PSMonteCarloXLarge(psestimation.PSEstimation, PSMonteCarlo):
 
         self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
         self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
+
+        if mpiutil.rank0:
+            et = time.time()
+            print("======== Ending PS calculation (time=%f) ========" % (et - st))
 
         self.write_fisher_file()
 

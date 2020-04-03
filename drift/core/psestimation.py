@@ -516,6 +516,10 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
         self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
 
+        if mpiutil.rank0:
+            et = time.time()
+            print("======== Ending PS calculation (time=%f) ========" % (et - st))
+
         self.write_fisher_file()
 
     # ===================================================
@@ -524,9 +528,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         """Write PS estimation products into hdf5 file"""
         # Write out all the PS estimation products
         if mpiutil.rank0:
-            et = time.time()
-            print("======== Ending PS calculation (time=%f) ========" % (et - st))
-
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
                 # Generate derived quantities (covariance, errors..)

@@ -190,6 +190,9 @@ class KLTransform(config.Reader):
     external_sv_threshold_local : float, optional
         As above, but removes modes with SV higher than this value times the
         largest mode at each m. Default: 1000 (i.e. no filtering).
+    save_cov_traces : bool, optional
+        If True, save traces of signal and noise covariance matrices as
+        metadata. Default: False
     """
 
     subset = config.Property(proptype=bool, default=True, key="subset")
@@ -208,6 +211,7 @@ class KLTransform(config.Reader):
     pol_length = config.Property(proptype=float, default=None)
 
     do_NoverS = config.Property(proptype=bool, default=False)
+    save_cov_traces = config.Property(proptype=bool, default=False)
 
     external_svd_basis_dir = config.Property(proptype=str, default=None)
 
@@ -496,6 +500,12 @@ class KLTransform(config.Reader):
         et = time.time()
         print("Time to generate covariances =\t\t", (et - st))
 
+        # If desired, compute traces of S and N covariances, so we can
+        # save them later
+        if self.save_cov_traces:
+            s_trace = np.trace(cvb_sr)
+            n_trace = np.trace(cvb_nr)
+
         # Perform the generalised eigenvalue problem to get the KL-modes.
         # If doing N/S instead of S/N, we only do N/S internally, and then
         # flip the order of the eigenvalues and invert the values,
@@ -533,9 +543,13 @@ class KLTransform(config.Reader):
         # Construct dictionary of extra parameters to return.
         # Includes regularization constant if KL transform failed on first
         # attempt, and flag indicating that N/S transform was performed.
+        # Also includes traces of covariance matrices if desired.
         evextra = {"ac": ac}
         if self.do_NoverS:
             evextra["NoverS"] = True
+        if self.save_cov_traces:
+            evextra["Strace"] = s_trace
+            evextra["Ntrace"] = n_trace
 
         return evals, evecs, inv, evextra
 
@@ -640,6 +654,12 @@ class KLTransform(config.Reader):
         # If N/S flag exists, write it to file
         if "NoverS" in evextra.keys():
             f.attrs["NoverS"] = "True"
+
+        # If desired, save traces of covariances
+        if "Strace" in evextra.keys():
+            f.attrs["Strace"] = evextra["Strace"]
+        if "Ntrace" in evextra.keys():
+            f.attrs["Ntrace"] = evextra["Ntrace"]
 
     def evals_all(self):
         """Collects the full eigenvalue spectrum for all m-modes.

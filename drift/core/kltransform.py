@@ -192,7 +192,7 @@ class KLTransform(config.Reader):
         largest mode at each m. Default: 1000 (i.e. no filtering).
     save_cov_traces : bool, optional
         If True, save traces of signal and noise covariance matrices as
-        metadata. Default: False
+        metadata. Default: True
     """
 
     subset = config.Property(proptype=bool, default=True, key="subset")
@@ -211,7 +211,7 @@ class KLTransform(config.Reader):
     pol_length = config.Property(proptype=float, default=None)
 
     do_NoverS = config.Property(proptype=bool, default=False)
-    save_cov_traces = config.Property(proptype=bool, default=False)
+    save_cov_traces = config.Property(proptype=bool, default=True)
 
     external_svd_basis_dir = config.Property(proptype=str, default=None)
 

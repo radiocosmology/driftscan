@@ -243,12 +243,14 @@ class ProductManager(object):
         if "external_svd_basis_dir" in yconf["config"]:
             self.beamtransfer.external_svd_basis_dir = yconf["config"]["external_svd_basis_dir"]
 
-        # Set the global and local singular value thresholds for modes defined by
-        # an external SV
+        # Set the global and local singular value thresholds, or simple
+        # cut on number of modes, for modes defined by an external SV
         if "external_svthreshold_global" in yconf["config"]:
             self.beamtransfer.external_svthreshold_global = float(yconf["config"]["external_svthreshold_global"])
         if "external_svthreshold_local" in yconf["config"]:
             self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
+        if "external_sv_mode_cut" in yconf["config"]:
+            self.beamtransfer.external_sv_mode_cut = float(yconf["config"]["external_sv_mode_cut"])
 
         # Set whether to prewhiten beam transfers with ext-SVD projection
         if "prewhiten_with_ext_svd_projection" in yconf["config"]:

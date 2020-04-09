@@ -176,6 +176,7 @@ class BeamTransfer(object):
     external_svd_basis_dir
     external_svthreshold_global
     external_svthreshold_local
+    external_sv_mode_cut
     external_global_max_sv
     prewhiten_with_ext_svd_projection
 
@@ -216,6 +217,7 @@ class BeamTransfer(object):
     # for filtering to take place!
     external_svthreshold_global = 1000.
     external_svthreshold_local = 1000.
+    external_sv_mode_cut = None
 
     # If using an external SVD basis, this controls whether the beam transfer
     # matrices should be prewhitened using a noise matrix that also has the
@@ -907,6 +909,8 @@ class BeamTransfer(object):
                 global_ext_sv_cut = (ext_sig > self.external_svthreshold_global * self.external_global_max_sv).sum()
                 local_ext_sv_cut = (ext_sig > self.external_svthreshold_local * ext_sig[0]).sum()
                 cut = max(global_ext_sv_cut, local_ext_sv_cut)
+                if self.external_sv_mode_cut is not None:
+                    cut = self.external_sv_mode_cut
                 # Define vector of ones with same length as ext_sig, and put zeros
                 # for modes we want to cut
                 Z_ext_vec = np.ones(ext_u.shape[0])

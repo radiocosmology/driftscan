@@ -190,6 +190,9 @@ class KLTransform(config.Reader):
     external_sv_threshold_local : float, optional
         As above, but removes modes with SV higher than this value times the
         largest mode at each m. Default: 1000 (i.e. no filtering).
+    external_sv_mode_cut : int, optional
+        If specified, supercede local and global thresholds, and just remove
+        the first external_sv_mode_cut modes at each m. Default: None
     save_cov_traces : bool, optional
         If True, save traces of signal and noise covariance matrices as
         metadata. Default: True
@@ -217,6 +220,7 @@ class KLTransform(config.Reader):
 
     external_sv_threshold_global = config.Property(proptype=float, default=1000.)
     external_sv_threshold_local = config.Property(proptype=float, default=1000.)
+    external_sv_mode_cut = config.Property(proptype=int, default=None)
 
     evdir = ""
 
@@ -395,6 +399,8 @@ class KLTransform(config.Reader):
                                  * self.external_global_max_sv).sum()
             local_ext_sv_cut = (sig > self.external_sv_threshold_local * sig[0]).sum()
             cut = max(global_ext_sv_cut, local_ext_sv_cut)
+            if self.external_sv_mode_cut is not None:
+                cut = self.external_sv_mode_cut
 
             # Construct identity matrix with zeros corresponding to cut modes
             Z_diag = np.ones(u.shape[0])

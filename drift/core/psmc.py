@@ -286,6 +286,15 @@ class PSMonteCarloXLarge(PSMonteCarlo):
 
         n = self.nsamples
 
+        self.qa = mpiarray.MPIArray(
+            (self.telescope.mmax + 1, self.nbands, n),
+            axis=1,
+            comm=MPI.COMM_WORLD,
+            dtype=np.float64,
+        )
+
+        self.qa[:] = 0.0
+
         # This is designed such that at each iteration one rank gets one m-mode.
         for ci, num_m in enumerate(m_chunks):
             if mpiutil.rank0:
@@ -295,15 +304,16 @@ class PSMonteCarloXLarge(PSMonteCarlo):
             mi = np.arange(low_bound[ci], upp_bound[ci])[loc_start:loc_end]
 
             # At last iteration of m's, it is necessary to assign m's to remaining ranks otherwise the MPI communication crashes.
-            if len(mi) != 0:
-                print("Processing m-mode %i on rank %i" % (mi, rank))
-
             if len(mi) == 0:
                 mi = np.array([low_bound[ci] + rank])
+
+            if len(mi) != 0:
+                print("Processing m-mode %i on rank %i" % (mi, rank))
 
             nfreq = self.telescope.nfreq
             lmax = self.telescope.lmax
 
+            # TO DO: can maybe dump the extra dimension loc num
             if loc_num > 0:
                 if self.num_evals(mi) > 0:
                     # Generate random KL data
@@ -325,24 +335,14 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                 vec1 = np.zeros((1, nfreq, lmax + 1, n), dtype=np.complex128)
                 vec2 = vec1
 
-            self.qa = mpiarray.MPIArray(
-                (self.telescope.mmax + 1, self.nbands, n),
-                axis=1,
-                comm=MPI.COMM_WORLD,
-                dtype=np.float64,
-            )
-
-            self.qa[:] = 0.0
-
             et = time.time()
 
             dsize = np.prod(vec1.shape)
 
             for ir in range(size):
-                st_ir = time.time()
                 # Only fill qa if we haven't reached mmax
                 if mi < (self.telescope.mmax + 1):
-                    self.q_estimator(mi, vec1, vec2)
+                    self.q_estimator(mi, vec1[0])
 
                 # We do the MPI communications only (size - 1) times
                 if ir == (size - 1):
@@ -355,10 +355,10 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                 mi = low_bound[ci] + (mi - 1) % size
 
             etallq = time.time()
-            print("Time needed for qa calculation all ranks ", etallq - et)
+            print("Time needed for quadratic estimation on all ranks for this m-chunk", etallq - et)
 
-        em = time.time()
-        print("Time needed for qa calculation all m chunks ", em - et)
+        et_allm = time.time()
+        print("Time needed for quadratic estimation on all ranks for all m-chunks ", et_allm - et)
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)
 
@@ -383,19 +383,28 @@ class PSMonteCarloXLarge(PSMonteCarlo):
 
         self.write_fisher_file()
 
-    def q_estimator(self, mi, vec1, vec2, noise=False):
+    def q_estimator(self, mi, vec1, vec2 = None, noise=False):
         """Calculate the quadratic estimator for this mi with data vec1 and vec2"""
-        lside = self.telescope.lmax + 1
 
-        for bi, bg in self.qa.enumerate(axis=1):
-            for li in range(lside):
-                lxvec = vec1[:, :, li]
-                lyvec = vec2[:, :, li]
-                self.qa[mi, bi, :] += np.sum(
-                    lyvec.conj()
-                    * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec),
-                    axis=1,
-                ).astype(np.float64)
+        # if data vector is filled with zeros, return q = 0.0
+        if np.sum(vec1) == 0:
+            self.qa[:] = 0.0
+
+        # if data vector is empty, return q = 0.0
+        if (vec1.shape[0], vec2.shape[0]) == (0, 0):
+            self.qa[:] = 0.0
+
+        else:
+            lside = self.telescope.lmax + 1
+            for bi, bg in self.qa.enumerate(axis=1):
+                for li in range(lside):
+                    lxvec = vec1[:, li]
+                    lyvec = vec2[:, li]
+                    self.qa[mi, bi] += np.sum(
+                        lyvec.conj()
+                        * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec),
+                        axis=0,
+                        ).astype(np.float64)
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
@@ -404,7 +413,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
             evals, evecs = self.kltrans.modes_m(mi)
             noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
 
-            qa.global_slice[mi, -1] = np.sum(
+            self.qa.global_slice[mi, -1] = np.sum(
                 (vec1 * vec2.conj()).T.real * noisemodes, axis=-1
             )
 

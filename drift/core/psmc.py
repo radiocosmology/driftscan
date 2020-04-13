@@ -355,10 +355,16 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                 mi = low_bound[ci] + (mi - 1) % size
 
             etallq = time.time()
-            print("Time needed for quadratic estimation on all ranks for this m-chunk", etallq - et)
+            print(
+                "Time needed for quadratic estimation on all ranks for this m-chunk",
+                etallq - et,
+            )
 
         et_allm = time.time()
-        print("Time needed for quadratic estimation on all ranks for all m-chunks ", et_allm - et)
+        print(
+            "Time needed for quadratic estimation on all ranks for all m-chunks ",
+            et_allm - et,
+        )
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)
 
@@ -383,7 +389,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
 
         self.write_fisher_file()
 
-    def q_estimator(self, mi, vec1, vec2 = None, noise=False):
+    def q_estimator(self, mi, vec1, vec2=None, noise=False):
         """Calculate the quadratic estimator for this mi with data vec1 and vec2"""
 
         # if data vector is filled with zeros, return q = 0.0
@@ -404,7 +410,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                         lyvec.conj()
                         * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec),
                         axis=0,
-                        ).astype(np.float64)
+                    ).astype(np.float64)
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:

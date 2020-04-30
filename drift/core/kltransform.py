@@ -193,6 +193,10 @@ class KLTransform(config.Reader):
     external_sv_mode_cut : int, optional
         If specified, supercede local and global thresholds, and just remove
         the first external_sv_mode_cut modes at each m. Default: None
+    use_external_sv_freq_modes : bool, optional
+        If True, use ext-SVD modes defined as combinations of frequencies. If
+        False, use modes defined as combinations of baselines or tel-SVD
+        modes. Default: False
     save_cov_traces : bool, optional
         If True, save traces of signal and noise covariance matrices as
         metadata. Default: True
@@ -221,6 +225,7 @@ class KLTransform(config.Reader):
     external_sv_threshold_global = config.Property(proptype=float, default=1000.)
     external_sv_threshold_local = config.Property(proptype=float, default=1000.)
     external_sv_mode_cut = config.Property(proptype=int, default=None)
+    use_external_sv_freq_modes = config.Property(proptype=bool, default=False)
 
     evdir = ""
 
@@ -256,7 +261,7 @@ class KLTransform(config.Reader):
                 fe.close()
 
             self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
-            print("Max external SV over all m: %g" % self.external_global_max_sv)
+            # print("Max external SV over all m: %g" % self.external_global_max_sv)
 
 
     def __init__(self, bt, subdir=None):
@@ -392,6 +397,7 @@ class KLTransform(config.Reader):
             fe = h5py.File(self._external_svdfile(mi), 'r')
             u = fe["u"][:]
             sig = fe["sig"][:]
+            vh = fe["vh"][:]
             fe.close()
 
             # Determine how many modes to cut, based on global and local thresholds
@@ -402,19 +408,27 @@ class KLTransform(config.Reader):
             if self.external_sv_mode_cut is not None:
                 cut = self.external_sv_mode_cut
 
-            # Construct identity matrix with zeros corresponding to cut modes
-            Z_diag = np.ones(u.shape[0])
-            Z_diag[:cut] = 0.0
-            Z = np.diag(Z_diag)
+            # Construct identity matrix with zeros corresponding to cut modes,
+            # and project out unwanted modes from S and N covariances
+            if not self.use_external_sv_freq_modes:
+                Z_diag = np.ones(u.shape[1])
+                Z_diag[:cut] = 0.0
+                Z = np.diag(Z_diag)
 
-            # Project out unwanted modes from S and N covariances
-            cvb_s = self._project_cov_with_ext_svd(mi, cvb_s, u, Z)
-            cvb_n = self._project_cov_with_ext_svd(mi, cvb_n, u, Z)
+                cvb_s = self._project_cov_with_ext_svd_U(mi, cvb_s, u, Z)
+                cvb_n = self._project_cov_with_ext_svd_U(mi, cvb_n, u, Z)
+            else:
+                Z_diag = np.ones(vh.shape[0])
+                Z_diag[:cut] = 0.0
+                Z = np.diag(Z_diag)
+
+                cvb_s = self._project_cov_with_ext_svd_V(mi, cvb_s, u.shape[0], vh, Z)
+                cvb_n = self._project_cov_with_ext_svd_V(mi, cvb_n, u.shape[0], vh, Z)
 
         return cvb_s, cvb_n
 
-    def _project_cov_with_ext_svd(self, mi, cov, u, Z):
-        """Project external-SVD modes out of a telescope-SVD-basis matrix.
+    def _project_cov_with_ext_svd_U(self, mi, cov, u, Z):
+        """Project external-SVD U modes out of a telescope-SVD-basis matrix.
 
         Note that this changes the shape of the matrix, since the external-SVD
         acts on fewer telescope-SVD modes than the entire set.
@@ -470,6 +484,65 @@ class KLTransform(config.Reader):
                             proj.T.conj()
                         )
                     )
+
+        return cov_new
+
+
+    def _project_cov_with_ext_svd_V(self, mi, cov, ntelsvd_per_freq, vh, Z):
+        """Project external-SVD V modes out of a telescope-SVD-basis matrix.
+
+        Note that this changes the shape of the matrix, since the external-SVD
+        acts on fewer telescope-SVD modes than the entire set.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate at.
+        cov : array
+            Matrix to do projection on, assumed to correspond to m-mode mi.
+        ntelsvd_per_freq : int
+            Number of tel-SVD modes per frequency, used for ext-SVD decomposition.
+        vh : array
+            V^dagger matrix from external SVD, packed as [n_ext_sv,n_freq].
+        Z : array
+            Diagonal matrix of shape [n_ext_sv,n_ext_sv] with ones corresponding
+            to modes that are kept and zeros for modes that are projected out.
+
+        Returns
+        -------
+        cov_new : array
+            Matrix with external SVD modes projected out.
+        """
+
+        svd_num, svd_bounds = self.beamtransfer._svd_num(mi)
+        nfreq = self.telescope.nfreq
+
+        # The V matrix for the external SVD assumes that each frequency
+        # has the same number of tel-SVD modes, which is not generally true,
+        # so we need to remove rows and columns from C which correspond to
+        # tel-SVD modes that are not used by the external SVD. We do this
+        # by copying C block by block to a new array.
+        cov_new = np.zeros((ntelsvd_per_freq*nfreq, ntelsvd_per_freq*nfreq),
+                            dtype=np.complex128)
+        for fi in range(nfreq):
+            for fj in range(nfreq):
+                cov_new[fi*ntelsvd_per_freq : (fi+1)*ntelsvd_per_freq,
+                        fj*ntelsvd_per_freq : (fj+1)*ntelsvd_per_freq] \
+                    = cov[svd_bounds[fi] : svd_bounds[fi]+ntelsvd_per_freq,
+                          svd_bounds[fj] : svd_bounds[fj]+ntelsvd_per_freq]
+
+        # cov_new is now composed of frequency-frequency blocks, with
+        # tel-SVD modes enumerated within each block. To filter out the
+        # relevant ext-SVD modes, we first form the projection matrix
+        # V Z V^\dagger. We then select the freq-freq submatrix for
+        # each tel-SVD modes, and apply this projection matrix.
+        proj = np.dot(vh.T.conj(), np.dot(Z, vh))
+        for ti in range(ntelsvd_per_freq):
+            for tj in range(ntelsvd_per_freq):
+                cov_new[ti::ntelsvd_per_freq, tj::ntelsvd_per_freq] = np.dot(
+                    proj.T.conj(),
+                    np.dot(cov_new[ti::ntelsvd_per_freq, tj::ntelsvd_per_freq], proj)
+                )
 
         return cov_new
 

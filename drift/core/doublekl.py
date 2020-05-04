@@ -26,9 +26,13 @@ class DoubleKL(kltransform.KLTransform):
     foreground_threshold : scalar
         Ratio of S/F power below which we throw away modes as being foreground
         contaminated.
+    foreground_mode_cut : int, optional
+        If specified, overrides foreground_threshold and simply cuts the N modes
+        with highest F/S ratio, where N=foreground_mode_cut. Default: None
     """
 
     foreground_threshold = config.Property(proptype=float, default=100.0)
+    foreground_mode_cut = config.Property(proptype=int, default=None)
 
     def _transform_m(self, mi):
 
@@ -81,7 +85,8 @@ class DoubleKL(kltransform.KLTransform):
         # Get the indices that extract the high-S/F ratio modes,
         # as low-F/S ratio modes
         ind = np.where(1/evals < 1/self.foreground_threshold)
-        print(ind)
+        if self.foreground_mode_cut is not None:
+            ind = np.arange(self.foreground_mode_cut, len(evals))
 
         # Construct dictionary of extra parameters to return.
         # Includes regularization constant if KL transform failed on first

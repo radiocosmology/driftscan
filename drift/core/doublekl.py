@@ -5,6 +5,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 
 # === End Python 2/3 compatibility
 
+import time
 import os
 
 import numpy as np
@@ -31,9 +32,13 @@ class DoubleKL(kltransform.KLTransform):
 
     def _transform_m(self, mi):
 
-        inv = None
+        print("Solving for double-KL eigenvalues....")
 
+        # Start timer
+        st = time.time()
         nside = self.beamtransfer.ndof(mi)
+
+        inv = None
 
         # Ensure that number of SVD degrees of freedom is non-zero before proceeding
         if nside == 0:
@@ -50,16 +55,44 @@ class DoubleKL(kltransform.KLTransform):
         if self.external_svd_basis_dir is None:
             cs = cs.reshape(nside, nside)
             cn = cn.reshape(nside, nside)
+        et = time.time()
+        print("Time to generate S,F covariances =\t\t", (et - st))
+
+        # If desired, compute traces of S and N covariances, so we can
+        # save them later
+        if self.save_cov_traces:
+            s_trace = np.trace(cs)
+            n_trace = np.trace(cn)
 
         # Find joint eigenbasis and transformation matrix
-        evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+        st = time.time()
+        if not self.do_NoverS:
+            evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+            sf_str = "S/F"
+        else:
+            evals, evecs, ac = kltransform.eigh_gen(cn, cs)
+            evals = 1./evals[::-1]
+            evecs2 = evecs[:, ::-1]
+            sf_str = "F/S"
         evecs = evecs2.T.conj()
+        et = time.time()
+        print("Time to solve generalized %s EV problem =\t" % sf_str, (et - st))
 
-        # Get the indices that extract the high S/F ratio modes
-        ind = np.where(evals > self.foreground_threshold)
+        # Get the indices that extract the high-S/F ratio modes,
+        # as low-F/S ratio modes
+        ind = np.where(1/evals < 1/self.foreground_threshold)
+        print(ind)
 
-        # Construct evextra dictionary (holding foreground ratio)
-        evextra = {"ac": ac, "f_evals": evals.copy()}
+        # Construct dictionary of extra parameters to return.
+        # Includes regularization constant if KL transform failed on first
+        # attempt, and flag indicating that N/S transform was performed.
+        # Also includes traces of covariance matrices if desired.
+        evextra = {"ac": ac, "sf_evals": evals.copy()}
+        if self.do_NoverS:
+            evextra["NoverS"] = True
+        if self.save_cov_traces:
+            evextra["Strace"] = s_trace
+            evextra["Ntrace"] = n_trace
 
         # Construct inverse transformation if required
         if self.inverse:
@@ -68,24 +101,40 @@ class DoubleKL(kltransform.KLTransform):
             # to inverse evecs matrix to account for tel-SVD modes that were
             # omitted
 
-        # Construct the foreground removed subset of the space
+        # If we've used an external SVD basis defined on tel-SVD modes,
+        #  the number of tel-SVD modes
+        # assumed by the KL eigenvectors will not match the true number of tel-SVD
+        # modes. To make the KL eigenvectors compatible with the original tel-SVD
+        # basis, we need to add zero elements to those tel-SVD modes into the
+        # KL vectors.
+        if self.external_svd_basis_dir is not None and not self.external_sv_from_m_modes:
+            evecs = self._reshape_evecs_for_ext_svd(mi, evecs)
+
+        # Construct the foreground-removed subset of the space
         evals = evals[ind]
         evecs = evecs[ind]
         inv = inv[ind] if self.inverse else None
 
         if evals.size > 0:
-            # Generate the full S and N covariances in the truncated basis
+            # Generate the full S and F+N covariances in the truncated basis
+            st = time.time()
             self.use_thermal = True
             cs, cn = self.sn_covariance(mi)
             if self.external_svd_basis_dir is None:
                 cs = cs.reshape(nside, nside)
                 cn = cn.reshape(nside, nside)
+            et = time.time()
+            print("Time to generate S,F+N covariances =\t\t", (et - st))
+
             cs = np.dot(evecs, np.dot(cs, evecs.T.conj()))
             cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
 
             # Find the eigenbasis and the transformation into it.
+            st = time.time()
             evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
             evecs = np.dot(evecs2.T.conj(), evecs)
+            et = time.time()
+            print("Time to solve generalized S/(F+N) EV problem =\t", (et - st))
 
             # Construct the inverse if required.
             if self.inverse:
@@ -110,7 +159,17 @@ class DoubleKL(kltransform.KLTransform):
         kltransform.KLTransform._ev_save_hook(self, f, evextra)
 
         # Save out S/F ratios
-        f.create_dataset("f_evals", data=evextra["f_evals"])
+        f.create_dataset("sf_evals", data=evextra["sf_evals"])
+
+        # If N/S flag exists, write it to file
+        if "NoverS" in evextra.keys():
+            f.attrs["NoverS"] = "True"
+
+        # If desired, save traces of S and F covariances
+        if "Strace" in evextra.keys():
+            f.attrs["Strace"] = evextra["Strace"]
+        if "Ntrace" in evextra.keys():
+            f.attrs["Ntrace"] = evextra["Ntrace"]
 
     def _collect(self):
         def evfunc(mi):
@@ -121,7 +180,7 @@ class DoubleKL(kltransform.KLTransform):
 
             if f["evals_full"].shape[0] > 0:
                 ev = f["evals_full"][:]
-                fev = f["f_evals"][:]
+                fev = f["sf_evals"][:]
                 ta[0, -ev.size :] = ev
                 ta[1, -fev.size :] = fev
 

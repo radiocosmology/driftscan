@@ -171,7 +171,7 @@ class KLTransform(config.Reader):
         If True construct and cache inverse transformation.
     use_thermal, use_foregrounds : boolean
         Whether to use instrumental noise/foregrounds (default: both True)
-    _foreground_regulariser : scalar
+    regulariser : scalar
         The regularisation constant for the foregrounds. Adds in a diagonal of
         size reg * cf.max(). Default is 1e-14
     do_NoverS : boolean

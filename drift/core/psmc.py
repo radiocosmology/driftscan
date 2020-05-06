@@ -319,9 +319,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                     x = self.gen_sample(mi, n)
                     vec1, vec2 = self.project_vector_kl_to_sky(mi, x)
                     # Make array contiguous
-                    vec1 = np.ascontiguousarray(
-                        vec1.reshape(nfreq, lmax + 1, n)
-                    )
+                    vec1 = np.ascontiguousarray(vec1.reshape(nfreq, lmax + 1, n))
 
                 # If I don't have evals - return zero vector
                 else:
@@ -387,7 +385,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
     def q_estimator(self, mi, vec1, vec2, noise=False):
         """Calculate the quadratic estimator for this mi with data vec1 and vec2"""
         # if data vector is filled with zeros, return q = 0.0 for this m
-        if np.all(vec1 == 0) and np.all(vec2 ==0):
+        if np.all(vec1 == 0) and np.all(vec2 == 0):
             self.qa[mi, :] = 0.0
 
         # if data vector is empty, return q = 0.0 for this m

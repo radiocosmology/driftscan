@@ -1,3 +1,12 @@
+# [20.5.0](https://github.com/radiocosmology/driftscan/compare/v20.2.0...v20.5.0) (2020-05-06)
+
+
+### Bug Fixes
+
+* **version:** remove version prefix v ([28cb07f](https://github.com/radiocosmology/driftscan/commit/28cb07fac0ad5ba21a37a7da15f1de6c0ff97fdc))
+
+
+
 # [20.2.0](https://github.com/radiocosmology/driftscan/compare/v1.2.0...v20.2.0) (2020-02-17)
 
 Note: we have switched to calendar versioning for this release.

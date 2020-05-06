@@ -313,7 +313,6 @@ class PSMonteCarloXLarge(PSMonteCarlo):
             nfreq = self.telescope.nfreq
             lmax = self.telescope.lmax
 
-            # TO DO: can maybe dump the extra dimension loc num
             if loc_num > 0:
                 if self.num_evals(mi) > 0:
                     # Generate random KL data
@@ -321,19 +320,15 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                     vec1, vec2 = self.project_vector_kl_to_sky(mi, x)
                     # Make array contiguous
                     vec1 = np.ascontiguousarray(
-                        vec1.reshape(loc_num, nfreq, lmax + 1, n)
+                        vec1.reshape(nfreq, lmax + 1, n)
                     )
-                    vec2 = np.ascontiguousarray(
-                        vec2.reshape(loc_num, nfreq, lmax + 1, n)
-                    )
+
                 # If I don't have evals - return zero vector
                 else:
-                    vec1 = np.zeros((loc_num, nfreq, lmax + 1, n), dtype=np.complex128)
-                    vec2 = vec1
+                    vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
 
             else:
-                vec1 = np.zeros((1, nfreq, lmax + 1, n), dtype=np.complex128)
-                vec2 = vec1
+                vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
 
             et = time.time()
 
@@ -342,7 +337,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
             for ir in range(size):
                 # Only fill qa if we haven't reached mmax
                 if mi < (self.telescope.mmax + 1):
-                    self.q_estimator(mi, vec1[0])
+                    self.q_estimator(mi, vec1, vec1)
 
                 # We do the MPI communications only (size - 1) times
                 if ir == (size - 1):
@@ -389,16 +384,15 @@ class PSMonteCarloXLarge(PSMonteCarlo):
 
         self.write_fisher_file()
 
-    def q_estimator(self, mi, vec1, vec2=None, noise=False):
+    def q_estimator(self, mi, vec1, vec2, noise=False):
         """Calculate the quadratic estimator for this mi with data vec1 and vec2"""
+        # if data vector is filled with zeros, return q = 0.0 for this m
+        if np.all(vec1 == 0) and np.all(vec2 ==0):
+            self.qa[mi, :] = 0.0
 
-        # if data vector is filled with zeros, return q = 0.0
-        if np.sum(vec1) == 0:
-            self.qa[:] = 0.0
-
-        # if data vector is empty, return q = 0.0
-        if (vec1.shape[0], vec2.shape[0]) == (0, 0):
-            self.qa[:] = 0.0
+        # if data vector is empty, return q = 0.0 for this m
+        elif (vec1.shape[0], vec2.shape[0]) == (0, 0):
+            self.qa[mi, :] = 0.0
 
         else:
             lside = self.telescope.lmax + 1
@@ -441,7 +435,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
         message_size = 4 * 2 ** 30.0
         dsize = np.prod(shape) * 16.0
         num_messages = int(np.ceil(dsize / message_size))
-        print("Number of messages: %i" % num_messages)
+
         # If dsize =0.0 you get 0 num_messages and it throws error. hack.
         if num_messages == 0:
             num_messages = 1

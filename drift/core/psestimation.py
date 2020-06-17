@@ -630,7 +630,7 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         if vec2 is not None:
             y0 = (vec2.T / (evals + 1.0)).T
             y1 = np.dot(evecs.T.conj(), x0)
-            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, y1, conj=True)
         else:
             y0 = x0
             y2 = x2

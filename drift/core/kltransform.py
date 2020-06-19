@@ -266,7 +266,7 @@ class KLTransform(config.Reader):
                 fe.close()
 
             self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
-            # print("Max external SV over all m: %g" % self.external_global_max_sv)
+            print("Max external SV over all m: %g" % self.external_global_max_sv)
 
 
     def __init__(self, bt, subdir=None):

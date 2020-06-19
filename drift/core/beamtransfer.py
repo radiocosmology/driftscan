@@ -1617,7 +1617,7 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
-
+        
         # if not conj:
         #     raise Exception("Not implemented non conj yet.")
 

@@ -21,6 +21,7 @@ from cora.signal import corr21cm
 
 from drift.core import skymodel
 from drift.util import util
+from draco.analysis.svdfilter import external_svdfile
 
 from mpi4py import MPI
 from future.utils import with_metaclass
@@ -179,6 +180,31 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
     zero_mean : boolean
         If True (default), then the fiducial parameters have zero mean.
+
+    external_svd_basis_dir : string, optional
+        Directory containing files defining external SVD basis (determined
+        directly from measured visibilities, using
+        draco.analysis.svdfilter.SVDFilter). If specified, C_a
+        matrices are filtered according to thresholds below. Default: None.
+    external_sv_threshold_global : float, optional
+        Global external-SVD mode filtering threshold: removes external SVD
+        modes with SV higher than this value times the largest mode at any m.
+        Default: 1000 (i.e. no filtering).
+    external_sv_threshold_local : float, optional
+        As above, but removes modes with SV higher than this value times the
+        largest mode at each m. Default: 1000 (i.e. no filtering).
+    external_sv_mode_cut : int, optional
+        If specified, supercede local and global thresholds, and just remove
+        the first external_sv_mode_cut modes at each m. Default: None
+    use_external_sv_freq_modes : bool, optional
+        If True, use ext-SVD modes defined as combinations of frequencies. If
+        False, use modes defined as combinations of baselines or tel-SVD
+        modes. Default: False
+    external_sv_from_m_modes : bool, optional
+        If True, assume external-SVD modes are defined in m-mode space.
+        If False, assume external-SVD modes are defined in telescope-SVD space
+        (not currently implemented).
+        Default: True
     """
 
     bandtype = config.Property(proptype=str, default="polar")
@@ -206,12 +232,21 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
     zero_mean = config.Property(proptype=bool, default=True)
 
+    external_svd_basis_dir = config.Property(proptype=str, default=None)
+
+    external_sv_threshold_global = config.Property(proptype=float, default=1000.)
+    external_sv_threshold_local = config.Property(proptype=float, default=1000.)
+    external_sv_mode_cut = config.Property(proptype=int, default=None)
+    use_external_sv_freq_modes = config.Property(proptype=bool, default=False)
+    external_sv_from_m_modes = config.Property(proptype=bool, default=False)
+
     crosspower = False
 
     clarray = None
 
     fisher = None
     bias = None
+
 
     def __init__(self, kltrans, subdir="ps"):
         """Initialise a PS estimator class.
@@ -232,8 +267,23 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         if mpiutil.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)
 
+        # Define empty dicts for storing ext-SVD information, and set all entries
+        # to None
+        self.ext_svd_u = {}
+        self.ext_svd_sig = {}
+        self.ext_svd_vh = {}
+        self.ext_svd_cut = {}
+        self.beam_svd_with_ext_filtering = {}
+        for mi in range(self.telescope.mmax + 1):
+            self.ext_svd_u[mi] = None
+            self.ext_svd_sig[mi] = None
+            self.ext_svd_vh[mi] = None
+            self.ext_svd_cut[mi] = None
+            self.beam_svd_with_ext_filtering[mi] = None
+
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
+
 
     @property
     def nbands(self):
@@ -256,6 +306,32 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         evals = self.kltrans.modes_m(mi, threshold=self.threshold)[0]
 
         return evals.size if evals is not None else 0
+
+    def _external_svdfile(self, mi):
+        """File containing external SVD basis for a given m.
+        """
+        if self.external_svd_basis_dir is None:
+            raise RuntimeError("Directory containing external SVD basis not specified!")
+        else:
+            return external_svdfile(self.external_svd_basis_dir, mi, self.telescope.mmax)
+
+    def set_external_global_max_sv(self):
+        if self.external_svd_basis_dir is not None:
+            # Loop over all m's to find the maximum singular value
+            max_sv = 0.
+
+            for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+                # Skip this m if SVD basis file doesn't exist.
+                if not os.path.exists(self._external_svdfile(mi)):
+                    continue
+
+                fe = h5py.File(self._external_svdfile(mi), 'r')
+                sig = fe["sig"][:]
+                max_sv = max(sig[0], max_sv)
+                fe.close()
+
+            self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
+            # print("Max external SV over all m: %g" % self.external_global_max_sv)
 
     # ========== Calculate powerspectrum bands ==========
 
@@ -436,7 +512,18 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         if self.num_evals(mi) > 0:
             print("Making fisher (for m=%i)." % mi)
 
+            # If doing ext-SVD filtering, read basis and determine number
+            # of modes to cut for this m
+            if self.external_svd_basis_dir is not None \
+                and os.path.exists(self._external_svdfile(mi)):
+                self._read_ext_svd_info(mi)
+
             fisher, bias = self._work_fisher_bias_m(mi)
+
+            # Delete ext-SVD info for this m, to save memory
+            if self.external_svd_basis_dir is not None \
+                and os.path.exists(self._external_svdfile(mi)):
+                self._del_ext_svd_info(mi)
 
         else:
             print("No evals (for m=%i), skipping." % mi)
@@ -466,6 +553,109 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         """
         pass
 
+    def _read_ext_svd_info(self, mi):
+        """Read external-SVD info for this m and compute modified beam-SVD matrix.
+
+        This routine reads in the ext-SVD U, Sig, and Vh matrices from disk,
+        computes the number of modes to cut, and stores this info in dicts,
+        so that it can be accessed by the q_estimator routine. It then
+        computes and stores a modified beam_svd matrix that can be used to project
+        from the sky to telescope-SVD basis with ext-SVD mode filtering included.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
+
+        Returns
+        -------
+        status : bool
+            True if stuff was read from disk, False if it already existed
+            in memory.
+        """
+        # If everything is in the dicts already, return False
+        if self.ext_svd_u[mi] is not None and self.ext_svd_sig[mi] is not None \
+            and self.ext_svd_vh[mi] is not None and self.ext_svd_cut[mi] is not None:
+            return False
+
+        # Open file for this m, and read U, singular values, and Vh
+        fe = h5py.File(self._external_svdfile(mi), 'r')
+        self.ext_svd_u[mi] = fe["u"][:]
+        self.ext_svd_sig[mi] = fe["sig"][:]
+        self.ext_svd_vh[mi] = fe["vh"][:]
+        fe.close()
+
+        if self.external_sv_mode_cut is not None:
+            self.ext_svd_cut[mi] = self.external_sv_mode_cut
+        else:
+            # Determine how many modes to cut, based on global and local thresholds
+            global_ext_sv_cut = (self.ext_svd_sig[mi] > self.external_sv_threshold_global
+                                 * self.external_global_max_sv).sum()
+            local_ext_sv_cut = (self.ext_svd_sig[mi] \
+                > self.external_sv_threshold_local * self.ext_svd_sig[mi][0]).sum()
+            self.ext_svd_cut[mi] = max(global_ext_sv_cut, local_ext_sv_cut)
+
+        # Get matrix that does sky-to-tel transform.
+        # Matrix comes packed as [nfreq,msign,nbase,npol,lmax+1],
+        # but we reshape to [nfreq, msign*nbase (=ntel), npol*(lmax+1) (=nsky)]
+        beam_m = self.kltrans.beamtransfer.beam_m(mi)
+        beam_m = beam_m.reshape(
+            self.telescope.nfreq,
+            self.kltrans.beamtransfer.ntel,
+            -1
+        )
+
+        # Get matrix that does tel-to-tel-SVD transform.
+        # Matrix comes packed as [nfreq,nsvd,ntel].
+        # Note that beam_svd is just the dot product of beam_m and beam_ut.
+        beam_ut = self.kltrans.beamtransfer.beam_ut(mi)
+
+        # Apply ext-SVD projection to beam_m, along freq axis
+        if self.use_external_sv_freq_modes:
+            # Construct matrix that filters out freq (V) modes of ext-SVD
+            vh = self.ext_svd_vh[mi]
+            Z = np.ones(self.telescope.nfreq)
+            Z[:self.ext_svd_cut[mi]] = 0
+            Z = np.diag(Z)
+            proj = np.dot(vh.T.conj(), np.dot(Z, vh))
+
+            # Apply filtering to beam_m
+            beam_m_proj = np.dot(proj, beam_m.reshape(self.telescope.nfreq, -1)).reshape(
+                self.telescope.nfreq,
+                self.kltrans.beamtransfer.ntel,
+                -1
+            )
+
+        else:
+            raise NotImplementedError('u proj not implented!')
+
+        # Construct beam_svd matrix
+        beam_svd = np.zeros((self.telescope.nfreq,
+            beam_ut.shape[1],
+            self.kltrans.beamtransfer.nsky
+        ), dtype=np.complex128)
+        for fi in np.arange(self.telescope.nfreq):
+            beam_svd[fi] = np.dot(beam_ut[fi], beam_m_proj[fi])
+
+        # Store beam_svd matrix
+        self.beam_svd_with_ext_filtering[mi] = beam_svd
+
+        return True
+
+    def _del_ext_svd_info(self, mi):
+        """Delete external-SVD info from memory for this m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
+        """
+        self.ext_svd_u[mi] = None
+        self.ext_svd_sig[mi] = None
+        self.ext_svd_vh[mi] = None
+        self.ext_svd_cut[mi] = None
+        self.beam_svd_with_ext_filtering[mi] = None
+
     # ===================================================
 
     # ==== Calculate the total Fisher matrix/bias =======
@@ -488,6 +678,13 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         if os.path.exists(ffile) and not regen:
             print("Fisher matrix file: %s exists. Skipping..." % ffile)
             return
+
+        if self.external_svd_basis_dir is not None and not self.external_sv_from_m_modes:
+            raise NotImplementedError("Ext-SVD projection using tel-SVD modes "
+                                        + "not implemented in PSEstimation!")
+
+        # If external SVD filtering is desired, compute global max SV
+        self.set_external_global_max_sv()
 
         mpiutil.barrier()
 
@@ -624,13 +821,24 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         # Project back into SVD basis
         x1 = np.dot(evecs.T.conj(), x0)
 
-        # Project back into sky basis
-        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+        if self.external_svd_basis_dir is not None \
+            and os.path.exists(self._external_svdfile(mi)):
+            # Read ext-SVD basis from disk and compute number of modes to cut
+            ext_svd_from_file = self._read_ext_svd_info(mi)
+            x2 = self._project_vector_svd_to_sky_with_ext_svd(mi, x1)
+
+        else:
+            # Project back into sky basis
+            x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
 
         if vec2 is not None:
             y0 = (vec2.T / (evals + 1.0)).T
             y1 = np.dot(evecs.T.conj(), x0)
-            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, y1, conj=True)
+            if self.external_svd_basis_dir is not None \
+                and os.path.exists(self._external_svdfile(mi)):
+                y2 = self._project_vector_svd_to_sky_with_ext_svd(mi, y1)
+            else:
+                y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, y1, conj=True)
         else:
             y0 = x0
             y2 = x2
@@ -665,7 +873,68 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
             qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
 
+        if self.external_svd_basis_dir is not None and ext_svd_from_file:
+            self._del_ext_svd_info(mi)
+
         return qa.real
+
+
+    def _project_vector_svd_to_sky_with_ext_svd(self, mi, vec):
+        """Project a vector from the telescope-SVD basis to the sky basis,
+        incorporating ext-SVD filtering.
+
+        This is the same as beamtransfer.project_vector_svd_to_sky(), but
+        it uses the Hermitian conjugate of the sky-to-tel-SVD transform to
+        do the reverse transform, and it includes an extra matrix that
+        filters out a specified number of modes defined in the ext-SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode we are calculating for.
+        vec : np.ndarray[num_kl] or np.ndarray[num_kl, num_realisatons]
+            Input vector(s) in tel-SVD basis.
+
+        Returns
+        -------
+        vec_sky : np.ndarray[nfreq, npol, lmax+1]
+            Output vector(s) in sky basis.
+        """
+        # Fetch matrix that transforms from sky to tel-SVD basis
+        beam_svd = self.beam_svd_with_ext_filtering[mi]
+
+        # Fetch Number of significant tel-SVD modes at each frequency,
+        # and the array bounds
+        svnum, svbounds = self.kltrans.beamtransfer._svd_num(mi)
+
+        # Make an empty array to store the results
+        vec_sky = np.zeros(
+            (self.telescope.nfreq, self.kltrans.beamtransfer.nsky) + vec.shape[1:],
+            dtype=np.complex128
+        )
+
+        # For each frequency, select the relevant entries from the input vector(s),
+        # and apply the Hermitian transpose of the beam_svd matrix
+        for fi in self.kltrans.beamtransfer._svd_freq_iter(mi):
+            lvec = vec[
+                svbounds[fi] : svbounds[fi + 1]
+            ]
+            vec_sky[fi] = np.dot(beam_svd[fi, :svnum[fi]].T.conj(), lvec)
+
+        # Reshape the result
+        vec_sky = vec_sky.reshape(
+            (self.telescope.nfreq,
+            self.telescope.num_pol_sky,
+            self.telescope.lmax + 1) + vec.shape[1:]
+        )
+
+        #### Debugging stuff
+        # vec_sky_good = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, vec, conj=conj)
+        # print(mi, np.allclose(vec_sky_good, vec_sky))
+        # print(mi, vec_sky_good[0,0,10:20], '\n', vec_sky[0,0,10:20])
+
+        return vec_sky
+
 
     # ===================================================
 

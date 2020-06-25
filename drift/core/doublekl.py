@@ -82,11 +82,24 @@ class DoubleKL(kltransform.KLTransform):
         et = time.time()
         print("Time to solve generalized %s EV problem =\t" % sf_str, (et - st))
 
-        # Get the indices that extract the high-S/F ratio modes,
-        # as low-F/S ratio modes
-        ind = np.where(1/evals < 1/self.foreground_threshold)
+        # Get the indices that extract the high-S/F ratio modes.
+        # This is subtle in the case where the F/S transform has been done
+        # instead, since there can be large negative S/F values that actually
+        # correspond to modes we want to keep. To deal with this, we detect
+        # whether there are negative eigenvalues at the end of the array
+        # (since evals should be in ascending order), and manually include
+        # those elements if so.
+        ev_argmax = np.argmax(evals)
+        pos_ind = np.where(evals > self.foreground_threshold)[0]
+
+        if ev_argmax == evals.shape[0]-1:
+            ind = pos_ind
+        else:
+            ind = np.concatenate(
+                (pos_ind, np.arange(ev_argmax+1, evals.shape[0]))
+            )
         if self.foreground_mode_cut is not None:
-            ind = np.arange(self.foreground_mode_cut, len(evals))
+            ind = np.arange(-self.foreground_mode_cut, 1)
 
         # Construct dictionary of extra parameters to return.
         # Includes regularization constant if KL transform failed on first

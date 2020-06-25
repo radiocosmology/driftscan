@@ -154,7 +154,7 @@ class DoubleKL(kltransform.KLTransform):
             # modes. To make the KL eigenvectors compatible with the original tel-SVD
             # basis, we need to add zero elements to those tel-SVD modes into the
             # KL vectors.
-            if self.external_svd_basis_dir is not None:
+            if self.external_svd_basis_dir is not None and not self.external_sv_from_m_modes:
                 evecs = self._reshape_evecs_for_ext_svd(mi, evecs)
 
         return evals, evecs, inv, evextra

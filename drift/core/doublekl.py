@@ -208,5 +208,5 @@ class DoubleKL(kltransform.KLTransform):
 
             f = h5py.File(self.evdir + "/evals.hdf5", "w")
             f.create_dataset("evals", data=evarray[:, 0])
-            f.create_dataset("f_evals", data=evarray[:, 1])
+            f.create_dataset("sf_evals", data=evarray[:, 1])
             f.close()

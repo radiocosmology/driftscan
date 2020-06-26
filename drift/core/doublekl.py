@@ -89,15 +89,8 @@ class DoubleKL(kltransform.KLTransform):
         # whether there are negative eigenvalues at the end of the array
         # (since evals should be in ascending order), and manually include
         # those elements if so.
-        ev_argmax = np.argmax(evals)
-        pos_ind = np.where(evals > self.foreground_threshold)[0]
 
-        if ev_argmax == evals.shape[0]-1:
-            ind = pos_ind
-        else:
-            ind = np.concatenate(
-                (pos_ind, np.arange(ev_argmax+1, evals.shape[0]))
-            )
+        ind = self._eval_indices_retained(evals, self.foreground_threshold)
         if self.foreground_mode_cut is not None:
             ind = np.arange(-self.foreground_mode_cut, 1)
 

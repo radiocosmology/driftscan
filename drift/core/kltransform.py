@@ -855,10 +855,11 @@ class KLTransform(config.Reader):
 
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
-            i_ev = np.searchsorted(evals, self.threshold)
+            ind = self._eval_indices_retained(evals, self.threshold)
+            # i_ev = np.searchsorted(evals, self.threshold)
 
-            evals = evals[i_ev:]
-            evecs = evecs[i_ev:]
+            evals = evals[ind]
+            evecs = evecs[ind]
             print(
                 "Modes with S/N > %f: %i of %i"
                 % (self.threshold, evals.size, evalsf.size)
@@ -871,7 +872,7 @@ class KLTransform(config.Reader):
 
         if self.inverse:
             if self.subset:
-                inv = inv[i_ev:]
+                inv = inv[ind]
 
             f.create_dataset("evinv", data=inv)
 
@@ -882,6 +883,25 @@ class KLTransform(config.Reader):
         f.close()
 
         return evals, evecs
+
+    def _eval_indices_retained(self, evals, thr):
+
+        # Get the indices that extract the high-S/F ratio modes.
+        # This is subtle in the case where the F/S transform has been done
+        # instead, since there can be large negative S/F values that actually
+        # correspond to modes we want to keep. To deal with this, we detect
+        # whether there are negative eigenvalues at the end of the array
+        # (since evals should be in ascending order), and manually include
+        # those elements if so.
+        ev_argmax = np.argmax(evals)
+        pos_ind = np.where(evals > thr)[0]
+
+        if ev_argmax == evals.shape[0]-1:
+            return pos_ind
+        else:
+            return np.concatenate(
+                (pos_ind, np.arange(ev_argmax+1, evals.shape[0]))
+            )
 
     def _ev_save_hook(self, f, evextra):
 
@@ -1032,19 +1052,31 @@ class KLTransform(config.Reader):
             else:
                 # Find modes satisfying threshold (if required).
                 evals = f["evals"][:]
-                startind = (
-                    np.searchsorted(evals, threshold) if threshold is not None else 0
-                )
+                # startind = (
+                #     np.searchsorted(evals, threshold) if threshold is not None else 0
+                # )
+                #
+                # if startind == evals.size:
+                #     modes = None, None
+                # else:
+                #     modes = (evals[startind:], f["evecs"][startind:])
+                #
+                #     # If old data file perform complex conjugate
+                #     modes = (
+                #         modes if not self.olddatafile else (modes[0], modes[1].conj())
+                #     )
+                ind = self._eval_indices_retained(evals, threshold) \
+                    if threshold is not None else np.arange(evals.size)
 
-                if startind == evals.size:
+                if ind.size == 0:
                     modes = None, None
                 else:
-                    modes = (evals[startind:], f["evecs"][startind:])
-
+                    modes = (evals[ind], f["evecs"][ind])
                     # If old data file perform complex conjugate
                     modes = (
                         modes if not self.olddatafile else (modes[0], modes[1].conj())
                     )
+
             f.close()
 
         return modes
@@ -1089,14 +1121,21 @@ class KLTransform(config.Reader):
             else:
                 # Find modes satisfying threshold (if required).
                 evals = f["evals"][:]
-                startind = (
-                    np.searchsorted(evals, threshold) if threshold is not None else 0
-                )
+                # startind = (
+                #     np.searchsorted(evals, threshold) if threshold is not None else 0
+                # )
+                # 
+                # if startind == evals.size:
+                #     modes = None
+                # else:
+                #     modes = evals[startind:]
+                ind = self._eval_indices_retained(evals, threshold) \
+                    if threshold is not None else np.arange(evals.size)
 
-                if startind == evals.size:
+                if ind.size == 0:
                     modes = None
                 else:
-                    modes = evals[startind:]
+                    modes = evals[ind]
 
             f.close()
 

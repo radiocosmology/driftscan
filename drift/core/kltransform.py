@@ -854,7 +854,7 @@ class KLTransform(config.Reader):
         f.create_dataset("evals_full", data=evalsf)
 
         # Discard eigenmodes with S/N below threshold if requested.
-        if self.subset:
+        if self.subset and evals.size != 0:
             ind = self._eval_indices_retained(evals, self.threshold)
             # i_ev = np.searchsorted(evals, self.threshold)
 
@@ -1124,7 +1124,7 @@ class KLTransform(config.Reader):
                 # startind = (
                 #     np.searchsorted(evals, threshold) if threshold is not None else 0
                 # )
-                # 
+                #
                 # if startind == evals.size:
                 #     modes = None
                 # else:

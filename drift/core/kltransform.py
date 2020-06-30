@@ -204,6 +204,9 @@ class KLTransform(config.Reader):
     save_cov_traces : bool, optional
         If True, save traces of signal and noise covariance matrices as
         metadata. Default: True
+    save_cov_diags : bool, optional
+        If True, save diagonals of signal and noise covariance matrices as
+        metadata. Default: True
     """
 
     subset = config.Property(proptype=bool, default=True, key="subset")
@@ -223,6 +226,7 @@ class KLTransform(config.Reader):
 
     do_NoverS = config.Property(proptype=bool, default=False)
     save_cov_traces = config.Property(proptype=bool, default=True)
+    save_cov_diags = config.Property(proptype=bool, default=True)
 
     external_svd_basis_dir = config.Property(proptype=str, default=None)
 
@@ -750,6 +754,12 @@ class KLTransform(config.Reader):
             s_trace = np.trace(cvb_sr)
             n_trace = np.trace(cvb_nr)
 
+        # If desired, store diagonals of S and N covariances, so we can
+        # save them later
+        if self.save_cov_diags:
+            s_diag = np.diag(cvb_sr)
+            n_diag = np.diag(cvb_nr)
+
         # Perform the generalised eigenvalue problem to get the KL-modes.
         # If doing N/S instead of S/N, we only do N/S internally, and then
         # flip the order of the eigenvalues and invert the values,
@@ -795,6 +805,9 @@ class KLTransform(config.Reader):
         if self.save_cov_traces:
             evextra["Strace"] = s_trace
             evextra["Ntrace"] = n_trace
+        if self.save_cov_diags:
+            evextra["Sdiag"] = s_diag
+            evextra["Ndiag"] = n_diag
 
         return evals, evecs, inv, evextra
 
@@ -925,6 +938,12 @@ class KLTransform(config.Reader):
             f.attrs["Strace"] = evextra["Strace"]
         if "Ntrace" in evextra.keys():
             f.attrs["Ntrace"] = evextra["Ntrace"]
+
+        # If desired, save diagonals of covariances
+        if "Sdiag" in evextra.keys():
+            f.attrs["Sdiag"] = evextra["Sdiag"]
+        if "Ndiag" in evextra.keys():
+            f.attrs["Ndiag"] = evextra["Ndiag"]
 
     def evals_all(self):
         """Collects the full eigenvalue spectrum for all m-modes.

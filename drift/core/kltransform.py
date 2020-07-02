@@ -592,7 +592,7 @@ class KLTransform(config.Reader):
 
         for bi in range(nbase):
             for bj in range(nbase):
-                cov[:,bi,:,bj] = np.dot(proj.T.conj(), np.dot(cov[:,bi,:,bj], proj))
+                cov[:,bi,:,bj] = np.dot(proj.T, np.dot(cov[:,bi,:,bj], proj.conj()))
 
         return cov
 
@@ -709,8 +709,8 @@ class KLTransform(config.Reader):
         for ti in range(ntelsvd_per_freq):
             for tj in range(ntelsvd_per_freq):
                 cov_new[ti::ntelsvd_per_freq, tj::ntelsvd_per_freq] = np.dot(
-                    proj.T.conj(),
-                    np.dot(cov_new[ti::ntelsvd_per_freq, tj::ntelsvd_per_freq], proj)
+                    proj.T,
+                    np.dot(cov_new[ti::ntelsvd_per_freq, tj::ntelsvd_per_freq], proj.conj())
                 )
 
         return cov_new

@@ -27,10 +27,27 @@ class PointSources(gaussianfg.PointSources):
     l_0 = 100.0
 
 
-def foreground_model(lmax, frequencies, npol, pol_frac=1.0, pol_length=None):
+class RealPointSources(gaussianfg.PointSources):
+    """Match point source amplitude to real point sources in maps"""
+
+    A = 0.11555227
+    nu_0 = 408.0
+    l_0 = 100.0
+    beta = 0.02250508
+    alpha = 2.82725909
+    zeta = 1.1
+
+
+def foreground_model(
+    lmax, frequencies, npol, pol_frac=1.0, pol_length=None, real_ps=True
+):
 
     fsyn = galaxy.FullSkySynchrotron()
-    fps = PointSources()
+
+    if real_ps:
+        fps = RealPointSources()
+    else:
+        fps = PointSources()
 
     nfreq = frequencies.size
 

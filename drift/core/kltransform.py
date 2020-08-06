@@ -344,8 +344,114 @@ class KLTransform(config.Reader):
 
         return self._cvsg
 
+    def sn_covariance_tel(self, mi, do_ext_svd_filtering=True):
+        """Compute the signal and noise covariances (in telescope basis).
+
+        The signal is formed from the 21cm signal, whereas the noise includes
+        both foregrounds and instrumental noise. This is for a single m-mode.
+        
+        Note that this routine does not implement any regularization of the noise
+        covariance.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate at.
+        do_ext_svd_filtering : bool, optional
+            Whether to do external-SVD filtering of the covariance matrices.
+            Defaults to True, but filtering will only take place if
+            external_svd_basis_dir attribute has been specified in task.
+
+        Returns
+        -------
+        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
+            Signal and noise covariance matrices in telescope basis.
+        """
+
+        if not (self.use_foregrounds or self.use_thermal):
+            raise Exception(
+                "Either `use_thermal` or `use_foregrounds`, or both must be True."
+            )
+
+        # If external-SVD filtering is desired:
+        if do_ext_svd_filtering and self.external_svd_basis_dir is not None \
+            and os.path.exists(self._external_svdfile(mi)):
+
+            # Open file for this m, and read U and singular values
+            fe = h5py.File(self._external_svdfile(mi), 'r')
+            u = fe["u"][:]
+            sig = fe["sig"][:]
+            vh = fe["vh"][:]
+            fe.close()
+
+            # Determine how many modes to cut, based on global and local thresholds
+            global_ext_sv_cut = (sig > self.external_sv_threshold_global
+                                 * self.external_global_max_sv).sum()
+            local_ext_sv_cut = (sig > self.external_sv_threshold_local * sig[0]).sum()
+            cut = max(global_ext_sv_cut, local_ext_sv_cut)
+            if self.external_sv_mode_cut is not None:
+                cut = self.external_sv_mode_cut
+
+
+        # Get signal and foreground covariances in sky basis
+        cvb_s = self.signal()
+        if self.use_foregrounds:
+            cvb_n = self.foreground()
+        else:
+            cvb_n = np.zeros_like(cvb_s)
+
+        # Even if noise=False, we still want a very small amount of
+        # noise, so we multiply by a constant to turn Tsys -> 1 mK.
+        nc = 1.0
+        if not self.use_thermal:
+            nc = (1e-3 / self.telescope.tsys_flat) ** 2
+
+        # Construct diagonal noise power in telescope basis
+        bl = np.arange(self.telescope.npairs)
+        bl = np.concatenate((bl, bl))
+        npower = nc * self.telescope.noisepower(
+            bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]
+        ).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
+
+        # Project S covariance to telescope basis
+        cvb_s = self.beamtransfer.project_matrix_sky_to_telescope(mi, cvb_s)
+
+        # Expand diagonal noise power (packed as [nfreq,ntel])
+        # into full telescope-basis covariance (packed as [nfreq,ntel,nfreq,ntel])
+        full_npower = np.zeros((
+            self.telescope.nfreq,
+            self.beamtransfer.ntel,
+            self.telescope.nfreq,
+            self.beamtransfer.ntel
+        ), dtype=np.complex128)
+        for fi in range(self.telescope.nfreq):
+            full_npower[fi,:,fi,:][np.diag_indices_from(full_npower[fi,:,fi,:])] \
+                = npower[fi]
+
+        # Project N covariance to telescope basis
+        if self.use_foregrounds:
+            cvb_n = self.beamtransfer.project_matrix_sky_to_telescope(mi, cvb_n) \
+                + full_npower
+        else:
+            cvb_n = full_npower
+
+        # If desired, filter out external-SVD modes, either as frequency or baseline
+        # modes
+        if do_ext_svd_filtering and self.external_svd_basis_dir is not None \
+            and os.path.exists(self._external_svdfile(mi)) and \
+            self.external_sv_from_m_modes:
+            if self.use_external_sv_freq_modes:
+                cvb_s = self._project_telescope_cov_with_ext_svd_V(cvb_s, vh, cut)
+                cvb_n = self._project_telescope_cov_with_ext_svd_V(cvb_n, vh, cut)
+            else:
+                cvb_s = self._project_telescope_cov_with_ext_svd_U(cvb_s, u, cut)
+                cvb_n = self._project_telescope_cov_with_ext_svd_U(cvb_n, u, cut)
+
+        return cvb_s, cvb_n
+    
+    
     def sn_covariance(self, mi, do_ext_svd_filtering=True):
-        """Compute the signal and noise covariances (on the telescope).
+        """Compute the signal and noise covariances (in telescope-SVD basis).
 
         The signal is formed from the 21cm signal, whereas the noise includes
         both foregrounds and instrumental noise. This is for a single m-mode.
@@ -361,8 +467,8 @@ class KLTransform(config.Reader):
 
         Returns
         -------
-        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
-            Signal and noice covariance matrices.
+        s, n : np.ndarray[nfreq * nsvd, nfreq * nsvd]
+            Signal and noise covariance matrices in telescope-SVD basis.
         """
 
         if not (self.use_foregrounds or self.use_thermal):
@@ -490,73 +596,7 @@ class KLTransform(config.Reader):
                 cvb_n = self._project_cov_with_ext_svd_V(mi, cvb_n, u.shape[0], vh, Z)
 
         return cvb_s, cvb_n
-
-
-        # # Project the signal and foregrounds from the sky onto the telescope.
-        # cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
-        #
-        # if self.use_foregrounds:
-        #     cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground())
-        # else:
-        #     cvb_n = np.zeros_like(cvb_s)
-        #
-        # # Add in a small diagonal to regularise the noise matrix.
-        # cnr = cvb_n.reshape((self.beamtransfer.ndof(mi), -1))
-        # cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
-        #
-        # # Even if noise=False, we still want a very small amount of
-        # # noise, so we multiply by a constant to turn Tsys -> 1 mK.
-        # nc = 1.0
-        # if not self.use_thermal:
-        #     nc = (1e-3 / self.telescope.tsys_flat) ** 2
-        #
-        # # Construct diagonal noise power in telescope basis
-        # bl = np.arange(self.telescope.npairs)
-        # bl = np.concatenate((bl, bl))
-        # npower = nc * self.telescope.noisepower(
-        #     bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]
-        # ).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
-        #
-        # # Project into SVD basis and add into noise matrix
-        # cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
-        #
-        # # If external-SVD filtering is desired:
-        # if do_ext_svd_filtering and self.external_svd_basis_dir is not None \
-        #     and os.path.exists(self._external_svdfile(mi)):
-        #
-        #     # Open file for this m, and read U and singular values
-        #     fe = h5py.File(self._external_svdfile(mi), 'r')
-        #     u = fe["u"][:]
-        #     sig = fe["sig"][:]
-        #     vh = fe["vh"][:]
-        #     fe.close()
-        #
-        #     # Determine how many modes to cut, based on global and local thresholds
-        #     global_ext_sv_cut = (sig > self.external_sv_threshold_global
-        #                          * self.external_global_max_sv).sum()
-        #     local_ext_sv_cut = (sig > self.external_sv_threshold_local * sig[0]).sum()
-        #     cut = max(global_ext_sv_cut, local_ext_sv_cut)
-        #     if self.external_sv_mode_cut is not None:
-        #         cut = self.external_sv_mode_cut
-        #
-        #     # Construct identity matrix with zeros corresponding to cut modes,
-        #     # and project out unwanted modes from S and N covariances
-        #     if not self.use_external_sv_freq_modes:
-        #         Z_diag = np.ones(u.shape[1])
-        #         Z_diag[:cut] = 0.0
-        #         Z = np.diag(Z_diag)
-        #
-        #         cvb_s = self._project_cov_with_ext_svd_U(mi, cvb_s, u, Z)
-        #         cvb_n = self._project_cov_with_ext_svd_U(mi, cvb_n, u, Z)
-        #     else:
-        #         Z_diag = np.ones(vh.shape[0])
-        #         Z_diag[:cut] = 0.0
-        #         Z = np.diag(Z_diag)
-        #
-        #         cvb_s = self._project_cov_with_ext_svd_V(mi, cvb_s, u.shape[0], vh, Z)
-        #         cvb_n = self._project_cov_with_ext_svd_V(mi, cvb_n, u.shape[0], vh, Z)
-        #
-        # return cvb_s, cvb_n
+    
 
     def _project_telescope_cov_with_ext_svd_U(self, cov_in, u, cut):
 

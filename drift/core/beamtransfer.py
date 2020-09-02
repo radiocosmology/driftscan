@@ -2280,9 +2280,11 @@ class BeamTransferFullFreq(BeamTransfer):
             b_full[i,:,:,i,:,:] = b_diag[i]
 
         # Perform any preprocessing of beam transfer matrix that is desired
-        # prior to prewhitening and SVDs. In derived classes, this will be
-        # used for various filters that are applied to telescope-basis data
-        b_full = self._preprocess_full_beam_transfer_matrix(b_full)
+        # prior to prewhitening and SVDs, and return beam transfer matrix
+        # and any ancillary information used for this preprocessing.
+        # In derived classes, this will be used for various filters that are
+        # applied to telescope-basis data
+        b_full, pp_info = self._preprocess_full_beam_transfer_matrix(mi, b_full)
 
         # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
         b_full = self._prewhiten_beam_transfer_matrix(b_full)
@@ -2352,7 +2354,7 @@ class BeamTransferFullFreq(BeamTransfer):
             # we need to apply the same preprocessing to U^T from the right.
             # (bfr includes the preprocessing and prewhitening, so the beam
             # variable above also includes all that)
-            ut = self._apply_preprocessing_to_beam_ut(ut)
+            ut = self._apply_preprocessing_to_beam_ut(mi, ut, pp_info)
 
             # Set flag that saves products to files later
             success = True
@@ -2449,7 +2451,7 @@ class BeamTransferFullFreq(BeamTransfer):
         fs.close()
 
 
-    def _preprocess_beam_transfer_matrix(self, b):
+    def _preprocess_beam_transfer_matrix(self, mi, b):
         """Preprocess beam transfer matrix before prewhitening.
 
         This assumes b is packed as [freq,msign,base,freq,pol,ell].
@@ -2457,9 +2459,9 @@ class BeamTransferFullFreq(BeamTransfer):
         In the base BeamTransferFullFreq class, this routine does nothing,
         but derived classes can use it for telescope-basis filtering
         """
-        return b
+        return b, None
 
-    def _apply_preprocessing_to_beam_ut(self, ut):
+    def _apply_preprocessing_to_beam_ut(self, mi, ut, pp_info):
         """Apply beam transfer preprocessing to beam U^T from the right.
 
         In the base BeamTransferFullFreq class, this routine does nothing,
@@ -2903,3 +2905,226 @@ class BeamTransferFullFreq(BeamTransfer):
     def ndof(self, mi):
         """The number of degrees of freedom at a given m."""
         return self._svd_num(mi)
+
+
+
+
+class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
+    """BeamTransfer class that allows for extra SVD filtering in telescope basis.
+
+    Before the beam transfer SVD decompositions take place, a certain number
+    of externally-defined frequency modes are filtered out at each m. The
+    "beam_svd" and "beam_ut" products are then defined to include this filtering,
+    while the non-SVD'ed beam transfer matrices are untouched.
+
+    Parameters
+    ----------
+    directory : string
+        Path of directory to read and write Beam Transfers from.
+    telescope : drift.core.telescope.TransitTelescope, optional
+        Telescope object to use for calculation. If `None` (default), try to
+        load a cached version from the given directory.
+
+    Attributes
+    ----------
+    svcut
+    polsvcut
+    ntel
+    nsky
+    nfreq
+    svd_len
+    ndofmax
+    external_svd_basis_dir
+    external_svthreshold_global
+    external_svthreshold_local
+    external_sv_mode_cut
+    external_global_max_sv
+
+    Methods
+    -------
+    ndof
+    beam_m
+    invbeam_m
+    beam_svd
+    beam_ut
+    invbeam_svd
+    beam_singularvalues
+    generate
+    project_vector_sky_to_telescope
+    project_vector_telescope_to_sky
+    project_vector_sky_to_svd
+    project_vector_svd_to_sky
+    project_vector_telescope_to_svd
+    project_matrix_sky_to_telescope
+    project_matrix_sky_to_svd
+    """
+
+    # Directory containing files defining external SVD basis (determined
+    # directly from measured visibilities, using draco.analysis.svdfilter.SVDFilter)
+    external_svd_basis_dir = None
+
+    # Thresholds for filtering modes defined in external SVD basis:
+    #  global ->    Remove modes with singular value higher than external_svthreshold_global
+    #               times the largest mode on any m
+    #  local  ->    Remove modes with singular value higher than external_svthreshold_local
+    #               times the largest mode on each m
+    # Default values are such that no modes are filtered out - user must specify something
+    # for filtering to take place!
+    external_svthreshold_global = 1000.
+    external_svthreshold_local = 1000.
+    external_sv_mode_cut = None
+
+    def _external_svdfile(self, mi):
+        """File containing external SVD basis for a given m.
+        """
+        if self.external_svd_basis_dir is None:
+            raise RuntimeError("Directory containing external SVD basis not specified!")
+        else:
+            return external_svdfile(self.external_svd_basis_dir, mi, self.telescope.mmax)
+
+
+    # ===================================================
+
+    # ====== Generation of all the cache files ==========
+
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+
+        # Loop over all m's to find the maximum singular value for ext-SVD basis
+        max_sv = 0.
+
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+            fe = h5py.File(self._external_svdfile(mi))
+            ext_sig = fe["sig"][:]
+            max_sv = max(ext_sig[0], max_sv)
+            fe.close()
+
+        self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
+        # print("Rank %d: max_sv=%g" % (mpiutil.rank,self.external_global_max_sv ))
+
+        ## Generate all the SVD transfer matrices by simply iterating over all
+        ## m, performing the SVD, combining the beams and then write out the
+        ## results.
+
+        # For each `m` collect all the `m` sections from each frequency file,
+        # and write them into a new `m` file. Use MPI if available.
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            if os.path.exists(self._svdfile(mi)) and not regen:
+                print(
+                    "m index %i. File: %s exists. Skipping..."
+                    % (mi, (self._svdfile(mi)))
+                )
+                continue
+            else:
+                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                self._generate_svdfile_m(mi, skip_svd_inv)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        # Collect the spectrum into a single file.
+        self._collect_svd_spectrum()
+
+        # Make marker file to indicate that full-freq SVD has been used
+        open(self.directory + "/beam_m/FULLFREQ_SVD_USED", "a").close()
+
+
+    def _preprocess_beam_transfer_matrix(self, mi, b):
+        """Preprocess beam transfer matrix before prewhitening.
+
+        This assumes b is packed as [freq,msign,base,freq,pol,ell].
+
+        This is the first time ext-SVD information will be used for this
+        m, so we define the frequency projection matrix here and return it
+        and the second return value.
+        """
+
+        # Open file for this m, and read vh and singular values
+        fe = h5py.File(self._external_svdfile(mi))
+        ext_vh = fe["vh"][:]
+        ext_sig = fe["sig"][:]
+        fe.close()
+
+        # Determine how many modes to cut, based on global and local thresholds
+        global_ext_sv_cut = (ext_sig > self.external_svthreshold_global \
+                             * self.external_global_max_sv).sum()
+        local_ext_sv_cut = (ext_sig > self.external_svthreshold_local * ext_sig[0]).sum()
+        cut = max(global_ext_sv_cut, local_ext_sv_cut)
+        if self.external_sv_mode_cut is not None:
+            cut = self.external_sv_mode_cut
+
+        # Define vector of ones with same length as ext_sig, put zeros
+        # for modes we want to cut, and convert to a diagonal matrix
+        Z = np.ones(ext_sig.shape[0])
+        Z[:cut] = 0.0
+        Z = np.diag(Z)
+
+        # Define a projection matrix at V.Z.V^dagger.
+        # Note that this needs to be transposed when applied to the beam
+        # transfer matrix or telescope-basis data vector, because of how it
+        # was constructed (as the V instead of U matrix in the SVD)
+        proj = np.dot(ext_vh.T.conj(), np.dot(Z, ext_vh))
+
+        # Apply this projection matrix to the beam transfer matrix from the left
+        b_shape
+        b = np.dot(proj.T, b.reshape(self.telescope.nfreq, -1)).reshape(b_shape)
+
+        # Return filtered B and projection matrix
+        return b, proj
+
+
+    def _apply_preprocessing_to_beam_ut(self, mi, ut, pp_info):
+        """Apply beam transfer preprocessing to beam U^T from the right.
+
+        pp_info will be the frequency projection matrix defined in
+        _preprocess_beam_transfer_matrix, and we can simply apply it to U^T
+        from the right to incorporating this projection into the U^T we save.
+        """
+
+        # U^T will be packed as [freq*svd_len, freq*ntel], so we need to
+        # reshape it to have frequency as the last axis, dot it with
+        # the (transposed) projector, and the reshape back to the original
+        # format
+        nmodes = ut.shape[0]
+        ut = np.dot(
+            ut.reshape(nmodes, self.telescope.nfreq, self.ntel).transpose(0,2,1),
+            proj.T
+        ).transpose(0,2,1).reshape(nmodes, -1)
+
+        return ut
+
+
+    def _prewhiten_beam_transfer_matrix(self, b):
+        """Prewhiten beam transfer matrix using instrumental noise.
+
+        We assume that b is packed as [freq,msign,base,freq,pol,ell],
+        but is not necessarily diagonal in frequency.
+        """
+
+        # Reshape b into convenient form for prewhitening
+        b_local_shape = b.shape
+        b_local = b.reshape(self.telescope.nfreq, self.ntel, self.telescope.nfreq, -1)
+
+        # Make array to hold all noise weights
+        noisew = np.zeros(self.telescope.nfreq * self.ntel)
+
+        # Fill up array frequency by frequency
+        for fi in range(self.telescope.nfreq):
+            # Make N^-1/2 for this frequency
+            noisew_f = self.telescope.noisepower(
+                np.arange(self.telescope.npairs), fi
+            ).flatten() ** (-0.5)
+            # Double up, accounting for 2 m signs
+            noisew_f = np.concatenate([noisew_f, noisew_f])
+            # Include in total array
+            noisew[fi * self.ntel : (fi+1) * self.ntel] = noisew_f
+
+        # Multiply noise weights into b_local elementwise,
+        # adding second axis so that weights are multiplied along
+        # first axis
+        b_local *= noisew[:, np.newaxis]
+
+        # Reshape back to original format, and return
+        return b_local.reshape(b_local_shape)
+
+    # ===================================================

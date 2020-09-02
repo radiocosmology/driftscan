@@ -226,7 +226,26 @@ class ProductManager(object):
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
         if yconf["config"].get("full_freq_beam_svd"):  # Use the "full-freq" SVD if requested
-            btclass = beamtransfer.BeamTransferFullFreq
+            if yconf["config"].get("ext_svd_filtering"):  # Apply ext-SVD filtering
+                btclass = beamtransfer.BeamTransferFullFreqExtSVD
+
+                # Set the directory holding an externally-defined SVD basis, which
+                # will have some of its modes projected out of the visibilities
+                # before the beam transfer SVDs or KL basis are defined
+                if "external_svd_basis_dir" in yconf["config"]:
+                    self.beamtransfer.external_svd_basis_dir = yconf["config"]["external_svd_basis_dir"]
+
+                # Set the global and local singular value thresholds, or simple
+                # cut on number of modes, for modes defined by an external SVD basis
+                if "external_svthreshold_global" in yconf["config"]:
+                    self.beamtransfer.external_svthreshold_global = float(yconf["config"]["external_svthreshold_global"])
+                if "external_svthreshold_local" in yconf["config"]:
+                    self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
+                if "external_sv_mode_cut" in yconf["config"]:
+                    self.beamtransfer.external_sv_mode_cut = int(yconf["config"]["external_sv_mode_cut"])
+
+            else:
+                btclass = beamtransfer.BeamTransferFullFreq
 
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)
@@ -238,25 +257,6 @@ class ProductManager(object):
         # Set the singular value cut for the *polarisation* beamtransfers
         if "polsvcut" in yconf["config"]:
             self.beamtransfer.polsvcut = float(yconf["config"]["polsvcut"])
-
-        # Set the directory holding an externally-defined SVD basis, which
-        # will have some of its modes projected out of the visibilities
-        # before the beam transfer SVDs or KL basis are defined
-        if "external_svd_basis_dir" in yconf["config"]:
-            self.beamtransfer.external_svd_basis_dir = yconf["config"]["external_svd_basis_dir"]
-
-        # Set the global and local singular value thresholds, or simple
-        # cut on number of modes, for modes defined by an external SV
-        if "external_svthreshold_global" in yconf["config"]:
-            self.beamtransfer.external_svthreshold_global = float(yconf["config"]["external_svthreshold_global"])
-        if "external_svthreshold_local" in yconf["config"]:
-            self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
-        if "external_sv_mode_cut" in yconf["config"]:
-            self.beamtransfer.external_sv_mode_cut = float(yconf["config"]["external_sv_mode_cut"])
-
-        # Set whether to prewhiten beam transfers with ext-SVD projection
-        if "prewhiten_with_ext_svd_projection" in yconf["config"]:
-            self.beamtransfer.prewhiten_with_ext_svd_projection = bool(yconf["config"]["prewhiten_with_ext_svd_projection"])
 
         if yconf["config"].get("beamtransfers"):
             self.gen_beams = True

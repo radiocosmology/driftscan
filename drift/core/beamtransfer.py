@@ -3102,7 +3102,7 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
 
         # Reshape b into convenient form for prewhitening
         b_local_shape = b.shape
-        b_local = b.reshape(self.telescope.nfreq, self.ntel, self.telescope.nfreq, -1)
+        b_local = b.reshape(self.telescope.nfreq * self.ntel, -1)
 
         # Make array to hold all noise weights
         noisew = np.zeros(self.telescope.nfreq * self.ntel)

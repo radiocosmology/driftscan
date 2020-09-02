@@ -2279,6 +2279,11 @@ class BeamTransferFullFreq(BeamTransfer):
         for i in range(nfreq):
             b_full[i,:,:,i,:,:] = b_diag[i]
 
+        # Perform any preprocessing of beam transfer matrix that is desired
+        # prior to prewhitening and SVDs. In derived classes, this will be
+        # used for various filters that are applied to telescope-basis data
+        b_full = self._preprocess_full_beam_transfer_matrix(b_full)
+
         # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
         b_full = self._prewhiten_beam_transfer_matrix(b_full)
         bfr = b_full.reshape(nfreq * self.ntel, -1)
@@ -2342,6 +2347,12 @@ class BeamTransferFullFreq(BeamTransfer):
             # Apply prewhitening to U^T, so the saved U^T includes the
             # prewhitening operation
             ut = self._apply_prewhitening_to_beam_ut(ut)
+
+            # If any preprocessing of beam transfer matrix has been performed,
+            # we need to apply the same preprocessing to U^T from the right.
+            # (bfr includes the preprocessing and prewhitening, so the beam
+            # variable above also includes all that)
+            ut = self._apply_preprocessing_to_beam_ut(ut)
 
             # Set flag that saves products to files later
             success = True
@@ -2436,6 +2447,25 @@ class BeamTransferFullFreq(BeamTransfer):
             dset_sig[:nmodes] = sig
 
         fs.close()
+
+
+    def _preprocess_beam_transfer_matrix(self, b):
+        """Preprocess beam transfer matrix before prewhitening.
+
+        This assumes b is packed as [freq,msign,base,freq,pol,ell].
+
+        In the base BeamTransferFullFreq class, this routine does nothing,
+        but derived classes can use it for telescope-basis filtering
+        """
+        return b
+
+    def _apply_preprocessing_to_beam_ut(self, ut):
+        """Apply beam transfer preprocessing to beam U^T from the right.
+
+        In the base BeamTransferFullFreq class, this routine does nothing,
+        but derived classes can use it for telescope-basis filtering
+        """
+        return ut
 
 
     def _prewhiten_beam_transfer_matrix(self, b):

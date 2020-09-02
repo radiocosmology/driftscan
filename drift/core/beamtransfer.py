@@ -874,7 +874,7 @@ class BeamTransfer(object):
             max_sv = 0.
 
             for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-                fe = h5py.File(self._external_svdfile(mi))
+                fe = h5py.File(self._external_svdfile(mi), "r")
                 ext_sig = fe["sig"][:]
                 max_sv = max(ext_sig[0], max_sv)
                 fe.close()
@@ -901,7 +901,7 @@ class BeamTransfer(object):
             # If external SVD basis is specified...
             if self.external_svd_basis_dir is not None:
                 # Open file for this m, and read U and singular values
-                fe = h5py.File(self._external_svdfile(mi))
+                fe = h5py.File(self._external_svdfile(mi), "r")
                 ext_u = fe["u"][:]
                 ext_sig = fe["sig"][:]
                 fe.close()
@@ -2284,7 +2284,7 @@ class BeamTransferFullFreq(BeamTransfer):
         # and any ancillary information used for this preprocessing.
         # In derived classes, this will be used for various filters that are
         # applied to telescope-basis data
-        b_full, pp_info = self._preprocess_full_beam_transfer_matrix(mi, b_full)
+        b_full, pp_info = self._preprocess_beam_transfer_matrix(mi, b_full)
 
         # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
         b_full = self._prewhiten_beam_transfer_matrix(b_full)
@@ -2992,7 +2992,7 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         max_sv = 0.
 
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-            fe = h5py.File(self._external_svdfile(mi))
+            fe = h5py.File(self._external_svdfile(mi), "r")
             ext_sig = fe["sig"][:]
             max_sv = max(ext_sig[0], max_sv)
             fe.close()
@@ -3039,7 +3039,7 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         """
 
         # Open file for this m, and read vh and singular values
-        fe = h5py.File(self._external_svdfile(mi))
+        fe = h5py.File(self._external_svdfile(mi), "r")
         ext_vh = fe["vh"][:]
         ext_sig = fe["sig"][:]
         fe.close()

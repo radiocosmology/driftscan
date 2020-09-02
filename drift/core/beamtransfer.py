@@ -3087,7 +3087,7 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         nmodes = ut.shape[0]
         ut = np.dot(
             ut.reshape(nmodes, self.telescope.nfreq, self.ntel).transpose(0,2,1),
-            proj.T
+            pp_info.T
         ).transpose(0,2,1).reshape(nmodes, -1)
 
         return ut

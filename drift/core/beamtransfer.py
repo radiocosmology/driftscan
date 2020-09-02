@@ -173,12 +173,6 @@ class BeamTransfer(object):
     nfreq
     svd_len
     ndofmax
-    external_svd_basis_dir
-    external_svthreshold_global
-    external_svthreshold_local
-    external_sv_mode_cut
-    external_global_max_sv
-    prewhiten_with_ext_svd_projection
 
     Methods
     -------
@@ -203,28 +197,6 @@ class BeamTransfer(object):
 
     svcut = 1e-6
     polsvcut = 1e-4
-
-    # Directory containing files defining external SVD basis (determined
-    # directly from measured visibilities, using draco.analysis.svdfilter.SVDFilter)
-    external_svd_basis_dir = None
-
-    # Thresholds for filtering modes defined in external SVD basis:
-    #  global ->    Remove modes with singular value higher than external_svthreshold_global
-    #               times the largest mode on any m
-    #  local  ->    Remove modes with singular value higher than external_svthreshold_local
-    #               times the largest mode on each m
-    # Default values are such that no modes are filtered out - user must specify something
-    # for filtering to take place!
-    external_svthreshold_global = 1000.
-    external_svthreshold_local = 1000.
-    external_sv_mode_cut = None
-
-    # If using an external SVD basis, this controls whether the beam transfer
-    # matrices should be prewhitened using a noise matrix that also has the
-    # ext-SVD projection applied. False by default, because doing this is actually
-    # nontrivial, due to the possibility that the noise matrix because
-    # non-positive-definite after ext-SVD projection
-    prewhiten_with_ext_svd_projection = False
 
     # ====== Properties giving internal filenames =======
 
@@ -263,14 +235,6 @@ class BeamTransfer(object):
         )
 
         return pat % mi
-
-    def _external_svdfile(self, mi):
-        """File containing external SVD basis for a given m.
-        """
-        if self.external_svd_basis_dir is None:
-            raise RuntimeError("Directory containing external SVD basis not specified!")
-        else:
-            return external_svdfile(self.external_svd_basis_dir, mi, self.telescope.mmax)
 
     # ===================================================
 
@@ -868,20 +832,6 @@ class BeamTransfer(object):
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
 
-        # If external SVD basis is specified, loop over all m's to find the
-        # maximum singular value
-        if self.external_svd_basis_dir is not None:
-            max_sv = 0.
-
-            for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-                fe = h5py.File(self._external_svdfile(mi), "r")
-                ext_sig = fe["sig"][:]
-                max_sv = max(ext_sig[0], max_sv)
-                fe.close()
-
-            self.external_global_max_sv = mpiutil.world.allreduce(max_sv, op=MPI.MAX)
-            # print("Rank %d: max_sv=%g" % (mpiutil.rank,self.external_global_max_sv ))
-
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file. Use MPI if available.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
@@ -897,24 +847,6 @@ class BeamTransfer(object):
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), "r")
-
-            # If external SVD basis is specified...
-            if self.external_svd_basis_dir is not None:
-                # Open file for this m, and read U and singular values
-                fe = h5py.File(self._external_svdfile(mi), "r")
-                ext_u = fe["u"][:]
-                ext_sig = fe["sig"][:]
-                fe.close()
-                # Determine how many modes to cut, based on global and local thresholds
-                global_ext_sv_cut = (ext_sig > self.external_svthreshold_global * self.external_global_max_sv).sum()
-                local_ext_sv_cut = (ext_sig > self.external_svthreshold_local * ext_sig[0]).sum()
-                cut = max(global_ext_sv_cut, local_ext_sv_cut)
-                if self.external_sv_mode_cut is not None:
-                    cut = self.external_sv_mode_cut
-                # Define vector of ones with same length as ext_sig, and put zeros
-                # for modes we want to cut
-                Z_ext_vec = np.ones(ext_u.shape[0])
-                Z_ext_vec[:cut] = 0.0
 
             # Open file to write SVD results into.
             fs = h5py.File(self._svdfile(mi), "w")
@@ -986,58 +918,15 @@ class BeamTransfer(object):
                     self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
                 )
 
-                # Apply external SVD projection to B matrix by acting
-                # from the left
-                if self.external_svd_basis_dir is not None:
-                    bf = self._project_beam_with_ext_svd(bf, ext_u, Z_ext_vec)
+                # Prewhiten beam transfer matrix
+                noisew = self.telescope.noisepower(
+                    np.arange(self.telescope.npairs), fi
+                ).flatten() ** (-0.5)
+                noisew = np.concatenate([noisew, noisew])
+                bf = bf * noisew[:, np.newaxis, np.newaxis]
 
-                # If desired, apply external SVD projection to noise matrix
-                # before pre-whitening B matrix. This involves sandwiching
-                # N between the ext-SVD projection matrix, inverting the
-                # projected N, doing a Cholesky decomposition, and applying the
-                # result to B
-                if self.external_svd_basis_dir is not None \
-                        and self.prewhiten_with_ext_svd_projection:
-                    noise_matrix = self.telescope.noisepower(
-                        np.arange(self.telescope.npairs), fi
-                    ).flatten()
-                    noise_matrix = np.concatenate([noise_matrix, noise_matrix])
-                    noise_matrix = np.diag(noise_matrix)
-                    p = self._projection_matrix_from_ext_svd(ext_u, Z_ext_vec)
-                    noise_matrix = np.dot(p, np.dot(noise_matrix, p.T.conj()))
-
-                    noise_matrix_inv = la.inv(noise_matrix)
-
-                    # This is a bad hack that has not been tested much: if
-                    # Cholesky of projected N^-1 fails, regularize the diagonal
-                    # and try again.
-                    try:
-                        noise_matrix_inv_chol = la.cholesky(noise_matrix_inv).T.conj()
-                    except np.linalg.LinAlgError:
-                        print('Cholesky of inverse noise matrix failed! Regularizing...')
-                        noise_matrix[np.diag_indices_from(noise_matrix)] \
-                            += 1e-5 * noise_matrix.max()
-                        noise_matrix_inv = la.inv(noise_matrix)
-                        noise_matrix_inv_chol = la.cholesky(noise_matrix_inv).T.conj()
-
-                    # noise_matrix_inv_chol = la.cholesky(noise_matrix)
-                    # noise_matrix_inv_chol = la.pinv(noise_matrix_inv_chol)
-
-                    bfr = bf.reshape(self.ntel, -1)
-                    for i in range(bfr.shape[-1]):
-                        bfr[:,i] = np.dot(noise_matrix_inv_chol, bfr[:,i])
-
-                # If not doing ext-SVD on noise matrix before pre-whitening B,
-                # things are much easier
-                else:
-                    noisew = self.telescope.noisepower(
-                        np.arange(self.telescope.npairs), fi
-                    ).flatten() ** (-0.5)
-                    noisew = np.concatenate([noisew, noisew])
-                    bf = bf * noisew[:, np.newaxis, np.newaxis]
-
-                    # Reshape total beam to a 2D matrix
-                    bfr = bf.reshape(self.ntel, -1)
+                # Reshape total beam to a 2D matrix
+                bfr = bf.reshape(self.ntel, -1)
 
                 # If unpolarised skip straight to the final SVD, otherwise
                 # project onto the polarised null space.
@@ -1098,20 +987,8 @@ class BeamTransfer(object):
                     beam = np.dot(ut3, bfr)
 
                     # Save out the evecs (for transforming from the telescope frame
-                    # into the SVD basis). If ext-SVD is applied to N before
-                    # prewhitening, need to do the same thing here.
-                    if self.external_svd_basis_dir is not None \
-                            and self.prewhiten_with_ext_svd_projection:
-                        dset_ut[fi, :nmodes] = np.dot(ut, noise_matrix_inv_chol)
-                    else:
-                        dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
-                    # If doing ext-SVD projection, include that as first operation
-                    # in tel-SVD projection (prior to noise pre-whitening)
-                    if self.external_svd_basis_dir is not None:
-                        dset_ut[fi, :nmodes] = np.dot(
-                            dset_ut[fi, :nmodes],
-                            self._projection_matrix_from_ext_svd(ext_u, Z_ext_vec)
-                        )
+                    # into the SVD basis)
+                    dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
 
                     # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
                     dset_bsvd[fi, :nmodes] = beam.reshape(
@@ -1136,18 +1013,12 @@ class BeamTransfer(object):
             fs.close()
             fm.close()
 
-            if self.external_svd_basis_dir is not None:
-                fe.close()
-
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
 
-        # If external SVD basis was used, make marker file to indicate that
-        if mpiutil.rank0 and self.external_svd_basis_dir is not None:
-            open(self.directory + "/beam_m/EXT_SVD_USED", "a").close()
 
     def _collect_svd_spectrum(self):
         """Gather the SVD spectrum into a single file."""
@@ -1653,57 +1524,6 @@ class BeamTransfer(object):
                 vecf[fi, pi] += np.dot(fbeam, lvec)
 
         return vecf
-
-    def _project_beam_with_ext_svd(self, bf, u, Z):
-        """Project modes from external SVD basis out from beam transfer matrix
-
-        Parameters
-        ----------
-        bfr : np.array
-            Beam transfer matrix at a given m and frequency, packed as
-            [ntel, npol, lmax+1]
-        u : np.array
-            U matrix from external SVD, packed as [ntel,nmodes]
-        Z : np.array
-            Vector of zeros and ones, packed as [nmodes], with zeros for modes
-            we want to cut and ones for modes we
-
-        Returns
-        -------
-        bfp : np.array
-            Beam transfer matrix with some SVD modes projected out,
-            in original packing
-        """
-
-        bfp = bf.reshape(self.ntel, -1)
-        p = self._projection_matrix_from_ext_svd(u, Z)
-        bfp = np.dot(p, bfp)
-        # bfp = np.dot( u, np.dot(np.diag(Z), np.dot(u.T.conj(), bfp) ) )
-        bfp = bfp.reshape(
-            self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
-        )
-
-        return bfp
-
-    def _projection_matrix_from_ext_svd(self, u, Z):
-        """Construct projection matrix that gets applied to beam transfer matrix
-
-        Parameters
-        ----------
-        u : np.array
-            U matrix from external SVD, packed as [ntel,nmodes]
-        Z : np.array
-            Vector of zeros and ones, packed as [nmodes], with zeros for modes
-            we want to cut and ones for modes we want to keep
-
-        Returns
-        -------
-        p : np.array
-            Projection matrix that zeros external-SVD modes as specified by Z,
-            packed as [ntel, ntel]
-        """
-        return np.dot(u, np.dot(np.diag(Z), u.T.conj()))
-
 
     # ===================================================
 

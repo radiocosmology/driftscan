@@ -225,6 +225,8 @@ class ProductManager(object):
             btclass = beamtransfer.BeamTransferNoSVD
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
+        if yconf["config"].get("full_freq_beam_svd"):  # Use the "full-freq" SVD if requested
+            btclass = beamtransfer.BeamTransferFullFreq
 
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)

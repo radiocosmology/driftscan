@@ -1617,7 +1617,7 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
-        
+
         # if not conj:
         #     raise Exception("Not implemented non conj yet.")
 
@@ -2052,3 +2052,824 @@ class BeamTransferNoSVD(BeamTransfer):
     @property
     def ndofmax(self):
         return self.ntel * self.nfreq
+
+
+
+class BeamTransferFullFreq(BeamTransfer):
+    """BeamTransfer class that allows for off-diagonal frequency elements in SVD.
+
+    Beam transfer matrices are still assumed to be frequency-diagonal,
+    but off-diagonality is allowed in any step related to the SVD
+    decompositions.
+
+    Parameters
+    ----------
+    directory : string
+        Path of directory to read and write Beam Transfers from.
+    telescope : drift.core.telescope.TransitTelescope, optional
+        Telescope object to use for calculation. If `None` (default), try to
+        load a cached version from the given directory.
+
+    Attributes
+    ----------
+    svcut
+    polsvcut
+    ntel
+    nsky
+    nfreq
+    svd_len
+    ndofmax
+
+    Methods
+    -------
+    ndof
+    beam_m
+    invbeam_m
+    beam_svd
+    beam_ut
+    invbeam_svd
+    beam_singularvalues
+    generate
+    project_vector_sky_to_telescope
+    project_vector_telescope_to_sky
+    project_vector_sky_to_svd
+    project_vector_svd_to_sky
+    project_vector_telescope_to_svd
+    project_matrix_sky_to_telescope
+    project_matrix_sky_to_svd
+    """
+
+    # ====== SVD Beam loading ===========================
+
+    @util.cache_last
+    def beam_svd(self, mi, fi=None):
+        """Fetch the SVD beam transfer matrix (S V^H) for a given m. This SVD beam
+        transfer projects from the sky into the SVD basis.
+
+        This returns the full SVD spectrum. Cutting based on SVD value must be
+        done by other routines (see project*svd methods).
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        fi : integer, optional
+            frequency block to fetch - raises exception if used. (Default: None)
+
+        Returns
+        -------
+        beam : np.ndarray [nfreq*svd_len, nfreq, npol_sky, lmax+1]
+        """
+
+        svdfile = h5py.File(self._svdfile(mi), "r")
+
+        # Required array shape depends on whether we are returning all frequency blocks or not.
+        if fi is None:
+            bs = svdfile["beam_svd"][:]
+        else:
+            raise Exception(
+                "Cannot request individual beam_svd frequency in BeamTransferFullFreq!"
+            )
+
+        svdfile.close()
+
+        return bs
+
+    @util.cache_last
+    def invbeam_svd(self, mi, fi=None):
+        """Fetch the SVD beam transfer matrix (S V^H) for a given m. This SVD beam
+        transfer projects from the sky into the SVD basis.
+
+        This returns the full SVD spectrum. Cutting based on SVD value must be
+        done by other routines (see project*svd methods).
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        fi : integer, optional
+            frequency block to fetch - raises exception if used. (Default: None)
+
+        Returns
+        -------
+        beam : np.ndarray [nfreq, npol_sky, lmax+1, nfreq*svd_len]
+        """
+
+        svdfile = h5py.File(self._svdfile(mi), "r")
+
+        # Required array shape depends on whether we are returning all frequency blocks or not.
+        if fi is None:
+            ibs = svdfile["invbeam_svd"][:]
+        else:
+            raise Exception(
+                "Cannot request individual invbeam_svd frequency in BeamTransferFullFreq!"
+            )
+
+        svdfile.close()
+
+        return ibs
+
+    @util.cache_last
+    def beam_ut(self, mi, fi=None):
+        """Fetch the SVD beam transfer matrix (U^H) for a given m. This SVD beam
+        transfer projects from the telescope space into the SVD basis.
+
+        This returns the full SVD spectrum. Cutting based on SVD value must be
+        done by other routines (see project*svd methods).
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        fi : integer
+            frequency block to fetch - raises exception if used. (Default: None)
+
+        Returns
+        -------
+        beam : np.ndarray (nfreq*svd_len, nfreq*ntel)
+        """
+
+        svdfile = h5py.File(self._svdfile(mi), "r")
+
+        # Required array shape depends on whether we are returning all frequency blocks or not.
+        if fi is None:
+            bs = svdfile["beam_ut"][:]
+        else:
+            raise Exception(
+                "Cannot request individual beam_ut frequency in BeamTransferFullFreq!"
+            )
+
+        svdfile.close()
+
+        return bs
+
+    @util.cache_last
+    def beam_singularvalues(self, mi):
+        """Fetch the vector of beam singular values for a given m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+
+        Returns
+        -------
+        beam : np.ndarray (nfreq*svd_len)
+        """
+
+        svdfile = h5py.File(self._svdfile(mi), "r")
+        sv = svdfile["singularvalues"][:]
+        svdfile.close()
+
+        return sv
+
+    # ===================================================
+
+    # ====== Generation of all the cache files ==========
+
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+
+        ## Generate all the SVD transfer matrices by simply iterating over all
+        ## m, performing the SVD, combining the beams and then write out the
+        ## results.
+
+        # For each `m` collect all the `m` sections from each frequency file,
+        # and write them into a new `m` file. Use MPI if available.
+        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+
+            if os.path.exists(self._svdfile(mi)) and not regen:
+                print(
+                    "m index %i. File: %s exists. Skipping..."
+                    % (mi, (self._svdfile(mi)))
+                )
+                continue
+            else:
+                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                self._generate_svdfile_m(mi, skip_svd_inv)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        # Collect the spectrum into a single file.
+        self._collect_svd_spectrum()
+
+        # Make marker file to indicate that full-freq SVD has been used
+        open(self.directory + "/beam_m/FULLFREQ_SVD_USED", "a").close()
+
+
+    def _generate_svdfile_m(self, mi, skip_svd_inv=False):
+
+        # Fetch number of frequencies
+        nfreq = self.telescope.nfreq
+
+        ## Read in the beam transfer matrix, expand it to full-frequency form,
+        ## perform SVDs, and save products.
+
+        # Read the positive and negative m beams, and combine into one.
+        # B is originally packed as [freq,msign,base,pol,ell].
+        fm = h5py.File(self._mfile(mi), "r")
+        b_diag = fm["beam_m"][:]
+        b_diag_shape = b_diag.shape
+        fm.close()
+
+        # Expand beam transfer matrix to 2 freq axes,
+        # packed as [freq,msign,base,freq,pol,ell]
+        b_full_shape = b_diag_shape[:3] + (b_diag_shape[0], b_diag_shape[3], b_diag_shape[4],)
+        b_full = np.zeros(b_full_shape, dtype=np.complex128)
+        for i in range(nfreq):
+            b_full[i,:,:,i,:,:] = b_diag[i]
+
+        # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
+        b_full = self._prewhiten_beam_transfer_matrix(b_full)
+        bfr = b_full.reshape(nfreq * self.ntel, -1)
+
+        success = False
+
+        # If unpolarized, skip first 2 SVDs
+        if self.telescope.num_pol_sky == 1:
+            bf2 = bfr
+            ut2 = np.identity(nfreq * bt.ntel, dtype=np.complex128)
+        else:
+            ## SVD 1 - coarse projection onto sky-modes
+            u1, s1 = matrix_image(
+                bfr, rtol=1e-10, errmsg=("SVD1 m=%i" % (mi))
+            )
+
+            ut1 = u1.T.conj()
+            bf1 = np.dot(ut1, bfr)
+
+            ## SVD 2 - project onto polarisation null space
+            bfp = bf1.reshape(
+                bf1.shape[0],
+                nfreq,
+                self.telescope.num_pol_sky,
+                self.telescope.lmax + 1,
+            )[:, :, 1:]
+            bfp = bfp.reshape(
+                bf1.shape[0],
+                nfreq * (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1),
+            )
+            u2, s2 = matrix_nullspace(
+                bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i" % (mi))
+            )
+
+            ut2 = np.dot(u2.T.conj(), ut1)
+            bf2 = np.dot(ut2, bfr)
+
+        # Check to ensure polcut hasn't thrown away all modes. If it
+        # has, just leave datasets blank.
+        if bf2.shape[0] > 0 and (
+            self.telescope.num_pol_sky == 1 or (s1 > 0.0).any()
+        ):
+
+            ## SVD 3 - decompose polarisation null space
+            bft = bf2.reshape(
+                -1, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
+            )[:, :, 0].reshape(-1, nfreq * (self.telescope.lmax + 1))
+
+            u3, s3 = matrix_image(
+                bft, rtol=0.0, errmsg=("SVD3 m=%i" % (mi))
+            )
+            ut3 = np.dot(u3.T.conj(), ut2)
+
+            nmodes = ut3.shape[0]
+
+            # Final products
+            ut = ut3
+            sig = s3[:nmodes]
+            beam = np.dot(ut3, bfr)
+
+            # Apply prewhitening to U^T, so the saved U^T includes the
+            # prewhitening operation
+            ut = self._apply_prewhitening_to_beam_ut(ut)
+
+            # Set flag that saves products to files later
+            success = True
+
+
+        # Open file to write SVD results into.
+        fs = h5py.File(self._svdfile(mi), "w")
+
+        # Create a chunked dataset for writing the SVD beam matrix into.
+        dsize_bsvd = (
+            nfreq * self.svd_len,
+            nfreq,
+            self.telescope.num_pol_sky,
+            self.telescope.lmax + 1,
+        )
+        csize_bsvd = (
+            min(10, self.svd_len),
+            1,
+            self.telescope.num_pol_sky,
+            self.telescope.lmax + 1,
+        )
+        dset_bsvd = fs.create_dataset(
+            "beam_svd",
+            dsize_bsvd,
+            chunks=csize_bsvd,
+            compression="lzf",
+            dtype=np.complex128,
+        )
+
+        if not skip_svd_inv:
+            # Create a chunked dataset for writing the inverse SVD beam matrix into.
+            dsize_ibsvd = (
+                nfreq,
+                self.telescope.num_pol_sky,
+                self.telescope.lmax + 1,
+                nfreq * self.svd_len,
+            )
+            csize_ibsvd = (
+                1,
+                self.telescope.num_pol_sky,
+                self.telescope.lmax + 1,
+                min(10, self.svd_len),
+            )
+            dset_ibsvd = fs.create_dataset(
+                "invbeam_svd",
+                dsize_ibsvd,
+                chunks=csize_ibsvd,
+                compression="lzf",
+                dtype=np.complex128,
+            )
+
+        # Create a chunked dataset for the stokes T U-matrix (left evecs)
+        dsize_ut = (nfreq * self.svd_len, nfreq * self.ntel)
+        csize_ut = (min(10, self.svd_len), self.ntel)
+        dset_ut = fs.create_dataset(
+            "beam_ut",
+            dsize_ut,
+            chunks=csize_ut,
+            compression="lzf",
+            dtype=np.complex128,
+        )
+
+        # Create a dataset for the singular values.
+        dsize_sig = (nfreq * self.svd_len, )
+        dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
+
+        # Write a few useful attributes and close SVD file
+        fs.attrs["baselines"] = self.telescope.baselines
+        fs.attrs["m"] = mi
+        fs.attrs["frequencies"] = self.telescope.frequencies
+
+        if success:
+
+            # Save the combined U^T matrix (for transforming from the telescope
+            # basis into the SVD basis).
+            dset_ut[:nmodes] = ut
+
+            # Save the modified beam matrix (for transforming from the sky into
+            # the SVD basis)
+            dset_bsvd[:nmodes] = beam.reshape(
+                nmodes, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
+            )
+
+            if not skip_svd_inv:
+                ibeam = la.pinv(beam)
+                # Find the pseudo-inverse of the beam matrix and save to disk.
+                dset_ibsvd[:, :, :, :nmodes] = ibeam.reshape(
+                    nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
+                )
+
+            # Save the singular values
+            dset_sig[:nmodes] = sig
+
+        fs.close()
+
+
+    def _prewhiten_beam_transfer_matrix(self, b):
+        """Prewhiten beam transfer matrix using instrumental noise.
+
+        Assuming beam transfer matrix is packed as
+        [freq,msign,base,freq,pol,ell], but is diagonal in freq,
+        we prewhiten by applying
+        N^-1/2 B.
+        """
+
+        # Reshape b into convenient form for prewhitening
+        b_local_shape = b.shape
+        b_local = b.reshape(self.telescope.nfreq, self.ntel, self.telescope.nfreq, -1)
+
+        # Loop over frequencies
+        for fi in range(self.telescope.nfreq):
+            # Make N^-1/2 for this frequency
+            noisew = self.telescope.noisepower(
+                np.arange(self.telescope.npairs), fi
+            ).flatten() ** (-0.5)
+            # Double up, accounting for 2 m signs
+            noisew = np.concatenate([noisew, noisew])
+            # Apply N^-1/2 to frequency-diagonal elements of B
+            b_local[fi,:,fi,:] *= noisew[:, np.newaxis]
+
+        # Reshape b back into original form, and return
+        return b_local.reshape(b_local_shape)
+
+
+    def _apply_prewhitening_to_beam_ut(self, ut):
+        """Apply prewhitening to U^T matrix from telescope-SVD decomposition.
+
+        Assumes ut is packed as [freq*svd_len, freq*ntel]
+        """
+
+        # Make array to hold all noise weights
+        noisew = np.zeros(self.telescope.nfreq * self.ntel)
+
+        # Fill up array frequency by frequency
+        for fi in range(self.telescope.nfreq):
+            # Make N^-1/2 for this frequency
+            noisew_f = self.telescope.noisepower(
+                np.arange(self.telescope.npairs), fi
+            ).flatten() ** (-0.5)
+            # Double up, accounting for 2 m signs
+            noisew_f = np.concatenate([noisew_f, noisew_f])
+            # Include in total array
+            noisew[fi * self.ntel : (fi+1) * self.ntel] = noisew_f
+
+        # Apply weights to U^T from the right
+        ut = ut * noisew[np.newaxis, :]
+        return ut
+
+
+    def _collect_svd_spectrum(self):
+        """Gather the SVD spectrum into a single file."""
+
+        svd_func = lambda mi: self.beam_singularvalues(mi)
+
+        svdspectrum = kltransform.collect_m_array(
+            list(range(self.telescope.mmax + 1)),
+            svd_func,
+            (self.nfreq * self.svd_len,),
+            np.float64,
+        )
+
+        if mpiutil.rank0:
+
+            with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
+
+                f.create_dataset("singularvalues", data=svdspectrum)
+
+        mpiutil.barrier()
+
+    # ===================================================
+
+    # ====== Projections between spaces ==================
+
+    def _svd_num(self, mi):
+        ## Calculate the number of SVD modes meeting the cut,
+        ## and return the number. Unlike in the frequency-diagonal case,
+        ## this only returns a number, because SVD modes are defined
+        ## across all frequencies
+
+        # Get the array of singular values for each mode
+        sv = self.beam_singularvalues(mi)
+
+        # Number of significant sv modes at each frequency
+        svnum = (sv > sv.max() * self.svcut).sum()
+
+        return svnum
+
+    def project_matrix_sky_to_svd(self, mi, mat, temponly=False):
+        """Project a covariance matrix from the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq]. Must have pol
+            indices even if `temponly=True`.
+        temponly: boolean
+            Force projection of temperature (TT) part only (default: False)
+
+        Returns
+        -------
+        tmat : np.ndarray [nsvd, nsvd]
+            Covariance in SVD basis.
+        """
+
+        npol = 1 if temponly else self.telescope.num_pol_sky
+
+        lside = self.telescope.lmax + 1
+
+        # Get the SVD beam matrix
+        beam = self.beam_svd(mi)
+
+        # Number of significant SV modes
+        svnum = self._svd_num(mi)
+
+        # Create the output matrix
+        matf = np.zeros((svnum, svnum), dtype=np.complex128)
+
+        # Should it be a +=?
+        for pi in range(npol):
+            for pj in range(npol):
+                # beam is packed as [nfreq*svd_len, nfreq, pol, ell],
+                # mat is packed as [pol, pol, ell, freq, freq]
+
+                for fi in range(self.telescope.nfreq):
+
+                    fibeam = beam[
+                        :svnum, fi, pi, :
+                    ]  # Beam for this pol, freq, and svcut (i)
+
+                    for fj in range(self.telescope.nfreq):
+
+                        fjbeam = beam[
+                            :svnum, fj,  pj, :
+                        ]  # Beam for this pol, freq, and svcut (j)
+
+                        lmat = mat[
+                            pi, pj, :, fi, fj
+                        ]  # Local section of the sky matrix (i.e C_l part)
+
+                        matf += np.dot(fibeam * lmat, fjbeam.T.conj())
+
+        return matf
+
+
+    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat):
+        """Project a diagonal matrix from the telescope basis into the SVD basis.
+
+        This slightly specialised routine is for projecting the noise
+        covariance into the SVD space.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [nfreq, ntel]
+
+        Returns
+        -------
+        tmat : np.ndarray [nsvd, nsvd]
+            Covariance in SVD basis.
+        """
+
+        svdfile = h5py.File(self._svdfile(mi), "r")
+
+        # Get the SVD beam matrix, packed as [nfreq*svd_len, nfreq*ntel]
+        beam = svdfile["beam_ut"]
+
+        # Number of significant SV modes
+        svnum = self._svd_num(mi)
+
+        # Reshape the input matrix into a vector of its diagonals, packed
+        # as [nfreq*ntel]
+        mat_in = dmat.reshape(-1)
+
+        # Sandwich input matrix between U^T matrices
+        matf = np.dot((beam[:svnum, :] * mat_in), beam[:svnum, :].T.conj())
+
+        svdfile.close()
+
+        return matf
+
+    def project_vector_telescope_to_svd(self, mi, vec):
+        """Map a vector from the telescope space into the SVD basis.
+
+        This projection may be lose information about the sky, depending on
+        the polarisation filtering.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Telescope data vector packed as [freq, ntel, polarisation]
+
+        Returns
+        -------
+        svec : np.ndarray[svdnum]
+            SVD vector to return.
+        """
+
+        # Number of significant SV modes
+        svnum = self._svd_num(mi)
+
+        # Get the SVD beam matrix, packed as [nfreq*svd_len, nfreq*ntel]
+        beam = self.beam_ut(mi)
+
+        # # Create the output matrix (shape is calculated from input shape)
+        # vecf = np.zeros(svnum,) + vec.shape[2:], dtype=np.complex128)
+
+        # Reshape input vector to [nfreq*ntel, pol]
+        vec_in = vec.reshape(self.telescope.nfreq * self.ntel, -1)
+
+        # Apply SVD projection
+        vecf = np.dot(beam[:svnum], vec_in)
+
+        return vecf
+
+
+    def project_matrix_telescope_to_svd(self, mi, mat):
+        """Map a matrix from the telescope space into the SVD basis.
+
+        This projection may be lose information about the sky, depending on
+        the polarisation filtering.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Telescope-basis matrix, packed as [freq, baseline, freq, baseline].
+
+        Returns
+        -------
+        out_mat : np.ndarray
+            SVD-basis matrix, packed as [svdnum, svdnum].
+        """
+
+        # Number of significant SV modes
+        svnum = self._svd_num(mi)
+
+        # Get SVD beam matrix, packed as [nfreq*svd_len, nfreq*ntel]
+        beam = self.beam_ut(mi)
+
+        # Reshape input matrix to [nfreq*ntel, nfreq*ntel]
+        in_mat = mat.reshape(
+            self.telescope.nfreq * self.ntel,
+            self.telescope.nfreq * self.ntel
+        )
+
+        # Sandwich matrix between U^T matrices
+        out_mat = np.dot(beam[:svnum], np.dot(in_mat, beam[:svnum].T.conj()))
+
+        return out_mat
+
+
+    def project_vector_svd_to_telescope(self, mi, svec):
+        """Map a vector from the SVD basis into the original data basis.
+
+        This projection may be lose information about the sky, depending on the
+        polarisation filtering. This essentially uses the pseudo-inverse which
+        is simply related to the original projection matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        svec : np.ndarray
+            SVD data vector.
+
+        Returns
+        -------
+        svec : np.ndarray[freq, sign, baseline]
+            Data vector to return.
+        """
+
+        # Number of significant SV modes
+        svnum = self._svd_num(mi)
+
+        # Get the SVD beam matrix, packed as [nfreq*svd_len, nfreq*ntel]
+        beam = self.beam_ut(mi)
+
+        # # Create the output matrix
+        # vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
+
+        # Make array to hold all noise weights
+        noise = np.zeros(self.telescope.nfreq * self.ntel)
+
+        # Fill up array frequency by frequency
+        for fi in range(self.telescope.nfreq):
+            # Make N for this frequency
+            noise_f = self.telescope.noisepower(
+                np.arange(self.telescope.npairs), fi
+            ).flatten()
+            # Double up, accounting for 2 m signs
+            noise_f = np.concatenate([noise_f, noise_f])
+            # Include in total array
+            noise[fi * self.ntel : (fi+1) * self.ntel] = noise_f
+
+        # As the form of the forward projection is simply a scaling and then
+        # projection onto an orthonormal basis, the pseudo-inverse is simply
+        # related.
+        vec_out = noise * np.dot(beam[:svnum].T.conj(), svec)
+
+        # Reshape vec_out to [freq, 2, npairs]
+        vec_out = vec_out.reshape(self.nfreq, 2, self.telescope.npairs)
+
+        return vec_out
+
+
+    def project_vector_sky_to_svd(self, mi, vec, temponly=False):
+        """Project a vector from the the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [nfreq, pol, lmax+1]
+        temponly: boolean
+            Force projection of temperature part only (default: False)
+
+        Returns
+        -------
+        svec : np.ndarray
+            SVD vector to return.
+        """
+        npol = 1 if temponly else self.telescope.num_pol_sky
+
+        # Number of significant SV modes
+        svnum, svbounds = self._svd_num(mi)
+
+        # Get the SVD beam matrix, packed as [nfreq*svd_len, nfreq, pol, ell]
+        beam = self.beam_svd(mi)
+
+        # Create the output array
+        vec_out = np.zeros((svbounds[-1],) + vec.shape[3:], dtype=np.complex128)
+
+        for pi in range(npol):
+
+            # Get beam for this polarization, and reshape to [sv, freq*ell]
+            pbeam = beam[:svnum, :, pi, :].reshape((svnum, -1))
+
+            # Get input vector for this polarization, and reshape to [freq*ell, ...]
+            pvec = vec[:, pi].reshape((self.telescope.nfreq * (self.telescope.lmax+1), -1))
+
+            # Accumulate beam dot vec in output array
+            vec_out += np.dot(pbeam, pvec)
+
+        return vec_out
+
+    def project_vector_svd_to_sky(self, mi, svec, temponly=False, conj=False):
+        """Project a vector from the the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            SVD vector, packed as [nsvd, ...]
+        temponly: boolean
+            Force projection of temperature part only (default: False)
+        conj: boolean
+            Reverse projection by applying conjugation (as opposed to pseudo-
+            inverse). Default is False.
+
+        Returns
+        -------
+        svec : np.ndarray
+            Sky vector to return, packed as [nfreq, pol, lmax+1, ...]
+        """
+
+        npol = 1 if temponly else self.telescope.num_pol_sky
+
+        # Number of significant SV modes
+        svnum = self._svd_num(mi)
+
+        # Get the SVD beam matrix, packed as [nfreq*svd_len, nfreq, npol_sky, lmax+1],
+        # or inverse SVD beam matrix, packed as [nfreq, npol_sky, lmax+1, nfreq*svd_len]
+        beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
+
+        # Create the output matrix
+        out_vec = np.zeros(
+            (self.telescope.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+            + svec.shape[1:],
+            dtype=np.complex128,
+        )
+
+        for pi in range(npol):
+
+            # Get inverse beam for this polarization, and reshape to [freq*ell, svnum]
+            if conj:
+                pbeam = beam[:svnum, :, pi, :].reshape(
+                    svnum,
+                    self.telescope.nfreq * (self.telescope.lmax + 1)
+                ).T.conj()
+            else:
+                pbeam = beam[:, pi, :, :svnum].reshape(
+                    self.telescope.nfreq * (self.telescope.lmax + 1),
+                    svnum
+                )
+
+            # Dot inverse beam into input SV-basis vector, and reshape to
+            # [freq, ell, ...]
+            out_vec[:, pi, :] = np.dot(pbeam, svec).reshape(
+                self.telescope.nfreq,
+                self.telescope.lmax + 1,
+                -1
+            )
+
+        return out_vec
+
+
+    # ===================================================
+
+    # ====== Dimensionality of the various spaces =======
+
+    @property
+    def svd_len(self):
+        """The size of the SVD output per frequency."""
+        return min(self.telescope.lmax + 1, self.ntel)
+
+    @property
+    def ndofmax(self):
+        return self.svd_len * self.nfreq
+
+    def ndof(self, mi):
+        """The number of degrees of freedom at a given m."""
+        return self._svd_num(mi)

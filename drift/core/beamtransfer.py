@@ -3065,7 +3065,7 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         proj = np.dot(ext_vh.T.conj(), np.dot(Z, ext_vh))
 
         # Apply this projection matrix to the beam transfer matrix from the left
-        b_shape
+        b_shape = b.shape
         b = np.dot(proj.T, b.reshape(self.telescope.nfreq, -1)).reshape(b_shape)
 
         # Return filtered B and projection matrix

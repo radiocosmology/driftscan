@@ -2669,7 +2669,7 @@ class BeamTransferFullFreq(BeamTransfer):
         mi : integer
             Mode index to fetch for.
         vec : np.ndarray
-            Telescope data vector packed as [freq, ntel, polarisation]
+            Telescope data vector packed as [freq, ntel, ...]
 
         Returns
         -------
@@ -2686,8 +2686,9 @@ class BeamTransferFullFreq(BeamTransfer):
         # # Create the output matrix (shape is calculated from input shape)
         # vecf = np.zeros(svnum,) + vec.shape[2:], dtype=np.complex128)
 
-        # Reshape input vector to [nfreq*ntel, pol]
-        vec_in = vec.reshape(self.telescope.nfreq * self.ntel, -1)
+        # Reshape input vector to [nfreq*ntel, ...]
+        vec_in_final_shape = (self.telescope.nfreq * self.ntel,) + vec.shape[2:]
+        vec_in = vec.reshape(vec_in_final_shape)
 
         # Apply SVD projection
         vecf = np.dot(beam[:svnum], vec_in)
@@ -2880,11 +2881,9 @@ class BeamTransferFullFreq(BeamTransfer):
 
             # Dot inverse beam into input SV-basis vector, and reshape to
             # [freq, ell, ...]
-            out_vec[:, pi, :] = np.dot(pbeam, svec).reshape(
-                self.telescope.nfreq,
-                self.telescope.lmax + 1,
-                -1
-            )
+            out_vec_singlep_final_shape = (self.telescope.nfreq, self.telescope.lmax + 1) \
+                                            + svec.shape[1:]
+            out_vec[:, pi, :] = np.dot(pbeam, svec).reshape(out_vec_singlep_final_shape)
 
         return out_vec
 

@@ -250,6 +250,9 @@ class ProductManager(object):
             if "external_sv_mode_cut" in yconf["config"]:
                 self.beamtransfer.external_sv_mode_cut = int(yconf["config"]["external_sv_mode_cut"])
 
+        if yconf["config"].get("verbose_beam_svd"):
+            self.beamtransfer.verbose_beam_svd = True
+
         # Set the singular value cut for the beamtransfers
         if "svcut" in yconf["config"]:
             self.beamtransfer.svcut = float(yconf["config"]["svcut"])

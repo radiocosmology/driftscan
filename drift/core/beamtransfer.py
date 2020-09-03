@@ -2285,8 +2285,8 @@ class BeamTransferFullFreq(BeamTransfer):
             if not skip_svd_inv:
                 # Find the pseudo-inverse of the beam matrix and save to disk.
                 if self.verbose_beam_svd:
-                    print("m = %d: Finding pseudoinverse of projected beam "
-                          + "- projected shape = " % mi, beam.shape)
+                    print("m = %d: Finding pseudoinverse of projected beam " \
+                         "- projected shape = " % mi, beam.shape)
                 ibeam = la.pinv(beam)
                 dset_ibsvd[:, :, :, :nmodes] = ibeam.reshape(
                     nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes

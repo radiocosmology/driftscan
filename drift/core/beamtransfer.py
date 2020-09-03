@@ -1899,6 +1899,7 @@ class BeamTransferFullFreq(BeamTransfer):
     nfreq
     svd_len
     ndofmax
+    verbose_beam_svd
 
     Methods
     -------
@@ -1918,6 +1919,8 @@ class BeamTransferFullFreq(BeamTransfer):
     project_matrix_sky_to_telescope
     project_matrix_sky_to_svd
     """
+
+    verbose_beam_svd = False
 
     # ====== SVD Beam loading ===========================
 
@@ -2094,6 +2097,7 @@ class BeamTransferFullFreq(BeamTransfer):
 
         # Expand beam transfer matrix to 2 freq axes,
         # packed as [freq,msign,base,freq,pol,ell]
+        if self.verbose_beam_svd: print("m = %d: Expanding B to 2 freq axes" % mi)
         b_full_shape = b_diag_shape[:3] + (b_diag_shape[0], b_diag_shape[3], b_diag_shape[4],)
         b_full = np.zeros(b_full_shape, dtype=np.complex128)
         for i in range(nfreq):
@@ -2104,9 +2108,11 @@ class BeamTransferFullFreq(BeamTransfer):
         # and any ancillary information used for this preprocessing.
         # In derived classes, this will be used for various filters that are
         # applied to telescope-basis data
+        if self.verbose_beam_svd: print("m = %d: Preprocessing B" % mi)
         b_full, pp_info = self._preprocess_beam_transfer_matrix(mi, b_full)
 
         # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
+        if self.verbose_beam_svd: print("m = %d: Prewhitening B" % mi)
         b_full = self._prewhiten_beam_transfer_matrix(b_full)
         bfr = b_full.reshape(nfreq * self.ntel, -1)
 
@@ -2118,6 +2124,8 @@ class BeamTransferFullFreq(BeamTransfer):
             ut2 = np.identity(nfreq * bt.ntel, dtype=np.complex128)
         else:
             ## SVD 1 - coarse projection onto sky-modes
+            if self.verbose_beam_svd:
+                print("m = %d: Performing SVD 1 - matrix shape = " % mi, bfr.shape)
             u1, s1 = matrix_image(
                 bfr, rtol=1e-10, errmsg=("SVD1 m=%i" % (mi))
             )
@@ -2136,6 +2144,8 @@ class BeamTransferFullFreq(BeamTransfer):
                 bf1.shape[0],
                 nfreq * (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1),
             )
+            if self.verbose_beam_svd:
+                print("m = %d: Performing SVD 2 - matrix shape = " % mi, bfp.shape)
             u2, s2 = matrix_nullspace(
                 bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i" % (mi))
             )
@@ -2153,6 +2163,8 @@ class BeamTransferFullFreq(BeamTransfer):
             bft = bf2.reshape(
                 -1, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
             )[:, :, 0].reshape(-1, nfreq * (self.telescope.lmax + 1))
+            if self.verbose_beam_svd:
+                print("m = %d: Performing SVD 3 - matrix shape = " % mi, bft.shape)
 
             u3, s3 = matrix_image(
                 bft, rtol=0.0, errmsg=("SVD3 m=%i" % (mi))
@@ -2168,12 +2180,14 @@ class BeamTransferFullFreq(BeamTransfer):
 
             # Apply prewhitening to U^T, so the saved U^T includes the
             # prewhitening operation
+            if self.verbose_beam_svd: print("m = %d: Applying prewhitening to U^T" % mi)
             ut = self._apply_prewhitening_to_beam_ut(ut)
 
             # If any preprocessing of beam transfer matrix has been performed,
             # we need to apply the same preprocessing to U^T from the right.
             # (bfr includes the preprocessing and prewhitening, so the beam
             # variable above also includes all that)
+            if self.verbose_beam_svd: print("m = %d: Applying preprocessing to U^T" % mi)
             ut = self._apply_preprocessing_to_beam_ut(mi, ut, pp_info)
 
             # Set flag that saves products to files later

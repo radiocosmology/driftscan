@@ -2103,6 +2103,7 @@ class BeamTransferFullFreq(BeamTransfer):
         b_full = np.zeros(b_full_shape, dtype=np.complex128)
         for i in range(nfreq):
             b_full[i,:,:,i,:,:] = b_diag[i]
+        b_diag = None
 
         # Perform any preprocessing of beam transfer matrix that is desired
         # prior to prewhitening and SVDs, and return beam transfer matrix
@@ -2115,24 +2116,25 @@ class BeamTransferFullFreq(BeamTransfer):
         # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
         if self.verbose_beam_svd: print("m = %d: Prewhitening B" % mi)
         b_full = self._prewhiten_beam_transfer_matrix(b_full)
-        bfr = b_full.reshape(nfreq * self.ntel, -1)
+        b_full = b_full.reshape(nfreq * self.ntel, -1)
 
         success = False
 
         # If unpolarized, skip first 2 SVDs
         if self.telescope.num_pol_sky == 1:
-            bf2 = bfr
+            bf2 = b_full
             ut2 = np.identity(nfreq * bt.ntel, dtype=np.complex128)
         else:
             ## SVD 1 - coarse projection onto sky-modes
             if self.verbose_beam_svd:
-                print("m = %d: Performing SVD 1 - matrix shape = " % mi, bfr.shape)
+                print("m = %d: Performing SVD 1 - matrix shape = " % mi, b_full.shape)
             u1, s1 = matrix_image(
-                bfr, rtol=1e-10, errmsg=("SVD1 m=%i" % (mi))
+                b_full, rtol=1e-10, errmsg=("SVD1 m=%i" % (mi))
             )
 
             ut1 = u1.T.conj()
-            bf1 = np.dot(ut1, bfr)
+            u1 = None
+            bf1 = np.dot(ut1, b_full)
 
             ## SVD 2 - project onto polarisation null space
             bfp = bf1.reshape(
@@ -2145,14 +2147,18 @@ class BeamTransferFullFreq(BeamTransfer):
                 bf1.shape[0],
                 nfreq * (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1),
             )
+            bf1 = None
             if self.verbose_beam_svd:
                 print("m = %d: Performing SVD 2 - matrix shape = " % mi, bfp.shape)
             u2, s2 = matrix_nullspace(
                 bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i" % (mi))
             )
+            bfp = None
 
             ut2 = np.dot(u2.T.conj(), ut1)
-            bf2 = np.dot(ut2, bfr)
+            u2 = None
+            ut1 = None
+            bf2 = np.dot(ut2, b_full)
 
         # Check to ensure polcut hasn't thrown away all modes. If it
         # has, just leave datasets blank.
@@ -2164,20 +2170,23 @@ class BeamTransferFullFreq(BeamTransfer):
             bft = bf2.reshape(
                 -1, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
             )[:, :, 0].reshape(-1, nfreq * (self.telescope.lmax + 1))
+            bf2 = None
             if self.verbose_beam_svd:
                 print("m = %d: Performing SVD 3 - matrix shape = " % mi, bft.shape)
 
             u3, s3 = matrix_image(
                 bft, rtol=0.0, errmsg=("SVD3 m=%i" % (mi))
             )
+            bft = None
             ut3 = np.dot(u3.T.conj(), ut2)
+            ut2 = None
 
             nmodes = ut3.shape[0]
 
             # Final products
             ut = ut3
             sig = s3[:nmodes]
-            beam = np.dot(ut3, bfr)
+            beam = np.dot(ut3, b_full)
 
             # Apply prewhitening to U^T, so the saved U^T includes the
             # prewhitening operation
@@ -2186,7 +2195,7 @@ class BeamTransferFullFreq(BeamTransfer):
 
             # If any preprocessing of beam transfer matrix has been performed,
             # we need to apply the same preprocessing to U^T from the right.
-            # (bfr includes the preprocessing and prewhitening, so the beam
+            # (b_full includes the preprocessing and prewhitening, so the beam
             # variable above also includes all that)
             if self.verbose_beam_svd: print("m = %d: Applying preprocessing to U^T" % mi)
             ut = self._apply_preprocessing_to_beam_ut(mi, ut, pp_info)

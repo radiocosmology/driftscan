@@ -2200,6 +2200,13 @@ class BeamTransferFullFreq(BeamTransfer):
             if self.verbose_beam_svd: print("m = %d: Applying preprocessing to U^T" % mi)
             ut = self._apply_preprocessing_to_beam_ut(mi, ut, pp_info)
 
+            if not skip_svd_inv:
+                # Find the pseudo-inverse of the beam matrix and save to disk.
+                if self.verbose_beam_svd:
+                    print("m = %d: Finding pseudoinverse of projected beam " \
+                         "- projected shape = " % mi, beam.shape)
+                ibeam = la.pinv(beam)
+
             # Set flag that saves products to files later
             success = True
 
@@ -2283,11 +2290,7 @@ class BeamTransferFullFreq(BeamTransfer):
             )
 
             if not skip_svd_inv:
-                # Find the pseudo-inverse of the beam matrix and save to disk.
-                if self.verbose_beam_svd:
-                    print("m = %d: Finding pseudoinverse of projected beam " \
-                         "- projected shape = " % mi, beam.shape)
-                ibeam = la.pinv(beam)
+                # Save pseudo-inverse of the beam matrix to disk.
                 dset_ibsvd[:, :, :, :nmodes] = ibeam.reshape(
                     nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
                 )

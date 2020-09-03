@@ -2090,6 +2090,7 @@ class BeamTransferFullFreq(BeamTransfer):
 
         # Read the positive and negative m beams, and combine into one.
         # B is originally packed as [freq,msign,base,pol,ell].
+        if self.verbose_beam_svd: print("m = %d: Reading B from disk" % mi)
         fm = h5py.File(self._mfile(mi), "r")
         b_diag = fm["beam_m"][:]
         b_diag_shape = b_diag.shape

@@ -1049,15 +1049,35 @@ class KLTransform(config.Reader):
         self.set_external_global_max_sv()
 
         # Iterate list over MPI processes.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-            if os.path.exists(self._evfile % mi) and not regen:
-                print(
-                    "m index %i. File: %s exists. Skipping..."
-                    % (mi, (self._evfile % mi))
-                )
-                continue
-
+        # Simply using mpiutil.mpirange(self.telescope.mmax + 1)
+        # may distribute the work poorly if some evfiles already exist,
+        # so we make a first pass through the m list and identify m's
+        # of interest, and then partition that list between tasks
+        m_list = np.arange(self.telescope.mmax+1)
+        if mpiutil.rank0:
+            for mi in m_list:
+                if os.path.exists(self._evfile % mi) and not regen:
+                    m_list[mi] = -1
+            m_list = m_list[m_list != -1]
+        m_list = mpiutil.bcast(m_list)
+        if mpiutil.rank0:
+            print("****************")
+            print("m's remaining in KL transform:")
+            print(m_list)
+            print("****************")
+                
+        for mi in mpiutil.partition_list_mpi(m_list):
             self.transform_save(mi)
+        
+#         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+#             if os.path.exists(self._evfile % mi) and not regen:
+#                 print(
+#                     "m index %i. File: %s exists. Skipping..."
+#                     % (mi, (self._evfile % mi))
+#                 )
+#                 continue
+
+#             self.transform_save(mi)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()

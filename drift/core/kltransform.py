@@ -96,7 +96,7 @@ def eigh_gen(A, B, message=""):
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
-            print("Error occured in eigenvalue solve: %s" % message)
+            print("Error occurred in eigenvalue solve: %s" % message)
             # Get error number
             mo = re.search("order (\\d+)", e.args[0])
 

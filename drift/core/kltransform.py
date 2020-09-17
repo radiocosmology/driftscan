@@ -106,10 +106,10 @@ def eigh_gen(A, B, message=""):
 
             errno = mo.group(1)
 
-            if errno < (A.shape[0] + 1):
+            if int(errno) < (A.shape[0] + 1):
 
                 print(
-                    "Matrix probably not positive definite due to numerical issues." +
+                    "Matrix probably not positive definite due to numerical issues. " +
                     "Trying to add a constant diagonal...."
                 )
 

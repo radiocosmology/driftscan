@@ -109,8 +109,8 @@ def eigh_gen(A, B, message=""):
             if errno < (A.shape[0] + 1):
 
                 print(
-                    "Matrix probably not positive definite due to numerical issues. \
-                Trying to add a constant diagonal...."
+                    "Matrix probably not positive definite due to numerical issues." +
+                    "Trying to add a constant diagonal...."
                 )
 
                 evb = la.eigvalsh(B)

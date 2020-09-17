@@ -59,7 +59,7 @@ def collect_m_array(mlist, func, shape, dtype):
     return res[0] if mpiutil.rank0 else None
 
 
-def eigh_gen(A, B):
+def eigh_gen(A, B, message=""):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
 
@@ -71,6 +71,8 @@ def eigh_gen(A, B):
     ----------
     A, B : np.ndarray
         Matrices to operate on.
+    message : string, optional
+        Optional string to print if an exception is thrown. Default: "".
 
     Returns
     -------
@@ -94,7 +96,7 @@ def eigh_gen(A, B):
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
-            print("Error occured in eigenvalue solve.")
+            print("Error occured in eigenvalue solve: %s" % message)
             # Get error number
             mo = re.search("order (\\d+)", e.args[0])
 
@@ -346,7 +348,7 @@ class KLTransform(config.Reader):
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
-        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
+        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr, message="m = %d" % mi)
         et = time.time()
         print("Time =", (et - st))
 

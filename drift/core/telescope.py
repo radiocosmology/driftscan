@@ -513,8 +513,7 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
     _bl_tol = 6
 
     def _unique_baselines(self):
-        """Map of equivalent baseline lengths, and mask of ones to exclude.
-        """
+        """Map of equivalent baseline lengths, and mask of ones to exclude."""
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
         f_ind = np.indices(fshape)
@@ -540,8 +539,7 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
         return _remap_keyarray(bl2, mask), mask
 
     def _unique_beams(self):
-        """Map of unique beam pairs, and mask of ones to exclude.
-        """
+        """Map of unique beam pairs, and mask of ones to exclude."""
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
 

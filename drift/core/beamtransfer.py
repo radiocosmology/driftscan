@@ -1516,8 +1516,7 @@ class BeamTransfer(object):
 
 
 class BeamTransferTempSVD(BeamTransfer):
-    """BeamTransfer class that performs the old temperature only SVD.
-    """
+    """BeamTransfer class that performs the old temperature only SVD."""
 
     def _generate_svdfiles(self, regen=False):
         ## Generate all the SVD transfer matrices by simply iterating over all
@@ -1656,8 +1655,7 @@ class BeamTransferTempSVD(BeamTransfer):
 
 
 class BeamTransferFullSVD(BeamTransfer):
-    """BeamTransfer class that performs the old temperature only SVD.
-    """
+    """BeamTransfer class that performs the old temperature only SVD."""
 
     def _generate_svdfiles(self, regen=False):
         ## Generate all the SVD transfer matrices by simply iterating over all

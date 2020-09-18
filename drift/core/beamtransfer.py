@@ -837,7 +837,6 @@ class BeamTransfer(object):
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
 
-
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
 
         # For each `m` collect all the `m` sections from each frequency file,
@@ -947,9 +946,7 @@ class BeamTransfer(object):
 
                 ## SVD 2 - project onto polarisation null space
                 bfp = bf1.reshape(
-                    bf1.shape[0],
-                    self.telescope.num_pol_sky,
-                    self.telescope.lmax + 1,
+                    bf1.shape[0], self.telescope.num_pol_sky, self.telescope.lmax + 1,
                 )[:, 1:]
                 bfp = bfp.reshape(
                     bf1.shape[0],
@@ -1006,7 +1003,10 @@ class BeamTransfer(object):
                         # If la.pinv fails, try la.pinv2, which is SVD-based and
                         # more likely to succeed. If successful, add file attribute
                         # indicating pinv2 was used for this frequency.
-                        print("***pinv failure: m = %d, fi = %d. Trying pinv2..." % (mi,fi))
+                        print(
+                            "***pinv failure: m = %d, fi = %d. Trying pinv2..."
+                            % (mi, fi)
+                        )
                         try:
                             ibeam = la.pinv2(beam)
                             if "inv_bsvd_from_pinv2" not in fs.attrs.keys():
@@ -1019,7 +1019,7 @@ class BeamTransfer(object):
                             # then print error message
                             fs.close()
                             fm.close()
-                            raise Exception("pinv2 failure: m = %d, fi = %d" % (mi,fi))
+                            raise Exception("pinv2 failure: m = %d, fi = %d" % (mi, fi))
 
                     dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
                         self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes

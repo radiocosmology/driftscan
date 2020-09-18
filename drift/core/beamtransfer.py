@@ -946,7 +946,9 @@ class BeamTransfer(object):
 
                 ## SVD 2 - project onto polarisation null space
                 bfp = bf1.reshape(
-                    bf1.shape[0], self.telescope.num_pol_sky, self.telescope.lmax + 1,
+                    bf1.shape[0],
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
                 )[:, 1:]
                 bfp = bfp.reshape(
                     bf1.shape[0],

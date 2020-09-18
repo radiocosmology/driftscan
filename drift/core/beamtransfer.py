@@ -833,14 +833,36 @@ class BeamTransfer(object):
 
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
+            # For each m, check whether the file exists, if so, whether we
+            # can open it and whether it has the "complete" attribute set to
+            # True. If these tests all pass, we can skip the file. Otherwise,
+            # we generate a new SVD file for that m.
+            complete = False
             if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
-                    "m index %i. File: %s exists. Skipping..."
-                    % (mi, (self._svdfile(mi)))
-                )
-                continue
+
+                # File may exist but be un-openable, so we catch such an
+                # exception.
+                try:
+                    fs = h5py.File(self._svdfile(mi), "r")
+                    complete = fs.attrs["complete"]
+                    fs.close()
+                except:
+                    pass
+
+                if complete:
+                    print(
+                        "m index %i. Complete file: %s exists. Skipping..."
+                        % (mi, (self._svdfile(mi)))
+                    )
+                else:
+                    print(
+                        "m index %i. ***INCOMPLETE file: %s exists. Regenerating..."
+                        % (mi, (self._svdfile(mi)))
+                    )
             else:
                 print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+
+            if not complete:
                 self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
@@ -860,6 +882,12 @@ class BeamTransfer(object):
 
         # Open file to write SVD results into.
         fs = h5py.File(self._svdfile(mi), "w")
+
+        # Write "complete=False" attribute to SVD file.
+        # If code crashes before computations for this m complete,
+        # we can use this attribute to detect that the file is incomplete.
+        fs.attrs["complete"] = False
+        fs.flush()
 
         # Create a chunked dataset for writing the SVD beam matrix into.
         dsize_bsvd = (
@@ -1017,6 +1045,10 @@ class BeamTransfer(object):
         fs.attrs["baselines"] = self.telescope.baselines
         fs.attrs["m"] = mi
         fs.attrs["frequencies"] = self.telescope.frequencies
+
+        # We completed all the computations successfully, so set file's
+        # complete attribute accordingly.
+        fs.attrs["complete"] = True
 
         fs.close()
         fm.close()

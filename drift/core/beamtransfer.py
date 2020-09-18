@@ -781,39 +781,55 @@ class BeamTransfer(object):
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
 
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-
+        m_list = np.arange(self.telescope.mmax + 1)
+        if mpiutil.rank0:
             # For each m, check whether the file exists, if so, whether we
             # can open it and whether it has the "complete" attribute set to
             # True. If these tests all pass, we can skip the file. Otherwise,
-            # we generate a new SVD file for that m.
-            complete = False
-            if os.path.exists(self._svdfile(mi)) and not regen:
+            # we need to generate a new SVD file for that m.
+            for mi in m_list:
+                complete = False
+                if os.path.exists(self._svdfile(mi)) and not regen:
 
-                # File may exist but be un-openable, so we catch such an
-                # exception.
-                try:
-                    fs = h5py.File(self._svdfile(mi), "r")
-                    complete = fs.attrs["complete"]
-                    fs.close()
-                except:
-                    pass
+                    # File may exist but be un-openable, so we catch such an
+                    # exception.
+                    try:
+                        fs = h5py.File(self._svdfile(mi), "r")
+                        complete = fs.attrs["complete"]
+                        fs.close()
+                    except:
+                        pass
 
-                if complete:
-                    print(
-                        "m index %i. Complete file: %s exists. Skipping..."
-                        % (mi, (self._svdfile(mi)))
-                    )
-                else:
-                    print(
-                        "m index %i. ***INCOMPLETE file: %s exists. Regenerating..."
-                        % (mi, (self._svdfile(mi)))
-                    )
-            else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                    if complete:
+                        print(
+                            "m index %i. Complete file: %s exists. Skipping..."
+                            % (mi, (self._svdfile(mi)))
+                        )
+                        m_list[mi] = -1
+                    else:
+                        print(
+                            "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
+                            % (mi, (self._svdfile(mi)))
+                        )
 
-            if not complete:
-                self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
+            # Reduce m_list to the m's that we need to compute
+            m_list = m_list[m_list != -1]
+
+        # Broadcast reduced list to all tasks
+        m_list = mpiutil.bcast(m_list)
+        mpiutil.barrier()
+
+        # Print m list
+        if mpiutil.rank0:
+            print("****************")
+            print("m's remaining in beam SVD computation:")
+            print(m_list)
+            print("****************")
+
+        # Distribute m list over tasks, and do computations
+        for mi in mpiutil.partition_list_mpi(m_list):
+            print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+            self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()

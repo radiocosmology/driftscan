@@ -1048,8 +1048,12 @@ class BeamTransfer(object):
                 )
 
                 if not skip_svd_inv:
-                    ibeam = la.pinv(beam)
                     # Find the pseudo-inverse of the beam matrix and save to disk.
+                    try:
+                        ibeam = la.pinv(beam)
+                    except la.LinAngError as e:
+                        raise Exception("pinv failure: m = %d, fi = %d" % (mi,fi)).with_traceback(e.__traceback__)
+
                     dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
                         self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
                     )

@@ -817,7 +817,6 @@ class BeamTransfer(object):
 
         # Broadcast reduced list to all tasks
         m_list = mpiutil.bcast(m_list)
-        mpiutil.barrier()
 
         # Print m list
         if mpiutil.rank0:
@@ -825,6 +824,7 @@ class BeamTransfer(object):
             print("m's remaining in beam SVD computation:")
             print(m_list)
             print("****************")
+        mpiutil.barrier()
 
         # Distribute m list over tasks, and do computations
         for mi in mpiutil.partition_list_mpi(m_list):

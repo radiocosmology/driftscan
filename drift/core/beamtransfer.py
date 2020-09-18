@@ -1049,14 +1049,27 @@ class BeamTransfer(object):
 
                 if not skip_svd_inv:
                     # Find the pseudo-inverse of the beam matrix and save to disk.
+                    # First try la.pinv, which uses a least-squares solver.
                     try:
                         ibeam = la.pinv(beam)
                     except la.LinAlgError as e:
-                        # If pinv fails, close SVD and beam files gracefully,
-                        # then print error message
-                        fs.close()
-                        fm.close()
-                        raise Exception("pinv failure: m = %d, fi = %d" % (mi,fi)).with_traceback(e.__traceback__)
+                        # If la.pinv fails, try la.pinv2, which is SVD-based and
+                        # more likely to succeed. If successful, add file attribute
+                        # indicating pinv2 was used for this frequency.
+                        print("***pinv failure: m = %d, fi = %d. Trying pinv2..." % (mi,fi))
+                        try:
+                            ibeam = la.pinv2(beam)
+                            if "inv_bsvd_from_pinv2" not in fs.attrs.keys():
+                                fs.attrs["inv_bsvd_from_pinv2"] = [fi]
+                            else:
+                                bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
+                                fs.attrs["inv_bsvd_from_pinv2"] = bad_freqs.append(fi)
+                        except:
+                            # If pinv2 fails, close SVD and beam files gracefully,
+                            # then print error message
+                            fs.close()
+                            fm.close()
+                            raise Exception("pinv2 failure: m = %d, fi = %d" % (mi,fi))
 
                     dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
                         self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes

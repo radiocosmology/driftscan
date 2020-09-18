@@ -173,8 +173,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 class UnpolarisedCylinderTelescope(
     CylinderTelescope, telescope.SimpleUnpolarisedTelescope
 ):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
+    """A complete class for an Unpolarised Cylinder telescope."""
 
     def beam(self, feed, freq):
         """Beam for a particular feed.
@@ -203,8 +202,7 @@ class UnpolarisedCylinderTelescope(
 
 
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
+    """A complete class for an Unpolarised Cylinder telescope."""
 
     # @util.cache_last
     def beamx(self, feed, freq):

@@ -996,7 +996,9 @@ class BeamTransfer(object):
 
                 ## SVD 2 - project onto polarisation null space
                 bfp = bf1.reshape(
-                    bf1.shape[0], self.telescope.num_pol_sky, self.telescope.lmax + 1,
+                    bf1.shape[0],
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
                 )[:, 1:]
                 bfp = bfp.reshape(
                     bf1.shape[0],
@@ -1590,8 +1592,7 @@ class BeamTransfer(object):
 
 
 class BeamTransferTempSVD(BeamTransfer):
-    """BeamTransfer class that performs the old temperature only SVD.
-    """
+    """BeamTransfer class that performs the old temperature only SVD."""
 
     def _generate_svdfiles(self, regen=False):
         ## Generate all the SVD transfer matrices by simply iterating over all
@@ -1730,8 +1731,7 @@ class BeamTransferTempSVD(BeamTransfer):
 
 
 class BeamTransferFullSVD(BeamTransfer):
-    """BeamTransfer class that performs the old temperature only SVD.
-    """
+    """BeamTransfer class that performs the old temperature only SVD."""
 
     def _generate_svdfiles(self, regen=False):
         ## Generate all the SVD transfer matrices by simply iterating over all

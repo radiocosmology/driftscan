@@ -19,7 +19,7 @@ def jinc(x):
 
 def beam_circular(angpos, zenith, uv_diameter):
     """Beam pattern for a circular dish.
-    
+
     Parameters
     ----------
     angpos : np.ndarray
@@ -28,7 +28,7 @@ def beam_circular(angpos, zenith, uv_diameter):
         Co-ordinates of the zenith.
     uv_diameter : scalar
         Diameter of the dish (in units of wavelength).
-    
+
     Returns
     -------
     beam : np.ndarray
@@ -42,7 +42,7 @@ def beam_circular(angpos, zenith, uv_diameter):
 
 class DishArray(telescope.TransitTelescope):
     """A Telescope describing an interferometric array of dishes.
-    
+
     Attributes
     ----------
     gridu, gridv : integer
@@ -73,14 +73,14 @@ class DishArray(telescope.TransitTelescope):
 
     def beam(self, feed, freq):
         """Beam for a particular feed.
-        
+
         Parameters
         ----------
         feed : integer
             Index for the feed.
         freq : integer
             Index for the frequency.
-        
+
         Returns
         -------
         beam : np.ndarray
@@ -104,7 +104,7 @@ class DishArray(telescope.TransitTelescope):
     @property
     def feedpositions(self):
         """The set of feed positions in the CMU telescope.
-        
+
         Returns
         -------
         feedpositions : np.ndarray
@@ -122,10 +122,10 @@ class DishArray(telescope.TransitTelescope):
 
     def _get_unique(self, feedpairs):
         """Calculate the unique baseline pairs.
-        
+
         Pairs are considered identical if they have the same baseline
         separation,
-        
+
         Parameters
         ----------
         fpairs : np.ndarray

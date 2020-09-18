@@ -14,7 +14,7 @@ from drift.core import telescope
 
 def beam_circular(angpos, zenith, diameter):
     """Beam pattern for a uniformly illuminated circular dish.
-    
+
     Parameters
     ----------
     angpos : np.ndarray
@@ -23,7 +23,7 @@ def beam_circular(angpos, zenith, diameter):
         Co-ordinates of the zenith.
     diameter : scalar
         Diameter of the dish (in units of wavelength).
-    
+
     Returns
     -------
     beam : np.ndarray
@@ -40,7 +40,7 @@ def beam_circular(angpos, zenith, diameter):
 
 class DishArray(telescope.SimplePolarisedTelescope):
     """A Telescope describing an interferometric array of dishes.
-    
+
     Attributes
     ----------
     gridu, gridv : integer

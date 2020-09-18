@@ -1002,6 +1002,10 @@ class BeamTransfer(object):
                     try:
                         ibeam = la.pinv(beam)
                     except la.LinAlgError as e:
+                        # If pinv fails, close SVD and beam files gracefully,
+                        # then print error message
+                        fs.close()
+                        fm.close()
                         raise Exception("pinv failure: m = %d, fi = %d" % (mi,fi)).with_traceback(e.__traceback__)
 
                     dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(

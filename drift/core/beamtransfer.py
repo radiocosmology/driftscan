@@ -892,9 +892,6 @@ class BeamTransfer(object):
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file.
 
-        # Open m beams for reading.
-        fm = h5py.File(self._mfile(mi), "r")
-
         # Open file to write SVD results into.
         fs = h5py.File(self._svdfile(mi), "w")
 
@@ -967,9 +964,10 @@ class BeamTransfer(object):
         for fi in np.arange(self.telescope.nfreq):
 
             # Read the positive and negative m beams, and combine into one.
-            bf = fm["beam_m"][fi][:].reshape(
-                self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
-            )
+            with h5py.File(self._mfile(mi), "r") as fm:
+                bf = fm["beam_m"][fi][:].reshape(
+                    self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                )
 
             noisew = self.telescope.noisepower(
                 np.arange(self.telescope.npairs), fi
@@ -1067,10 +1065,9 @@ class BeamTransfer(object):
                                 bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
                                 fs.attrs["inv_bsvd_from_pinv2"] = bad_freqs.append(fi)
                         except:
-                            # If pinv2 fails, close SVD and beam files gracefully,
+                            # If pinv2 fails, close SVD file gracefully,
                             # then print error message
                             fs.close()
-                            fm.close()
                             raise Exception("pinv2 failure: m = %d, fi = %d" % (mi, fi))
 
                     dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
@@ -1090,7 +1087,6 @@ class BeamTransfer(object):
         fs.attrs["complete"] = True
 
         fs.close()
-        fm.close()
 
     def _collect_svd_spectrum(self):
         """Gather the SVD spectrum into a single file."""
@@ -1612,9 +1608,6 @@ class BeamTransferTempSVD(BeamTransfer):
             else:
                 print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
 
-            # Open m beams for reading.
-            fm = h5py.File(self._mfile(mi), "r")
-
             # Open file to write SVD results into.
             fs = h5py.File(self._svdfile(mi), "w")
 
@@ -1680,9 +1673,10 @@ class BeamTransferTempSVD(BeamTransfer):
             for fi in np.arange(self.telescope.nfreq):
 
                 # Read the positive and negative m beams, and combine into one.
-                bf = fm["beam_m"][fi][:].reshape(
-                    self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
-                )
+                with h5py.File(self._mfile(mi), "r") as fm:
+                    bf = fm["beam_m"][fi][:].reshape(
+                        self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                    )
 
                 noisew = self.telescope.noisepower(
                     np.arange(self.telescope.npairs), fi
@@ -1721,7 +1715,6 @@ class BeamTransferTempSVD(BeamTransfer):
             fs.attrs["cylobj"] = self._telescope_pickle
 
             fs.close()
-            fm.close()
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
@@ -1750,9 +1743,6 @@ class BeamTransferFullSVD(BeamTransfer):
                 continue
             else:
                 print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
-
-            # Open m beams for reading.
-            fm = h5py.File(self._mfile(mi), "r")
 
             # Open file to write SVD results into.
             fs = h5py.File(self._svdfile(mi), "w")
@@ -1819,9 +1809,10 @@ class BeamTransferFullSVD(BeamTransfer):
             for fi in np.arange(self.telescope.nfreq):
 
                 # Read the positive and negative m beams, and combine into one.
-                bf = fm["beam_m"][fi][:].reshape(
-                    self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
-                )
+                with h5py.File(self._mfile(mi), "r") as fm:
+                    bf = fm["beam_m"][fi][:].reshape(
+                        self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                    )
 
                 noisew = self.telescope.noisepower(
                     np.arange(self.telescope.npairs), fi
@@ -1859,7 +1850,6 @@ class BeamTransferFullSVD(BeamTransfer):
             fs.attrs["cylobj"] = self._telescope_pickle
 
             fs.close()
-            fm.close()
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()

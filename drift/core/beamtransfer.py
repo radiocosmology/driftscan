@@ -834,18 +834,16 @@ class BeamTransfer(object):
         m_list = np.arange(self.telescope.mmax + 1)
         if mpiutil.rank0:
             # For each m, check whether the file exists, if so, whether we
-            # can open it and whether it has the "complete" attribute set to
-            # True. If these tests all pass, we can skip the file. Otherwise,
-            # we need to generate a new SVD file for that m.
+            # can open it. If these tests all pass, we can skip the file.
+            # Otherwise, we need to generate a new SVD file for that m.
             for mi in m_list:
-                # complete = False
                 if os.path.exists(self._svdfile(mi)) and not regen:
 
                     # File may exist but be un-openable, so we catch such an
-                    # exception.
+                    # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                    # but we catch it just in case.
                     try:
                         fs = h5py.File(self._svdfile(mi), "r")
-                        # complete = fs.attrs["complete"]
                         fs.close()
 
                         print(
@@ -854,23 +852,10 @@ class BeamTransfer(object):
                         )
                         m_list[mi] = -1
                     except:
-                        # pass
                         print(
                             "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
                             % (mi, (self._svdfile(mi)))
                         )
-
-                    # if complete:
-                    #     print(
-                    #         "m index %i. Complete file: %s exists. Skipping..."
-                    #         % (mi, (self._svdfile(mi)))
-                    #     )
-                    #     m_list[mi] = -1
-                    # else:
-                    #     print(
-                    #         "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
-                    #         % (mi, (self._svdfile(mi)))
-                    #     )
 
             # Reduce m_list to the m's that we need to compute
             m_list = m_list[m_list != -1]
@@ -902,16 +887,12 @@ class BeamTransfer(object):
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file.
 
-        # Open file to write SVD results into
+        # Open file to write SVD results into, using caput.misc.lock_file()
+        # to guard against crashes while the file is open. With preserve=True,
+        # the temp file will be saved with a period in front of its name
+        # if a crash occurs.
         with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-            # with h5py.File(self._svdfile(mi), "w") as fs:
-
-                # Write "complete=False" attribute to SVD file.
-                # If code crashes before computations for this m complete,
-                # we can use this attribute to detect that the file is incomplete.
-                # fs.attrs["complete"] = False
-                # fs.flush()
 
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
@@ -1091,10 +1072,6 @@ class BeamTransfer(object):
                 fs.attrs["baselines"] = self.telescope.baselines
                 fs.attrs["m"] = mi
                 fs.attrs["frequencies"] = self.telescope.frequencies
-
-                # We completed all the computations successfully, so set file's
-                # complete attribute accordingly.
-                # fs.attrs["complete"] = True
 
 
     def _collect_svd_spectrum(self):

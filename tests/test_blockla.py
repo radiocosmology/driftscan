@@ -6,7 +6,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 # === End Python 2/3 compatibility
 
 
-from drift.core import blockla
+from drift.util import blockla
 
 import numpy as np
 

@@ -900,7 +900,9 @@ class BeamTransfer(object):
 
                 # Create a dataset for the singular values.
                 dsize_sig = (self.telescope.nfreq, self.svd_len)
-                dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
+                dset_sig = fs.create_dataset(
+                    "singularvalues", dsize_sig, dtype=np.float64
+                )
 
                 ## For each frequency in the m-files read in the block, SVD it,
                 ## and construct the new beam matrix, and save.
@@ -909,7 +911,9 @@ class BeamTransfer(object):
                     # Read the positive and negative m beams, and combine into one.
                     with h5py.File(self._mfile(mi), "r") as fm:
                         bf = fm["beam_m"][fi][:].reshape(
-                            self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                            self.ntel,
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
                         )
 
                     noisew = self.telescope.noisepower(
@@ -943,10 +947,13 @@ class BeamTransfer(object):
                         )[:, 1:]
                         bfp = bfp.reshape(
                             bf1.shape[0],
-                            (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1),
+                            (self.telescope.num_pol_sky - 1)
+                            * (self.telescope.lmax + 1),
                         )
                         u2, s2 = matrix_nullspace(
-                            bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i f=%i" % (mi, fi))
+                            bfp,
+                            rtol=self.polsvcut,
+                            errmsg=("SVD2 m=%i f=%i" % (mi, fi)),
                         )
 
                         ut2 = np.dot(u2.T.conj(), ut1)
@@ -1006,13 +1013,19 @@ class BeamTransfer(object):
                                         fs.attrs["inv_bsvd_from_pinv2"] = [fi]
                                     else:
                                         bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
-                                        fs.attrs["inv_bsvd_from_pinv2"] = bad_freqs.append(fi)
+                                        fs.attrs[
+                                            "inv_bsvd_from_pinv2"
+                                        ] = bad_freqs.append(fi)
                                 except:
                                     # If pinv2 fails, print error message
-                                    raise Exception("pinv2 failure: m = %d, fi = %d" % (mi, fi))
+                                    raise Exception(
+                                        "pinv2 failure: m = %d, fi = %d" % (mi, fi)
+                                    )
 
                             dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
-                                self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
+                                self.telescope.num_pol_sky,
+                                self.telescope.lmax + 1,
+                                nmodes,
                             )
 
                         # Save out the singular values for each block
@@ -1022,7 +1035,6 @@ class BeamTransfer(object):
                 fs.attrs["baselines"] = self.telescope.baselines
                 fs.attrs["m"] = mi
                 fs.attrs["frequencies"] = self.telescope.frequencies
-
 
     def _collect_svd_spectrum(self):
         """Gather the SVD spectrum into a single file."""
@@ -1602,7 +1614,9 @@ class BeamTransferTempSVD(BeamTransfer):
 
                 # Create a dataset for the singular values.
                 dsize_sig = (self.telescope.nfreq, self.svd_len)
-                dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
+                dset_sig = fs.create_dataset(
+                    "singularvalues", dsize_sig, dtype=np.float64
+                )
 
                 ## For each frequency in the m-files read in the block, SVD it,
                 ## and construct the new beam matrix, and save.
@@ -1611,7 +1625,9 @@ class BeamTransferTempSVD(BeamTransfer):
                     # Read the positive and negative m beams, and combine into one.
                     with h5py.File(self._mfile(mi), "r") as fm:
                         bf = fm["beam_m"][fi][:].reshape(
-                            self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                            self.ntel,
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
                         )
 
                     noisew = self.telescope.noisepower(
@@ -1633,12 +1649,16 @@ class BeamTransferTempSVD(BeamTransfer):
                     # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
                     bsvd = np.dot(u, bf.reshape(self.ntel, -1))
                     dset_bsvd[fi] = bsvd.reshape(
-                        self.svd_len, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                        self.svd_len,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
                     )
 
                     # Find the pseudo-inverse of the beam matrix and save to disk.
                     dset_ibsvd[fi] = la.pinv(bsvd).reshape(
-                        self.telescope.num_pol_sky, self.telescope.lmax + 1, self.svd_len
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        self.svd_len,
                     )
 
                     # Save out the singular values for each block
@@ -1736,7 +1756,9 @@ class BeamTransferFullSVD(BeamTransfer):
 
                 # Create a dataset for the singular values.
                 dsize_sig = (self.telescope.nfreq, self.svd_len)
-                dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
+                dset_sig = fs.create_dataset(
+                    "singularvalues", dsize_sig, dtype=np.float64
+                )
 
                 ## For each frequency in the m-files read in the block, SVD it,
                 ## and construct the new beam matrix, and save.
@@ -1745,7 +1767,9 @@ class BeamTransferFullSVD(BeamTransfer):
                     # Read the positive and negative m beams, and combine into one.
                     with h5py.File(self._mfile(mi), "r") as fm:
                         bf = fm["beam_m"][fi][:].reshape(
-                            self.ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                            self.ntel,
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
                         )
 
                     noisew = self.telescope.noisepower(
@@ -1766,12 +1790,16 @@ class BeamTransferFullSVD(BeamTransfer):
                     # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
                     bsvd = np.dot(u, bf)
                     dset_bsvd[fi] = bsvd.reshape(
-                        self.svd_len, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                        self.svd_len,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
                     )
 
                     # Find the pseudo-inverse of the beam matrix and save to disk.
                     dset_ibsvd[fi] = la.pinv(bsvd).reshape(
-                        self.telescope.num_pol_sky, self.telescope.lmax + 1, self.svd_len
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        self.svd_len,
                     )
 
                     # Save out the singular values for each block
@@ -1782,7 +1810,6 @@ class BeamTransferFullSVD(BeamTransfer):
                 fs.attrs["m"] = mi
                 fs.attrs["frequencies"] = self.telescope.frequencies
                 fs.attrs["cylobj"] = self._telescope_pickle
-
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()

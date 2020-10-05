@@ -117,8 +117,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
     nswitch = config.Property(proptype=int, default=0)  # 200
 
     def gen_vecs(self, mi):
-        """Generate a cache of sample vectors for each bandpower.
-        """
+        """Generate a cache of sample vectors for each bandpower."""
 
         # Delete cache
         self.vec_cache = []

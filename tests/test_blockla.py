@@ -6,7 +6,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 # === End Python 2/3 compatibility
 
 
-from drift.core import blockla
+from drift.util import blockla
 
 import numpy as np
 
@@ -27,9 +27,9 @@ def test_blocksvd():
     sas = np.sort(sa.flat)
     sbs = np.sort(sb.flat)
 
-    assert np.allclose(sas, sbs).all()
+    assert np.allclose(sas, sbs)
 
-    assert np.allclose(np.dot(ub[0, :, 0], ub[0, :, 1]), 0.0).all()
-    assert np.allclose(np.dot(ub[1, :, 0], ub[1, :, 1]), 0.0).all()
+    assert np.allclose(np.dot(ub[0, :, 0], ub[0, :, 1]), 0.0)
+    assert np.allclose(np.dot(ub[1, :, 0], ub[1, :, 1]), 0.0)
 
-    assert np.allclose(np.dot(vb[0, :, 0], vb[0, :, 2]), 0.0).all()
+    assert np.allclose(np.dot(vb[0, :, 0], vb[0, :, 2]), 0.0)

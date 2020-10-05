@@ -71,13 +71,14 @@ class DoubleKL(kltransform.KLTransform):
         # Find joint eigenbasis and transformation matrix
         st = time.time()
         if not self.do_NoverS:
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+            evals, evecs2, ac = kltransform.eigh_gen(cs, cn, message="m = %d; KL step 1" % mi)
             sf_str = "S/F"
         else:
-            evals, evecs, ac = kltransform.eigh_gen(cn, cs)
+            evals, evecs, ac = kltransform.eigh_gen(cn, cs, message="m = %d; KL step 1" % mi)
             evals = 1./evals[::-1]
             evecs2 = evecs[:, ::-1]
             sf_str = "F/S"
+            
         evecs = evecs2.T.conj()
         et = time.time()
         print("Time to solve generalized %s EV problem =\t" % sf_str, (et - st))
@@ -142,7 +143,7 @@ class DoubleKL(kltransform.KLTransform):
 
             # Find the eigenbasis and the transformation into it.
             st = time.time()
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+            evals, evecs2, ac = kltransform.eigh_gen(cs, cn, message="m = %d; KL step 2" % mi)
             evecs = np.dot(evecs2.T.conj(), evecs)
             et = time.time()
             print("Time to solve generalized S/(F+N) EV problem =\t", (et - st))

@@ -313,8 +313,7 @@ class ProductManager(object):
                     )
 
     def generate(self):
-        """Calculate the analysis products.
-        """
+        """Calculate the analysis products."""
 
         # Create the directory if it does not exist
         if not os.path.exists(self.directory):

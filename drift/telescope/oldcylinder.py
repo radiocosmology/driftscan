@@ -155,8 +155,7 @@ class CylinderTelescope(telescope.TransitTelescope):
 class UnpolarisedCylinderTelescope(
     CylinderTelescope, telescope.SimpleUnpolarisedTelescope
 ):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
+    """A complete class for an Unpolarised Cylinder telescope."""
 
     def beam(self, feed, freq):
         """Beam for a particular feed.
@@ -181,8 +180,7 @@ class UnpolarisedCylinderTelescope(
 
 
 class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTelescope):
-    """A complete class for an Unpolarised Cylinder telescope.
-    """
+    """A complete class for an Unpolarised Cylinder telescope."""
 
     # Change the illuminated width in X and Y
     illumination_x = config.Property(proptype=float, default=1.0)

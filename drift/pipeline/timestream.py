@@ -51,8 +51,7 @@ class Timestream(object):
 
     @property
     def beamtransfer(self):
-        """The BeamTransfer object corresponding to this timestream.
-        """
+        """The BeamTransfer object corresponding to this timestream."""
         # if self._beamtransfer is None:
         #     self._beamtransfer = beamtransfer.BeamTransfer(self.beamtransfer_dir)
 
@@ -62,8 +61,7 @@ class Timestream(object):
 
     @property
     def telescope(self):
-        """The telescope object corresponding to this timestream.
-        """
+        """The telescope object corresponding to this timestream."""
         return self.beamtransfer.telescope
 
     # ====================================================
@@ -225,8 +223,7 @@ class Timestream(object):
                 return f["mmode_svd"][:]
 
     def generate_mmodes_svd(self):
-        """Generate the SVD modes for the Timestream.
-        """
+        """Generate the SVD modes for the Timestream."""
 
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
@@ -346,8 +343,7 @@ class Timestream(object):
                 return f["mmode_kl"][:]
 
     def generate_mmodes_kl(self):
-        """Generate the KL modes for the Timestream.
-        """
+        """Generate the KL modes for the Timestream."""
 
         kl = self.manager.kltransforms[self.klname]
 

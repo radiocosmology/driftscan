@@ -4,6 +4,7 @@ generation."""
 from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *  # noqa  pylint: disable=W0401, W0614
 from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+from future.moves.urllib.request import urlretrieve
 
 # === End Python 2/3 compatibility
 
@@ -16,7 +17,6 @@ import sys
 import numpy as np
 import pytest
 import h5py
-
 
 # Ensure we're using the correct package
 _basedir = os.path.realpath(os.path.dirname(__file__))
@@ -97,7 +97,14 @@ def manager(products_run):
 def saved_products(tmpdir_factory):
 
     _base = str(tmpdir_factory.mktemp("saved_products"))
+
     prodfile = os.path.join(_basedir, "drift_testproducts.tar.gz")
+
+    # Download the test products if they don't exist locally
+    if not os.path.exists(prodfile):
+        print("Downloading test verification data.")
+        url = "http://bao.chimenet.ca/testcache/drift_testproducts.tar.gz"
+        urlretrieve(url, prodfile)
 
     with tarfile.open(prodfile, "r:gz") as tf:
         tf.extractall(path=_base)
@@ -114,24 +121,21 @@ def saved_products(tmpdir_factory):
 
 
 def test_return_code(return_code):
-    """Test that the products exited cleanly.
-    """
+    """Test that the products exited cleanly."""
     code = return_code // 256
 
     assert code == 0
 
 
 def test_signal_exit(return_code):
-    """Test that the products exited cleanly.
-    """
+    """Test that the products exited cleanly."""
     signal = return_code % 256
 
     assert signal == 0
 
 
 def test_manager(manager, testdir):
-    """Check that the product manager code loads properly.
-    """
+    """Check that the product manager code loads properly."""
 
     mfile = manager.directory
     tfile = testdir + "/testdir"
@@ -141,8 +145,7 @@ def test_manager(manager, testdir):
 
 # This works despite the non-determinism because the elements are small.
 def test_beam_m(manager, saved_products):
-    """Check the consistency of the m-ordered beams.
-    """
+    """Check the consistency of the m-ordered beams."""
 
     with saved_products("beam_m_14.hdf5") as f:
         bm_saved = f["beam_m"][:]
@@ -154,8 +157,7 @@ def test_beam_m(manager, saved_products):
 
 
 def test_svd_spectrum(manager, saved_products):
-    """Test the SVD spectrum.
-    """
+    """Test the SVD spectrum."""
     with saved_products("svdspectrum.hdf5") as f:
         svd_saved = f["singularvalues"][:]
 
@@ -166,8 +168,7 @@ def test_svd_spectrum(manager, saved_products):
 
 
 def test_kl_spectrum(manager, saved_products):
-    """Check the KL spectrum (for the foregroundless model).
-    """
+    """Check the KL spectrum (for the foregroundless model)."""
 
     with saved_products("evals_kl.hdf5") as f:
         ev_saved = f["evals"][:]
@@ -180,8 +181,7 @@ def test_kl_spectrum(manager, saved_products):
 
 @pytest.mark.skip(reason="Non determinstic SHT (libsharp), means this doesn't work")
 def test_kl_mode(manager, saved_products):
-    """Check a KL mode (m=26) for the foregroundless model.
-    """
+    """Check a KL mode (m=26) for the foregroundless model."""
 
     with saved_products("ev_kl_m_26.hdf5") as f:
         evecs_saved = f["evecs"][:]
@@ -194,8 +194,7 @@ def test_kl_mode(manager, saved_products):
 
 @pytest.mark.skip(reason="Non determinstic SHT (libsharp), means this doesn't work")
 def test_dk_mode(manager, saved_products):
-    """Check a KL mode (m=38) for the model with foregrounds.
-    """
+    """Check a KL mode (m=38) for the model with foregrounds."""
 
     with saved_products("ev_dk_m_38.hdf5") as f:
         evecs_saved = f["evecs"][:]
@@ -207,8 +206,7 @@ def test_dk_mode(manager, saved_products):
 
 
 def test_kl_fisher(manager, saved_products):
-    """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo.
-    """
+    """Test the Fisher matrix consistency. Use an approximate test as Monte-Carlo."""
 
     with saved_products("fisher_kl.hdf5") as f:
         fisher_saved = f["fisher"][:]
@@ -225,8 +223,7 @@ def test_kl_fisher(manager, saved_products):
 
 
 def test_dk_fisher(manager, saved_products):
-    """Test the DK Fisher matrix consistency. Use an approximate test as Monte-Carlo.
-    """
+    """Test the DK Fisher matrix consistency. Use an approximate test as Monte-Carlo."""
 
     with saved_products("fisher_dk.hdf5") as f:
         fisher_saved = f["fisher"][:]
@@ -244,8 +241,7 @@ def test_dk_fisher(manager, saved_products):
 
 @pytest.mark.skip(reason="Non determinstic SHT (libsharp), means this doesn't work")
 def test_svd_mode(manager, saved_products):
-    """Test that the SVD modes are correct.
-    """
+    """Test that the SVD modes are correct."""
 
     with saved_products("svd_m_14.hdf5") as f:
         svd_saved = f["beam_svd"][:]
@@ -263,8 +259,7 @@ def test_svd_mode(manager, saved_products):
 
 
 def test_dk_spectrum(manager, saved_products):
-    """Check the KL spectrum (for the model with foregrounds).
-    """
+    """Check the KL spectrum (for the model with foregrounds)."""
 
     with saved_products("evals_dk.hdf5") as f:
         ev_saved = f["evals"][:]

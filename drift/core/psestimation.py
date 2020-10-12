@@ -940,8 +940,7 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
 
 class PSExact(PSEstimation):
-    """PS Estimation class with exact calculation of the Fisher matrix.
-    """
+    """PS Estimation class with exact calculation of the Fisher matrix."""
 
     @property
     def _cfile(self):

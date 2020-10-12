@@ -62,7 +62,7 @@ def collect_m_array(mlist, func, shape, dtype):
     return res[0] if mpiutil.rank0 else None
 
 
-def eigh_gen(A, B):
+def eigh_gen(A, B, message=""):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
 
@@ -74,6 +74,8 @@ def eigh_gen(A, B):
     ----------
     A, B : np.ndarray
         Matrices to operate on.
+    message : string, optional
+        Optional string to print if an exception is thrown. Default: "".
 
     Returns
     -------
@@ -97,11 +99,9 @@ def eigh_gen(A, B):
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
-            print("Error occured in eigenvalue solve.")
+            print("Error occurred in eigenvalue solve: %s" % message)
             # Get error number
-            ### SJF hotfix: e.message appears not to exist, so I swapped it for str(e)
-            mo = re.search("order (\\d+)", str(e))
-            #mo = re.search("order (\\d+)", e.message)
+            mo = re.search("order (\\d+)", e.args[0])
 
             # If exception unrecognised then re-raise.
             if mo is None:
@@ -109,14 +109,11 @@ def eigh_gen(A, B):
 
             errno = mo.group(1)
 
-            ### SJF hotfix: comparison operation doesn't work (errno is a str),
-            ### so I convert errno to an int
             if int(errno) < (A.shape[0] + 1):
-            # if errno < (A.shape[0] + 1):
 
                 print(
-                    "Matrix probably not positive definite due to numerical issues. \
-                Trying to add a constant diagonal...."
+                    "Matrix probably not positive definite due to numerical issues. "
+                    + "Trying to add a constant diagonal...."
                 )
 
                 evb = la.eigvalsh(B)
@@ -807,9 +804,9 @@ class KLTransform(config.Reader):
         # matches the ordering in the S/N case.
         st = time.time()
         if not self.do_NoverS:
-            evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
+            evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr, message="m = %d" % mi)
         else:
-            evals, evecs, ac = eigh_gen(cvb_nr, cvb_sr)
+            evals, evecs, ac = eigh_gen(cvb_nr, cvb_sr, message="m = %d" % mi)
             evals = 1./evals[::-1]
             evecs = evecs[:, ::-1]
 

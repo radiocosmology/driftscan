@@ -2053,7 +2053,7 @@ class BeamTransferFullFreq(BeamTransfer):
         ## Generate all the SVD transfer matrices by simply iterating over all
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
-
+        
         m_list = np.arange(self.telescope.mmax + 1)
         if mpiutil.rank0:
             # For each m, check whether the file exists, if so, whether we
@@ -2084,6 +2084,7 @@ class BeamTransferFullFreq(BeamTransfer):
             m_list = m_list[m_list != -1]
 
         # Broadcast reduced list to all tasks
+        mpiutil.barrier()
         m_list = mpiutil.bcast(m_list)
 
         # Print m list
@@ -2092,8 +2093,7 @@ class BeamTransferFullFreq(BeamTransfer):
             print("m's remaining in beam SVD computation:")
             print(m_list)
             print("****************")
-        mpiutil.barrier()
-
+        
         # Distribute m list over tasks, and do computations
         for mi in mpiutil.partition_list_mpi(m_list):
             print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))

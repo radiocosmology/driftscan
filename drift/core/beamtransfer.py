@@ -2150,6 +2150,7 @@ class BeamTransferFullFreq(BeamTransfer):
         b_full = b_full.reshape(nfreq * self.ntel, -1)
 
         success = False
+        pinv2_used = False
 
         # If unpolarized, skip first 2 SVDs
         if self.telescope.num_pol_sky == 1:
@@ -2233,10 +2234,28 @@ class BeamTransferFullFreq(BeamTransfer):
 
             if not skip_svd_inv:
                 # Find the pseudo-inverse of the beam matrix and save to disk.
+                # First try la.pinv, which uses a least-squares solver.
                 if self.verbose_beam_svd:
                     print("m = %d: Finding pseudoinverse of projected beam " \
                          "- projected shape = " % mi, beam.shape)
-                ibeam = la.pinv(beam)
+                try:
+                    ibeam = la.pinv(beam)
+                except la.LinAlgError as e:
+                    # If la.pinv fails, try la.pinv2, which is SVD-based and
+                    # more likely to succeed. If successful, add file attribute
+                    # indicating pinv2 was used for this frequency.
+                    print(
+                        "***pinv failure: m = %d, fi = %d. Trying pinv2..."
+                        % (mi, fi)
+                    )
+                    try:
+                        ibeam = la.pinv2(beam)
+                        pinv2_used = True
+                    except:
+                        # If pinv2 fails, print error message
+                        raise Exception(
+                            "***pinv2 failure: m = %d, fi = %d" % (mi, fi)
+                        )
 
             # Set flag that saves products to files later
             success = True
@@ -2287,6 +2306,8 @@ class BeamTransferFullFreq(BeamTransfer):
                 compression="lzf",
                 dtype=np.complex128,
             )
+            if pinv2_used:
+                fs.attrs["inv_from_pinv2"] = True
 
         # Create a chunked dataset for the stokes T U-matrix (left evecs)
         dsize_ut = (nfreq * self.svd_len, nfreq * self.ntel)

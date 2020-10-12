@@ -2243,8 +2243,8 @@ class BeamTransferFullFreq(BeamTransfer):
                     # more likely to succeed. If successful, add file attribute
                     # indicating pinv2 was used for this frequency.
                     print(
-                        "***pinv failure: m = %d, fi = %d. Trying pinv2..."
-                        % (mi, fi)
+                        "***pinv failure: m = %d. Trying pinv2..."
+                        % (mi)
                     )
                     try:
                         ibeam = la.pinv2(beam)
@@ -2252,7 +2252,7 @@ class BeamTransferFullFreq(BeamTransfer):
                     except:
                         # If pinv2 fails, print error message
                         raise Exception(
-                            "***pinv2 failure: m = %d, fi = %d" % (mi, fi)
+                            "***pinv2 failure: m = %d" % (mi)
                         )
 
             # Set flag that saves products to files later

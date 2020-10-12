@@ -2053,7 +2053,7 @@ class BeamTransferFullFreq(BeamTransfer):
         ## Generate all the SVD transfer matrices by simply iterating over all
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
-        
+
         m_list = np.arange(self.telescope.mmax + 1)
         if mpiutil.rank0:
             # For each m, check whether the file exists, if so, whether we
@@ -2904,19 +2904,50 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
 
-        # For each `m` collect all the `m` sections from each frequency file,
-        # and write them into a new `m` file. Use MPI if available.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        m_list = np.arange(self.telescope.mmax + 1)
+        if mpiutil.rank0:
+            # For each m, check whether the file exists, if so, whether we
+            # can open it. If these tests all pass, we can skip the file.
+            # Otherwise, we need to generate a new SVD file for that m.
+            for mi in m_list:
+                if os.path.exists(self._svdfile(mi)) and not regen:
 
-            if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
-                    "m index %i. File: %s exists. Skipping..."
-                    % (mi, (self._svdfile(mi)))
-                )
-                continue
-            else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
-                self._generate_svdfile_m(mi, skip_svd_inv)
+                    # File may exist but be un-openable, so we catch such an
+                    # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                    # but we catch it just in case.
+                    try:
+                        fs = h5py.File(self._svdfile(mi), "r")
+                        fs.close()
+
+                        print(
+                            "m index %i. Complete file: %s exists. Skipping..."
+                            % (mi, (self._svdfile(mi)))
+                        )
+                        m_list[mi] = -1
+                    except:
+                        print(
+                            "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
+                            % (mi, (self._svdfile(mi)))
+                        )
+
+            # Reduce m_list to the m's that we need to compute
+            m_list = m_list[m_list != -1]
+
+        # Broadcast reduced list to all tasks
+        m_list = mpiutil.bcast(m_list)
+
+        # Print m list
+        if mpiutil.rank0:
+            print("****************")
+            print("m's remaining in beam SVD computation:")
+            print(m_list)
+            print("****************")
+        mpiutil.barrier()
+
+        # Distribute m list over tasks, and do computations
+        for mi in mpiutil.partition_list_mpi(m_list):
+            print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+            self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()

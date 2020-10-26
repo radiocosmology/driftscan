@@ -2125,230 +2125,313 @@ class BeamTransferFullFreq(BeamTransfer):
         b_diag_shape = b_diag.shape
         fm.close()
 
-        # Expand beam transfer matrix to 2 freq axes,
-        # packed as [freq,msign,base,freq,pol,ell]
-        if self.verbose_beam_svd: print("m = %d: Expanding B to 2 freq axes" % mi)
-        b_full_shape = b_diag_shape[:3] + (b_diag_shape[0], b_diag_shape[3], b_diag_shape[4],)
-        b_full = np.zeros(b_full_shape, dtype=np.complex128)
-        for i in range(nfreq):
-            b_full[i,:,:,i,:,:] = b_diag[i]
-        b_diag = None
+        # Open file to write SVD results into, using caput.misc.lock_file()
+        # to guard against crashes while the file is open. With preserve=True,
+        # the temp file will be saved with a period in front of its name
+        # if a crash occurs.
+        if self.verbose_beam_svd: print("m = %d: Creating output file" % mi)
+        with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as fs:
 
-        # Perform any preprocessing of beam transfer matrix that is desired
-        # prior to prewhitening and SVDs, and return beam transfer matrix
-        # and any ancillary information used for this preprocessing.
-        # In derived classes, this will be used for various filters that are
-        # applied to telescope-basis data
-        if self.verbose_beam_svd: print("m = %d: Preprocessing B" % mi)
-        b_full, pp_info = self._preprocess_beam_transfer_matrix(mi, b_full)
-
-        # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
-        if self.verbose_beam_svd: print("m = %d: Prewhitening B" % mi)
-        b_full = self._prewhiten_beam_transfer_matrix(b_full)
-        b_full = b_full.reshape(nfreq * self.ntel, -1)
-
-        success = False
-        pinv2_used = False
-
-        # If unpolarized, skip first 2 SVDs
-        if self.telescope.num_pol_sky == 1:
-            bf2 = b_full
-            ut2 = np.identity(nfreq * bt.ntel, dtype=np.complex128)
-        else:
-            ## SVD 1 - coarse projection onto sky-modes
-            if self.verbose_beam_svd:
-                print("m = %d: Performing SVD 1 - matrix shape = " % mi, b_full.shape)
-            u1, s1 = matrix_image(
-                b_full, rtol=1e-10, errmsg=("SVD1 m=%i" % (mi))
-            )
-
-            ut1 = u1.T.conj()
-            u1 = None
-            bf1 = np.dot(ut1, b_full)
-
-            ## SVD 2 - project onto polarisation null space
-            bfp = bf1.reshape(
-                bf1.shape[0],
-                nfreq,
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-            )[:, :, 1:]
-            bfp = bfp.reshape(
-                bf1.shape[0],
-                nfreq * (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1),
-            )
-            bf1 = None
-            if self.verbose_beam_svd:
-                print("m = %d: Performing SVD 2 - matrix shape = " % mi, bfp.shape)
-            u2, s2 = matrix_nullspace(
-                bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i" % (mi))
-            )
-            bfp = None
-
-            ut2 = np.dot(u2.T.conj(), ut1)
-            u2 = None
-            ut1 = None
-            bf2 = np.dot(ut2, b_full)
-
-        # Check to ensure polcut hasn't thrown away all modes. If it
-        # has, just leave datasets blank.
-        if bf2.shape[0] > 0 and (
-            self.telescope.num_pol_sky == 1 or (s1 > 0.0).any()
-        ):
-
-            ## SVD 3 - decompose polarisation null space
-            bft = bf2.reshape(
-                -1, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
-            )[:, :, 0].reshape(-1, nfreq * (self.telescope.lmax + 1))
-            bf2 = None
-            if self.verbose_beam_svd:
-                print("m = %d: Performing SVD 3 - matrix shape = " % mi, bft.shape)
-
-            u3, s3 = matrix_image(
-                bft, rtol=0.0, errmsg=("SVD3 m=%i" % (mi))
-            )
-            bft = None
-            ut3 = np.dot(u3.T.conj(), ut2)
-            ut2 = None
-
-            nmodes = ut3.shape[0]
-
-            # Final products
-            ut = ut3
-            sig = s3[:nmodes]
-            beam = np.dot(ut3, b_full)
-
-            # Apply prewhitening to U^T, so the saved U^T includes the
-            # prewhitening operation
-            if self.verbose_beam_svd: print("m = %d: Applying prewhitening to U^T" % mi)
-            ut = self._apply_prewhitening_to_beam_ut(ut)
-
-            # If any preprocessing of beam transfer matrix has been performed,
-            # we need to apply the same preprocessing to U^T from the right.
-            # (b_full includes the preprocessing and prewhitening, so the beam
-            # variable above also includes all that)
-            if self.verbose_beam_svd: print("m = %d: Applying preprocessing to U^T" % mi)
-            ut = self._apply_preprocessing_to_beam_ut(mi, ut, pp_info)
-
-            if not skip_svd_inv:
-                # Find the pseudo-inverse of the beam matrix and save to disk.
-                # First try la.pinv, which uses a least-squares solver.
-                if self.verbose_beam_svd:
-                    print("m = %d: Finding pseudoinverse of projected beam " \
-                         "- projected shape = " % mi, beam.shape)
-                try:
-                    ibeam = la.pinv(beam)
-                except la.LinAlgError as e:
-                    # If la.pinv fails, try la.pinv2, which is SVD-based and
-                    # more likely to succeed. If successful, add file attribute
-                    # indicating pinv2 was used for this frequency.
-                    print(
-                        "***pinv failure: m = %d. Trying pinv2..."
-                        % (mi)
-                    )
-                    try:
-                        ibeam = la.pinv2(beam)
-                        pinv2_used = True
-                    except:
-                        # If pinv2 fails, print error message
-                        raise Exception(
-                            "***pinv2 failure: m = %d" % (mi)
-                        )
-
-            # Set flag that saves products to files later
-            success = True
-
-
-        # Open file to write SVD results into.
-        fs = h5py.File(self._svdfile(mi), "w")
-
-        # Create a chunked dataset for writing the SVD beam matrix into.
-        dsize_bsvd = (
-            nfreq * self.svd_len,
-            nfreq,
-            self.telescope.num_pol_sky,
-            self.telescope.lmax + 1,
-        )
-        csize_bsvd = (
-            min(10, self.svd_len),
-            1,
-            self.telescope.num_pol_sky,
-            self.telescope.lmax + 1,
-        )
-        dset_bsvd = fs.create_dataset(
-            "beam_svd",
-            dsize_bsvd,
-            chunks=csize_bsvd,
-            compression="lzf",
-            dtype=np.complex128,
-        )
-
-        if not skip_svd_inv:
-            # Create a chunked dataset for writing the inverse SVD beam matrix into.
-            dsize_ibsvd = (
-                nfreq,
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-                nfreq * self.svd_len,
-            )
-            csize_ibsvd = (
-                1,
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-                min(10, self.svd_len),
-            )
-            dset_ibsvd = fs.create_dataset(
-                "invbeam_svd",
-                dsize_ibsvd,
-                chunks=csize_ibsvd,
-                compression="lzf",
-                dtype=np.complex128,
-            )
-            if pinv2_used:
-                fs.attrs["inv_from_pinv2"] = True
-
-        # Create a chunked dataset for the stokes T U-matrix (left evecs)
-        dsize_ut = (nfreq * self.svd_len, nfreq * self.ntel)
-        csize_ut = (min(10, self.svd_len), self.ntel)
-        dset_ut = fs.create_dataset(
-            "beam_ut",
-            dsize_ut,
-            chunks=csize_ut,
-            compression="lzf",
-            dtype=np.complex128,
-        )
-
-        # Create a dataset for the singular values.
-        dsize_sig = (nfreq * self.svd_len, )
-        dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
-
-        # Write a few useful attributes and close SVD file
-        fs.attrs["baselines"] = self.telescope.baselines
-        fs.attrs["m"] = mi
-        fs.attrs["frequencies"] = self.telescope.frequencies
-
-        if success:
-
-            # Save the combined U^T matrix (for transforming from the telescope
-            # basis into the SVD basis).
-            dset_ut[:nmodes] = ut
-
-            # Save the modified beam matrix (for transforming from the sky into
-            # the SVD basis)
-            dset_bsvd[:nmodes] = beam.reshape(
-                nmodes, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
-            )
-
-            if not skip_svd_inv:
-                # Save pseudo-inverse of the beam matrix to disk.
-                dset_ibsvd[:, :, :, :nmodes] = ibeam.reshape(
-                    nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
+                # Create a chunked dataset for writing the SVD beam matrix into.
+                dsize_bsvd = (
+                    nfreq * self.svd_len,
+                    nfreq,
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                csize_bsvd = (
+                    min(10, self.svd_len),
+                    1,
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                dset_bsvd = fs.create_dataset(
+                    "beam_svd",
+                    dsize_bsvd,
+                    chunks=csize_bsvd,
+                    compression="lzf",
+                    dtype=np.complex128,
                 )
 
-            # Save the singular values
-            dset_sig[:nmodes] = sig
+                if not skip_svd_inv:
+                    # Create a chunked dataset for writing the inverse SVD beam matrix into.
+                    dsize_ibsvd = (
+                        nfreq,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        nfreq * self.svd_len,
+                    )
+                    csize_ibsvd = (
+                        1,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        min(10, self.svd_len),
+                    )
+                    dset_ibsvd = fs.create_dataset(
+                        "invbeam_svd",
+                        dsize_ibsvd,
+                        chunks=csize_ibsvd,
+                        compression="lzf",
+                        dtype=np.complex128,
+                    )
+                    if pinv2_used:
+                        fs.attrs["inv_from_pinv2"] = True
 
-        fs.close()
+                # Create a chunked dataset for the stokes T U-matrix (left evecs)
+                dsize_ut = (nfreq * self.svd_len, nfreq * self.ntel)
+                csize_ut = (min(10, self.svd_len), self.ntel)
+                dset_ut = fs.create_dataset(
+                    "beam_ut",
+                    dsize_ut,
+                    chunks=csize_ut,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                # Create a dataset for the singular values.
+                dsize_sig = (nfreq * self.svd_len, )
+                dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
+
+                # Write a few useful attributes to the file
+                fs.attrs["baselines"] = self.telescope.baselines
+                fs.attrs["m"] = mi
+                fs.attrs["frequencies"] = self.telescope.frequencies
+
+                # Expand beam transfer matrix to 2 freq axes,
+                # packed as [freq,msign,base,freq,pol,ell]
+                if self.verbose_beam_svd: print("m = %d: Expanding B to 2 freq axes" % mi)
+                b_full_shape = b_diag_shape[:3] + (b_diag_shape[0], b_diag_shape[3], b_diag_shape[4],)
+                b_full = np.zeros(b_full_shape, dtype=np.complex128)
+                for i in range(nfreq):
+                    b_full[i,:,:,i,:,:] = b_diag[i]
+                b_diag = None
+
+                # Perform any preprocessing of beam transfer matrix that is desired
+                # prior to prewhitening and SVDs, and return beam transfer matrix
+                # and any ancillary information used for this preprocessing.
+                # In derived classes, this will be used for various filters that are
+                # applied to telescope-basis data
+                if self.verbose_beam_svd: print("m = %d: Preprocessing B" % mi)
+                b_full, pp_info = self._preprocess_beam_transfer_matrix(mi, b_full)
+
+                # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
+                if self.verbose_beam_svd: print("m = %d: Prewhitening B" % mi)
+                b_full = self._prewhiten_beam_transfer_matrix(b_full)
+                b_full = b_full.reshape(nfreq * self.ntel, -1)
+
+        # success = False
+        # pinv2_used = False
+
+                # If unpolarized, skip first 2 SVDs
+                if self.telescope.num_pol_sky == 1:
+                    bf2 = b_full
+                    ut2 = np.identity(nfreq * bt.ntel, dtype=np.complex128)
+                else:
+                    ## SVD 1 - coarse projection onto sky-modes
+                    if self.verbose_beam_svd:
+                        print("m = %d: Performing SVD 1 - matrix shape = " % mi, b_full.shape)
+                    u1, s1 = matrix_image(
+                        b_full, rtol=1e-10, errmsg=("SVD1 m=%i" % (mi))
+                    )
+
+                    ut1 = u1.T.conj()
+                    u1 = None
+                    bf1 = np.dot(ut1, b_full)
+
+                    ## SVD 2 - project onto polarisation null space
+                    bfp = bf1.reshape(
+                        bf1.shape[0],
+                        nfreq,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )[:, :, 1:]
+                    bfp = bfp.reshape(
+                        bf1.shape[0],
+                        nfreq * (self.telescope.num_pol_sky - 1) * (self.telescope.lmax + 1),
+                    )
+                    bf1 = None
+                    if self.verbose_beam_svd:
+                        print("m = %d: Performing SVD 2 - matrix shape = " % mi, bfp.shape)
+                    u2, s2 = matrix_nullspace(
+                        bfp, rtol=self.polsvcut, errmsg=("SVD2 m=%i" % (mi))
+                    )
+                    bfp = None
+
+                    ut2 = np.dot(u2.T.conj(), ut1)
+                    u2 = None
+                    ut1 = None
+                    bf2 = np.dot(ut2, b_full)
+
+                # Check to ensure polcut hasn't thrown away all modes. If it
+                # has, just leave datasets blank.
+                if bf2.shape[0] > 0 and (
+                    self.telescope.num_pol_sky == 1 or (s1 > 0.0).any()
+                ):
+
+                    ## SVD 3 - decompose polarisation null space
+                    bft = bf2.reshape(
+                        -1, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                    )[:, :, 0].reshape(-1, nfreq * (self.telescope.lmax + 1))
+                    bf2 = None
+                    if self.verbose_beam_svd:
+                        print("m = %d: Performing SVD 3 - matrix shape = " % mi, bft.shape)
+
+                    u3, s3 = matrix_image(
+                        bft, rtol=0.0, errmsg=("SVD3 m=%i" % (mi))
+                    )
+                    bft = None
+                    ut3 = np.dot(u3.T.conj(), ut2)
+                    ut2 = None
+
+                    nmodes = ut3.shape[0]
+
+                    # Final products
+                    ut = ut3
+                    sig = s3[:nmodes]
+                    beam = np.dot(ut3, b_full)
+
+                    # Apply prewhitening to U^T, so the saved U^T includes the
+                    # prewhitening operation
+                    if self.verbose_beam_svd: print("m = %d: Applying prewhitening to U^T" % mi)
+                    ut = self._apply_prewhitening_to_beam_ut(ut)
+
+                    # If any preprocessing of beam transfer matrix has been performed,
+                    # we need to apply the same preprocessing to U^T from the right.
+                    # (b_full includes the preprocessing and prewhitening, so the beam
+                    # variable above also includes all that)
+                    if self.verbose_beam_svd: print("m = %d: Applying preprocessing to U^T" % mi)
+                    ut = self._apply_preprocessing_to_beam_ut(mi, ut, pp_info)
+
+                    # Save the combined U^T matrix (for transforming from the telescope
+                    # basis into the SVD basis).
+                    dset_ut[:nmodes] = ut
+
+                    # Save the modified beam matrix (for transforming from the sky into
+                    # the SVD basis)
+                    dset_bsvd[:nmodes] = beam.reshape(
+                        nmodes, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                    )
+
+                    # Save the singular values
+                    dset_sig[:nmodes] = sig
+
+                    if not skip_svd_inv:
+                        # Find the pseudo-inverse of the beam matrix and save to disk.
+                        # First try la.pinv, which uses a least-squares solver.
+                        if self.verbose_beam_svd:
+                            print("m = %d: Finding pseudoinverse of projected beam " \
+                                 "- projected shape = " % mi, beam.shape)
+                        try:
+                            ibeam = la.pinv(beam)
+                        except la.LinAlgError as e:
+                            # If la.pinv fails, try la.pinv2, which is SVD-based and
+                            # more likely to succeed. If successful, add file attribute
+                            # indicating pinv2 was used for this frequency.
+                            print(
+                                "***pinv failure: m = %d. Trying pinv2..."
+                                % (mi)
+                            )
+                            try:
+                                ibeam = la.pinv2(beam)
+                                fs.attrs["inv_bsvd_from_pinv2"] = True
+                            except:
+                                # If pinv2 fails, print error message
+                                raise Exception(
+                                    "***pinv2 failure: m = %d" % (mi)
+                                )
+
+                        # Save pseudo-inverse of the beam matrix to disk.
+                        dset_ibsvd[:, :, :, :nmodes] = ibeam.reshape(
+                            nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
+                        )
+
+            # # Set flag that saves products to files later
+            # success = True
+
+
+        # # Open file to write SVD results into.
+        # fs = h5py.File(self._svdfile(mi), "w")
+
+        # # Create a chunked dataset for writing the SVD beam matrix into.
+        # dsize_bsvd = (
+        #     nfreq * self.svd_len,
+        #     nfreq,
+        #     self.telescope.num_pol_sky,
+        #     self.telescope.lmax + 1,
+        # )
+        # csize_bsvd = (
+        #     min(10, self.svd_len),
+        #     1,
+        #     self.telescope.num_pol_sky,
+        #     self.telescope.lmax + 1,
+        # )
+        # dset_bsvd = fs.create_dataset(
+        #     "beam_svd",
+        #     dsize_bsvd,
+        #     chunks=csize_bsvd,
+        #     compression="lzf",
+        #     dtype=np.complex128,
+        # )
+        #
+        # if not skip_svd_inv:
+        #     # Create a chunked dataset for writing the inverse SVD beam matrix into.
+        #     dsize_ibsvd = (
+        #         nfreq,
+        #         self.telescope.num_pol_sky,
+        #         self.telescope.lmax + 1,
+        #         nfreq * self.svd_len,
+        #     )
+        #     csize_ibsvd = (
+        #         1,
+        #         self.telescope.num_pol_sky,
+        #         self.telescope.lmax + 1,
+        #         min(10, self.svd_len),
+        #     )
+        #     dset_ibsvd = fs.create_dataset(
+        #         "invbeam_svd",
+        #         dsize_ibsvd,
+        #         chunks=csize_ibsvd,
+        #         compression="lzf",
+        #         dtype=np.complex128,
+        #     )
+        #     if pinv2_used:
+        #         fs.attrs["inv_from_pinv2"] = True
+        #
+        # # Create a chunked dataset for the stokes T U-matrix (left evecs)
+        # dsize_ut = (nfreq * self.svd_len, nfreq * self.ntel)
+        # csize_ut = (min(10, self.svd_len), self.ntel)
+        # dset_ut = fs.create_dataset(
+        #     "beam_ut",
+        #     dsize_ut,
+        #     chunks=csize_ut,
+        #     compression="lzf",
+        #     dtype=np.complex128,
+        # )
+        #
+        # # Create a dataset for the singular values.
+        # dsize_sig = (nfreq * self.svd_len, )
+        # dset_sig = fs.create_dataset("singularvalues", dsize_sig, dtype=np.float64)
+
+        # if success:
+
+            # # Save the combined U^T matrix (for transforming from the telescope
+            # # basis into the SVD basis).
+            # dset_ut[:nmodes] = ut
+            #
+            # # Save the modified beam matrix (for transforming from the sky into
+            # # the SVD basis)
+            # dset_bsvd[:nmodes] = beam.reshape(
+            #     nmodes, nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1
+            # )
+
+            # if not skip_svd_inv:
+            #     # Save pseudo-inverse of the beam matrix to disk.
+            #     dset_ibsvd[:, :, :, :nmodes] = ibeam.reshape(
+            #         nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1, nmodes
+            #     )
+
+        # fs.close()
 
 
     def _preprocess_beam_transfer_matrix(self, mi, b):

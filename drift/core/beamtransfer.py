@@ -2175,8 +2175,6 @@ class BeamTransferFullFreq(BeamTransfer):
                         compression="lzf",
                         dtype=np.complex128,
                     )
-                    if pinv2_used:
-                        fs.attrs["inv_from_pinv2"] = True
 
                 # Create a chunked dataset for the stokes T U-matrix (left evecs)
                 dsize_ut = (nfreq * self.svd_len, nfreq * self.ntel)

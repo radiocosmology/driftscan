@@ -228,6 +228,8 @@ class ProductManager(object):
         if yconf["config"].get("full_freq_beam_svd"):  # Use the "full-freq" SVD if requested
             if yconf["config"].get("ext_svd_filtering"):  # Apply ext-SVD filtering
                 btclass = beamtransfer.BeamTransferFullFreqExtSVD
+            elif yconf["config"].get("beam_pert_filtering"): # Apply beam-pert filtering
+                btclass = beamtransfer.BeamTransferFullFreqBeamWidthPert
             else:
                 btclass = beamtransfer.BeamTransferFullFreq
 
@@ -249,6 +251,23 @@ class ProductManager(object):
                 self.beamtransfer.external_svthreshold_local = float(yconf["config"]["external_svthreshold_local"])
             if "external_sv_mode_cut" in yconf["config"]:
                 self.beamtransfer.external_sv_mode_cut = int(yconf["config"]["external_sv_mode_cut"])
+
+        if yconf["config"].get("beam_pert_filtering"):
+            # Specify config file specifying perturbed telescope
+            self.beamtransfer.perturbed_telescope_config = yconf["config"]["perturbed_telescope_config"]
+
+            # Specify directory for bases of Delta C eigenvectors
+            self.beamtransfer.deltaCov_basis_dir = yconf["config"]["deltaCov_basis_dir"]
+
+            # Set number of modes to cut at each m
+            self.beamtransfer.beamwidth_modes_to_cut = int(yconf["config"]["beamwidth_modes_to_cut"])
+
+            if yconf["config"].get("construct_modes_only"):
+                self.beamtransfer.construct_modes_only = True
+
+            if yconf["config"].get("construct_unpert_modes"):
+                self.beamtransfer.construct_unpert_modes = True
+
 
         if yconf["config"].get("verbose_beam_svd"):
             self.beamtransfer.verbose_beam_svd = True

@@ -33,7 +33,7 @@ from mpi4py import MPI
 from caput import mpiutil, misc
 
 from drift.util import util, blockla
-from drift.core import kltransform
+from drift.core import kltransform, manager
 from draco.analysis.svdfilter import external_svdfile
 
 
@@ -3101,6 +3101,438 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
             ut.reshape(nmodes, self.telescope.nfreq, self.ntel).transpose(0,2,1),
             pp_info.T
         ).transpose(0,2,1).reshape(nmodes, -1)
+
+        return ut
+
+
+    def _prewhiten_beam_transfer_matrix(self, b):
+        """Prewhiten beam transfer matrix using instrumental noise.
+
+        We assume that b is packed as [freq,msign,base,freq,pol,ell],
+        but is not necessarily diagonal in frequency.
+        """
+
+        # Reshape b into convenient form for prewhitening
+        b_local_shape = b.shape
+        b_local = b.reshape(self.telescope.nfreq * self.ntel, -1)
+
+        # Make array to hold all noise weights
+        noisew = np.zeros(self.telescope.nfreq * self.ntel)
+
+        # Fill up array frequency by frequency
+        for fi in range(self.telescope.nfreq):
+            # Make N^-1/2 for this frequency
+            noisew_f = self.telescope.noisepower(
+                np.arange(self.telescope.npairs), fi
+            ).flatten() ** (-0.5)
+            # Double up, accounting for 2 m signs
+            noisew_f = np.concatenate([noisew_f, noisew_f])
+            # Include in total array
+            noisew[fi * self.ntel : (fi+1) * self.ntel] = noisew_f
+
+        # Multiply noise weights into b_local elementwise,
+        # adding second axis so that weights are multiplied along
+        # first axis
+        b_local *= noisew[:, np.newaxis]
+
+        # Reshape back to original format, and return
+        return b_local.reshape(b_local_shape)
+
+    # ===================================================
+
+
+
+class BeamTransferFullFreqBeamWidthPert(BeamTransferFullFreq):
+    """BeamTransfer class that allows for beam-inspired filtering in telescope basis.
+
+    Before the beam transfer SVD decompositions take place, a certain number
+    of externally-defined modes are filtered out at each m. The
+    "beam_svd" and "beam_ut" products are then defined to include this filtering,
+    while the non-SVD'ed beam transfer matrices are untouched. The modes are
+    defined as eigenvectors as the extra contribution to the visibility covariance
+    arising from a random common-mode perturbation to the E-direction primary
+    beam widths of each feed.
+
+    Parameters
+    ----------
+    directory : string
+        Path of directory to read and write Beam Transfers from.
+    telescope : drift.core.telescope.TransitTelescope, optional
+        Telescope object to use for calculation. If `None` (default), try to
+        load a cached version from the given directory.
+
+    Attributes
+    ----------
+    svcut
+    polsvcut
+    ntel
+    nsky
+    nfreq
+    svd_len
+    ndofmax
+    perturbed_telescope_config
+    deltaCov_basis_dir
+    beamwidth_modes_to_cut
+    construct_modes_only
+
+    Methods
+    -------
+    ndof
+    beam_m
+    invbeam_m
+    beam_svd
+    beam_ut
+    invbeam_svd
+    beam_singularvalues
+    generate
+    project_vector_sky_to_telescope
+    project_vector_telescope_to_sky
+    project_vector_sky_to_svd
+    project_vector_svd_to_sky
+    project_vector_telescope_to_svd
+    project_matrix_sky_to_telescope
+    project_matrix_sky_to_svd
+    """
+
+    # Config file corresponding to perturbed telescope simulation
+    perturbed_telescope_config = None
+
+    # Directory containing files defining basis of modes to cut
+    deltaCov_basis_dir = None
+
+    # Number of modes to filter at each m.
+    # (Currently implemented as being the same at all m's, for simplicity)
+    beamwidth_modes_to_cut = None
+
+    # Whether to exit after constructing the basis of beam-width modes
+    # at each m
+    construct_modes_only = False
+
+    # Whether to also construct modes of zeroth-order telescope-basis
+    # covariance (for comparing with beam-width modes)
+    construct_unpert_modes = False
+
+    def _beam_pert_mode_file(self, mi):
+        """File containing beam-perturbation mode basis for a given m.
+        """
+        if self.deltaCov_basis_dir is None:
+            raise RuntimeError("Directory containing beam-width mode basis not specified!")
+        else:
+            pat = os.path.join(self.deltaCov_basis_dir, "m" \
+                    + util.natpattern(self.telescope.mmax) + ".hdf5")
+            return pat % mi
+
+    # ===================================================
+
+    # ====== Generation of all the cache files ==========
+
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+
+        # Create beam pert directory if required
+        if mpiutil.rank0 and not os.path.exists(self.deltaCov_basis_dir):
+            os.makedirs(self.deltaCov_basis_dir)
+
+        # Get ready for beam pert computations
+        self._get_beampert_info()
+
+        # Determine which beam perturbation files remain to compute, and compute them
+        m_list = np.arange(self.telescope.mmax + 1)
+        if mpiutil.rank0:
+            # For each m, check whether the file exists, if so, whether we
+            # can open it. If these tests all pass, we can skip the file.
+            # Otherwise, we need to generate a new SVD file for that m.
+            for mi in m_list:
+                if os.path.exists(self._beam_pert_mode_file(mi)):
+
+                    # File may exist but be un-openable, so we catch such an
+                    # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                    # but we catch it just in case.
+                    try:
+                        fs = h5py.File(self._beam_pert_mode_file(mi), "r")
+                        fs.close()
+
+                        print(
+                            "m index %i. Complete file: %s exists. Skipping..."
+                            % (mi, (self._beam_pert_mode_file(mi)))
+                        )
+                        m_list[mi] = -1
+                    except:
+                        print(
+                            "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
+                            % (mi, (self._beam_pert_mode_file(mi)))
+                        )
+
+            # Reduce m_list to the m's that we need to compute
+            m_list = m_list[m_list != -1]
+
+        # Broadcast reduced list to all tasks
+        m_list = mpiutil.bcast(m_list)
+
+        # Print m list
+        if mpiutil.rank0:
+            print("****************")
+            print("m's remaining in beam perturbation mode basis computation:")
+            print(m_list)
+            print("****************")
+        mpiutil.barrier()
+
+        # Distribute m list over tasks, and do computations
+        for mi in mpiutil.partition_list_mpi(m_list):
+            print("m index %i. Creating beam width pert basis file: %s" % \
+                    (mi, self._beam_pert_mode_file(mi)))
+            self._generate_beampert_mode_file_m(mi, gen_unpert=self.construct_unpert_modes)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        # If we only want the beam pert mode basis, finish here
+        if self.construct_modes_only:
+            if mpiutil.rank0:
+                print("Finished making beam pert mode files! Exiting...")
+            return
+
+        ## Generate all the SVD transfer matrices by simply iterating over all
+        ## m, performing the SVD, combining the beams and then write out the
+        ## results.
+
+        m_list = np.arange(self.telescope.mmax + 1)
+        if mpiutil.rank0:
+            # For each m, check whether the file exists, if so, whether we
+            # can open it. If these tests all pass, we can skip the file.
+            # Otherwise, we need to generate a new SVD file for that m.
+            for mi in m_list:
+                if os.path.exists(self._svdfile(mi)) and not regen:
+
+                    # File may exist but be un-openable, so we catch such an
+                    # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                    # but we catch it just in case.
+                    try:
+                        fs = h5py.File(self._svdfile(mi), "r")
+                        fs.close()
+
+                        print(
+                            "m index %i. Complete file: %s exists. Skipping..."
+                            % (mi, (self._svdfile(mi)))
+                        )
+                        m_list[mi] = -1
+                    except:
+                        print(
+                            "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
+                            % (mi, (self._svdfile(mi)))
+                        )
+
+            # Reduce m_list to the m's that we need to compute
+            m_list = m_list[m_list != -1]
+
+        # Broadcast reduced list to all tasks
+        m_list = mpiutil.bcast(m_list)
+
+        # Print m list
+        if mpiutil.rank0:
+            print("****************")
+            print("m's remaining in beam SVD computation:")
+            print(m_list)
+            print("****************")
+        mpiutil.barrier()
+
+        # Distribute m list over tasks, and do computations
+        for mi in mpiutil.partition_list_mpi(m_list):
+            print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+            self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        # Collect the spectrum into a single file.
+        self._collect_svd_spectrum()
+
+        # Make marker file to indicate that full-freq SVD has been used
+        open(self.directory + "/beam_m/FULLFREQ_SVD_USED", "a").close()
+
+
+    def _get_beampert_info(self):
+        """Fetch and store info needed to compute beam perturbation matrices.
+        """
+
+        # Get telescope manager for perturbed telescope, and corresponding
+        # telescope object
+        self.manager_pert = manager.ProductManager.from_config(
+            self.perturbed_telescope_config
+        )
+        tel_pert = self.manager_pert.telescope
+
+        # Define ninput (feed+feedpol) for unperturbed and perturbed telescopes
+        ninput = self.telescope.beamclass.shape[0]
+        ninput_pert = tel_pert.beamclass.shape[0]
+
+        # Get uniquepairs indices for pairs of unperturbed inputs and
+        # pairs of perturbed inputs where only input 1 or 2 is perturbed,
+        # as masks of full uniquepairs array
+        uniquepair_array_mask_unpert = (tel_pert.uniquepairs[:,0] < ninput) \
+            & (tel_pert.uniquepairs[:,1] < ninput)
+        uniquepair_array_mask_ipert = (tel_pert.uniquepairs[:,0] >= ninput) \
+            & (tel_pert.uniquepairs[:,1] < ninput)
+        uniquepair_array_mask_jpert = (tel_pert.uniquepairs[:,0] < ninput) \
+            & (tel_pert.uniquepairs[:,1] >= ninput)
+
+        # Verify that unique pair indices selected for each unpert/pert feed pairing
+        # correspond to same physical baselines
+        if (not np.allclose(
+            tel_pert.baselines[uniquepair_array_mask_unpert],
+            tel_pert.baselines[uniquepair_array_mask_ipert]
+        )) | (not np.allclose(
+            tel_pert.baselines[uniquepair_array_mask_unpert],
+            tel_pert.baselines[uniquepair_array_mask_jpert]
+        )):
+            raise RuntimeError('Error matching perturbed and unperturbed baselines!')
+
+        # Select pair indices for pairs where both inputs are unperturbed
+        # or only input 1 or 2 is perturbed
+        self.uniquepair_indices_unpert = np.nonzero(uniquepair_array_mask_unpert)[0]
+        self.uniquepair_indices_ipert = np.nonzero(uniquepair_array_mask_ipert)[0]
+        self.uniquepair_indices_jpert = np.nonzero(uniquepair_array_mask_jpert)[0]
+
+
+    def _generate_beampert_mode_file_m(self, mi, gen_unpert=False):
+        """Generate file containing basis of beam-width-sensitive modes.
+        """
+
+        # Construct B matrix as sum of B's where only 1 input is perturbed.
+        # (Recall that B is packed as [freq,msign,base,pol,ell])
+        with h5py.File(self.manager_pert.beamtransfer._mfile(mi), 'r') as f:
+            bt_pert = f['beam_m'][:,:,self.uniquepair_indices_ipert] \
+                + f['beam_m'][:,:,self.uniquepair_indices_jpert]
+
+        # Get S,F covariances in sky basis.
+        # First have to define an instance of KLTransform
+        kl_dict = {'type': 'KLTransform'}
+        kl = kltransform.KLTransform.from_config(kl_dict, self)
+        splusf_cov_sky =  kl.signal() + kl.foreground()
+
+        # Now, project S+F covariance from sky to tel basis using perturbed part of B
+        # defined above.
+        splusf_cov_tel_pert = self.project_matrix_sky_to_custom_telescope(
+            mi, splusf_cov_sky, bt_pert
+        )
+
+        # Diagonalize covariance in perturbed tel bases
+        splusf_cov_tel_pert_ev = la.eigh(
+            splusf_cov_tel_pert.reshape(np.prod(splusf_cov_tel_pert.shape[:2]),-1)
+        )
+
+        if gen_unpert:
+            del splusf_cov_tel_pert
+            splusf_cov_tel_unpert = self.project_matrix_sky_to_telescope(
+                mi, splusf_cov_sky
+            )
+            splusf_cov_tel_unpert_ev = la.eigh(
+                splusf_cov_tel_unpert.reshape(np.prod(splusf_cov_tel_unpert.shape[:2]),-1)
+            )
+
+        # Save evals, evecs to file
+        with misc.lock_file(self._beam_pert_mode_file(mi), preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as f:
+                dset_evals = f.create_dataset('evals', data=splusf_cov_tel_pert_ev[0])
+                dset_evecs = f.create_dataset('evecs', data=splusf_cov_tel_pert_ev[1])
+                if gen_unpert:
+                    dset_unpert_evals = f.create_dataset('evals_unpert', data=splusf_cov_tel_unpert_ev[0])
+                    dset_unpert_evecs = f.create_dataset('evecs_unpert', data=splusf_cov_tel_unpert_ev[1])
+
+
+    def project_matrix_sky_to_custom_telescope(self, mi, mat, bt):
+        """Project a covariance matrix from the sky into the visibility basis.
+
+        Unlike project_matrix_sky_to_telescope, in this routine the user must
+        also explicitly specify the beam transfer matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq]
+        bt : np.ndarray
+            Beam transfer matrix, packed as [freq, msign, base, pol, ell].
+
+        Returns
+        -------
+        tmat : np.ndarray
+            Covariance in custom telescope basis.
+        """
+        npol = self.telescope.num_pol_sky
+        lside = self.telescope.lmax + 1
+        nfreq = self.telescope.nfreq
+        nbase = self.telescope.nbase
+
+        if bt.shape != (nfreq, 2, nbase, npol, lside):
+            raise RuntimeException('Input beam transfer has wrong shape!')
+
+        beam = bt.reshape((nfreq, self.ntel, npol, lside))
+
+        matf = np.zeros(
+            (nfreq, self.ntel, nfreq, self.ntel),
+            dtype=np.complex128
+        )
+
+        # Should it be a +=?
+        for pi in range(npol):
+            for pj in range(npol):
+                for fi in range(nfreq):
+                    for fj in range(nfreq):
+                        matf[fi, :, fj, :] += np.dot(
+                            (beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]),
+                            beam[fj, :, pj, :].T.conj(),
+                        )
+
+        return matf
+
+
+    def _preprocess_beam_transfer_matrix(self, mi, b):
+        """Preprocess beam transfer matrix before prewhitening.
+
+        This assumes b is packed as [freq,msign,base,freq,pol,ell].
+
+        This is the first time beam-pert-basis information will be used
+        for this m, so we define the filtering matrix here and return it
+        and the second return value.
+        """
+
+        # Open file for this m, and read eigenvalues and eigenvectors of Delta C.
+        # evals are packed in ascending order, and evecs[:,-i] is i^th eigenvector
+        with h5py.File(self._beam_pert_mode_file(mi), "r") as f:
+            evals = f['evals'][:]
+            evecs = f['evecs'][:]
+
+        # Define vector of ones with same length as ext_sig, put zeros
+        # for modes we want to cut, and convert to a diagonal matrix
+        Z = np.ones(evecs.shape[0])
+        if self.beamwidth_modes_to_cut > 0:
+            Z[-self.beamwidth_modes_to_cut:] = 0.0
+        Z = np.diag(Z)
+
+        # Define a projection matrix at P.Z.P^dagger, where P (=evecs) is matrix
+        # with eigenvectors as columns, that filters out specified eigenvectors
+        proj = np.dot(evecs, np.dot(Z, evecs.T.conj()))
+
+        # Apply this projection matrix to the beam transfer matrix from the left
+        b_shape = b.shape
+        b = np.dot(proj, b.reshape(np.prod(b_shape[:3]), -1)).reshape(b_shape)
+
+        # Return filtered B and projection matrix
+        return b, proj
+
+
+    def _apply_preprocessing_to_beam_ut(self, mi, ut, pp_info):
+        """Apply beam transfer preprocessing to beam U^T from the right.
+
+        pp_info will be the projection matrix defined in
+        _preprocess_beam_transfer_matrix, and we can simply apply it to U^T
+        from the right to incorporating this projection into the U^T we save.
+        """
+
+        # U^T will be packed as [freq*svd_len, freq*ntel], so no reshaping
+        # should be required
+        ut = np.dot(ut, pp_info.T.conj())
 
         return ut
 

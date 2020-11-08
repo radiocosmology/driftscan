@@ -1020,12 +1020,12 @@ class BeamTransfer(config.Reader):
         mi : integer
             Mode index to fetch for.
         vec : np.ndarray
-            Sky data vector packed as [freq, baseline, polarisation]
+            Telescope data vector, packed as [nfreq, ntel].
 
         Returns
         -------
         tvec : np.ndarray
-            Sky vector to return.
+            Sky vector to return, packed as [nfreq, npol, lmax+1].
         """
 
         vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
@@ -1084,7 +1084,7 @@ class BeamTransfer(config.Reader):
         Returns
         -------
         tmat : np.ndarray
-            Covariance in telescope basis.
+            Covariance in telescope basis, packed as [nfreq, ntel, nfreq, ntel].
         """
         npol = self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
@@ -1193,7 +1193,7 @@ class BeamTransfer(config.Reader):
         ----------
         mi : integer
             Mode index to fetch for.
-        mat : np.ndarray
+        dmat : np.ndarray
             Sky matrix packed as [nfreq, ntel]
 
         Returns
@@ -1733,17 +1733,74 @@ class BeamTransferNoSVD(BeamTransfer):
     svcut = 0.0
 
     def project_matrix_sky_to_svd(self, mi, mat, *args, **kwargs):
+        """Project a covariance matrix from the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq].
+
+        Returns
+        -------
+        tmat : np.ndarray
+            SVD-basis matrix, packed as [ndof, ndof]. Recall that
+            ndof = ntel * nfreq = 2 * nbase * nfreq.
+        """
         return self.project_matrix_sky_to_telescope(mi, mat).reshape(
             self.ndof(mi), self.ndof(mi)
         )
 
     def project_vector_sky_to_svd(self, mi, vec, *args, **kwargs):
+        """Project a vector from the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [nfreq, npol, lmax+1]
+
+        Returns
+        -------
+        tvec : np.ndarray
+            Telescope vector to return, packed as [nfreq, ntel].
+        """
         return self.project_vector_sky_to_telescope(mi, vec)
 
     def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, *args, **kwargs):
+        """Project a diagonal matrix from the telescope basis to the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        dmat : np.ndarray
+            Diagonal telescope-basis matrix packed as [nfreq, ntel].
+
+        Returns
+        -------
+        tvec : np.ndarray
+            SVD-basis matrix to return, packed as [ndof, ndof].
+        """
         return np.diag(dmat.flatten())
 
     def project_vector_telescope_to_svd(self, mi, vec, *args, **kwargs):
+        """Project a vector from the telescope basis into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Telescope data vector packed as [nfreq, ntel].
+
+        Returns
+        -------
+        tvec : np.ndarray
+            SVD vector to return, packed as [nfreq, ntel].
+        """
         return vec
 
     def project_vector_svd_to_sky(self, mi, vec, temponly=False, conj=False):
@@ -1794,13 +1851,50 @@ class BeamTransferNoSVD(BeamTransfer):
         return svec
 
     def beam_svd(self, mi, *args, **kwargs):
+        """Fetch beam SVD matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        mat : np.ndarray
+            Beam-SVD matrix, which in this class is just the beam transfer
+            matrix, packed as [nfreq, 2, nbase, npol, lmax+1].
+        """
         return self.beam_m(mi)
 
     def ndof(self, mi, *args, **kwargs):
+        """Compute number of degrees of freedom in telescope basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        n : int
+            N_dof = ntel * nfreq = nbase * 2 * nfreq.
+        """
         return self.ntel * self.nfreq
 
     @property
     def ndofmax(self):
+        """Compute number of degrees of freedom in telescope basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        n : int
+            N_dof = ntel * nfreq = nbase * 2 * nfreq.
+        """
         return self.ntel * self.nfreq
 
 

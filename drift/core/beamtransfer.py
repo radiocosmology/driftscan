@@ -1917,26 +1917,39 @@ class BeamTransferNoSVD(BeamTransfer):
         """
         return vec
 
+    def project_vector_svd_to_sky(self, mi, vec, *args, **kwargs):
+        """Project a vector from the the SVD basis into the sky basis.
 
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            SVD vector, packed as [ndof, ...]
 
-def project_vector_svd_to_sky(self, mi, vec):
-    """Project a vector from the the SVD basis into the sky basis.
+        Returns
+        -------
+        svec : np.ndarray
+            Sky vector to return, packed as [nfreq, npol, lmax+1, ...]
+        """
 
-    Parameters
-    ----------
-    mi : integer
-        Mode index to fetch for.
-    vec : np.ndarray
-        SVD vector, packed as [ndof, ...]
+        # Create the output matrix
+        svec = np.zeros(
+            (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+            + vec.shape[1:],
+            dtype=np.complex128,
+        )
 
-    Returns
-    -------
-    svec : np.ndarray
-        Sky vector to return, packed as [nfreq, npol, lmax+1, ...]
-    """
-    return self.project_vector_telescope_to_sky(
-        mi, vec.reshape(self.nfreq, self.ntel, -1)
-    )
+        # Get inverse beam matrix
+        ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
+
+        # Loop through frequencies, doing tel-to-sky projection at each freq
+        for fi in range(self.nfreq):
+            svec[fi] = np.dot(ibeam[fi], vec.reshape(self.nfreq, self.ntel, -1)[fi]).reshape(
+                (self.telescope.num_pol_sky, self.telescope.lmax + 1) + vec.shape[1:]
+            )
+
+        return svec
 
     def beam_svd(self, mi, *args, **kwargs):
         """Fetch beam SVD matrix.

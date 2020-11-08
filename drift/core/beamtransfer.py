@@ -2211,7 +2211,9 @@ class BeamTransferFullFreq(BeamTransfer):
                 # In derived classes, this will be used for various filters that are
                 # applied to telescope-basis data
                 if self.verbose_beam_svd: print("m = %d: Preprocessing B" % mi)
+                # b_full_old = b_full.copy()
                 b_full, pp_info = self._preprocess_beam_transfer_matrix(mi, b_full)
+                # print(np.allclose(b_full, b_full_old))
 
                 # Prewhiten beam transfer matrix and reshape to [freq*msign*nbase,freq*pol*ell]
                 if self.verbose_beam_svd: print("m = %d: Prewhitening B" % mi)
@@ -3076,12 +3078,10 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         # was constructed (as the V instead of U matrix in the SVD)
         proj = np.dot(ext_vh.T.conj(), np.dot(Z, ext_vh))
 
-        # Apply this projection matrix to the beam transfer matrix from the left
+        # Apply this projection matrix to the beam transfer matrix from the left,
+        # and return filtered B and projection matrix
         b_shape = b.shape
-        b = np.dot(proj.T, b.reshape(self.telescope.nfreq, -1)).reshape(b_shape)
-
-        # Return filtered B and projection matrix
-        return b, proj
+        return np.dot(proj.T, b.reshape(self.telescope.nfreq, -1)).reshape(b_shape), proj
 
 
     def _apply_preprocessing_to_beam_ut(self, mi, ut, pp_info):
@@ -3097,12 +3097,10 @@ class BeamTransferFullFreqExtSVD(BeamTransferFullFreq):
         # the (transposed) projector, and the reshape back to the original
         # format
         nmodes = ut.shape[0]
-        ut = np.dot(
+        return np.dot(
             ut.reshape(nmodes, self.telescope.nfreq, self.ntel).transpose(0,2,1),
             pp_info.T
         ).transpose(0,2,1).reshape(nmodes, -1)
-
-        return ut
 
 
     def _prewhiten_beam_transfer_matrix(self, b):
@@ -3289,6 +3287,7 @@ class BeamTransferFullFreqBeamWidthPert(BeamTransferFullFreq):
         if self.construct_modes_only:
             if mpiutil.rank0:
                 print("Finished making beam pert mode files! Exiting...")
+            mpiutil.barrier()
             return
 
         ## Generate all the SVD transfer matrices by simply iterating over all
@@ -3513,13 +3512,14 @@ class BeamTransferFullFreqBeamWidthPert(BeamTransferFullFreq):
         # Define a projection matrix at P.Z.P^dagger, where P (=evecs) is matrix
         # with eigenvectors as columns, that filters out specified eigenvectors
         proj = np.dot(evecs, np.dot(Z, evecs.T.conj()))
+        # print(mi, np.real(np.diag(proj)))
 
-        # Apply this projection matrix to the beam transfer matrix from the left
-        b_shape = b.shape
-        b = np.dot(proj, b.reshape(np.prod(b_shape[:3]), -1)).reshape(b_shape)
-
-        # Return filtered B and projection matrix
-        return b, proj
+        # Apply this projection matrix to the beam transfer matrix from the left,
+        # and return filtered B and projection matrix
+        # b_shape = b.shape
+        # b_old = b.copy()
+        return np.dot(proj, b.reshape(np.prod(b_shape[:3]), -1)).reshape(b_shape), proj
+        # print(np.allclose(b, b_old))
 
 
     def _apply_preprocessing_to_beam_ut(self, mi, ut, pp_info):
@@ -3532,9 +3532,12 @@ class BeamTransferFullFreqBeamWidthPert(BeamTransferFullFreq):
 
         # U^T will be packed as [freq*svd_len, freq*ntel], so no reshaping
         # should be required
-        ut = np.dot(ut, pp_info.T.conj())
-
-        return ut
+        # ut_old = ut.copy()
+        # return np.dot(ut, pp_info.T.conj())
+        return np.dot(ut, pp_info)
+        ###### SJF: had pp_info.T.conj() before, but is pp_info correct?
+        # print(np.allclose(ut_old, ut, rtol=1e-3))
+        # print(ut.shape)
 
 
     def _prewhiten_beam_transfer_matrix(self, b):
@@ -3569,5 +3572,181 @@ class BeamTransferFullFreqBeamWidthPert(BeamTransferFullFreq):
 
         # Reshape back to original format, and return
         return b_local.reshape(b_local_shape)
+
+    # ===================================================
+
+
+class BeamTransferFullFreqBeamWidthPertKL(BeamTransferFullFreqBeamWidthPert):
+    """BeamTransfer class that allows for beam-inspired filtering in telescope basis.
+
+    Before the beam transfer SVD decompositions take place, a certain number
+    of externally-defined modes are filtered out at each m. The
+    "beam_svd" and "beam_ut" products are then defined to include this filtering,
+    while the non-SVD'ed beam transfer matrices are untouched.
+
+    The modes are defined as eigenvectors from a KL transform that defines
+    "Delta C to C^0" eigenmodes, where:
+    - Delta C is the extra contribution to the visibility covariance arising
+      from a random common-mode perturbation to the E-direction primary
+      beam widths of each feed
+    - C^0 is the unperturbed visibility covariance
+
+    This differs from BeamTransferFullFreqBeamWidthPert because that class
+    simply filters the eigenvectors of Delta C, whereas here we define a KL basis
+    that attempts to leave C^0 untouched but filter power from the Delta C part
+    of the visibilities.
+
+    Parameters
+    ----------
+    directory : string
+        Path of directory to read and write Beam Transfers from.
+    telescope : drift.core.telescope.TransitTelescope, optional
+        Telescope object to use for calculation. If `None` (default), try to
+        load a cached version from the given directory.
+
+    Attributes
+    ----------
+    svcut
+    polsvcut
+    ntel
+    nsky
+    nfreq
+    svd_len
+    ndofmax
+    perturbed_telescope_config
+    deltaCov_basis_dir
+    beamwidth_modes_to_cut
+    construct_modes_only
+
+    Methods
+    -------
+    ndof
+    beam_m
+    invbeam_m
+    beam_svd
+    beam_ut
+    invbeam_svd
+    beam_singularvalues
+    generate
+    project_vector_sky_to_telescope
+    project_vector_telescope_to_sky
+    project_vector_sky_to_svd
+    project_vector_svd_to_sky
+    project_vector_telescope_to_svd
+    project_matrix_sky_to_telescope
+    project_matrix_sky_to_svd
+    """
+
+    # Config file corresponding to perturbed telescope simulation
+    perturbed_telescope_config = None
+
+    # Directory containing files defining basis of modes to cut
+    deltaCov_basis_dir = None
+
+    # Number of modes to filter at each m.
+    # (Currently implemented as being the same at all m's, for simplicity)
+    beamwidth_modes_to_cut = None
+
+    # Whether to exit after constructing the basis of beam-width modes
+    # at each m
+    construct_modes_only = False
+
+    # Regulariser for unpert visibility covariance, needed in KL transform.
+    # Defined such that we take C^0 + reg * max(diag(C^0) * I
+    regulariser = 1e-14
+
+    # ===================================================
+
+    def _generate_beampert_mode_file_m(self, mi, gen_unpert=False):
+        """Generate file containing basis of beam-width-sensitive modes.
+        """
+
+        # Construct B matrix as sum of B's where only 1 input is perturbed.
+        # (Recall that B is packed as [freq,msign,base,pol,ell])
+        with h5py.File(self.manager_pert.beamtransfer._mfile(mi), 'r') as f:
+            bt_pert = f['beam_m'][:,:,self.uniquepair_indices_ipert] \
+                + f['beam_m'][:,:,self.uniquepair_indices_jpert]
+
+        # Get S,F covariances in sky basis.
+        # First have to define an instance of KLTransform
+        kl_dict = {'type': 'KLTransform'}
+        kl = kltransform.KLTransform.from_config(kl_dict, self)
+        splusf_cov_sky =  kl.signal() + kl.foreground()
+
+        # Now, project S+F covariance from sky to tel basis using perturbed part of B
+        # defined above.
+        splusf_cov_tel_pert = self.project_matrix_sky_to_custom_telescope(
+            mi, splusf_cov_sky, bt_pert
+        )
+        splusf_cov_tel_pert = splusf_cov_tel_pert.reshape(
+            np.prod(splusf_cov_tel_pert.shape[:2]), -1
+        )
+
+        # Also project S+F covariance from sky to unperturbed tel basis
+        splusf_cov_tel_unpert = self.project_matrix_sky_to_telescope(
+            mi, splusf_cov_sky
+        )
+        splusf_cov_tel_unpert = splusf_cov_tel_unpert.reshape(
+            np.prod(splusf_cov_tel_unpert.shape[:2]), -1
+        )
+
+        # Do KL "pert over unpert" transform, regularising C^0.
+        # Could also use kltransform.eigh_gen(), but maybe it's better to
+        # let the transform fail instead of using eigh_gen's workarounds
+        unpert_diag_max = np.diag(splusf_cov_tel_unpert).max()
+        reg_matrix = self.regulariser * unpert_diag_max * np.identity(splusf_cov_tel_unpert.shape[0])
+        kl_ev = la.eigh(splusf_cov_tel_pert, splusf_cov_tel_unpert + reg_matrix)
+
+        # Save evals, evecs to file
+        with misc.lock_file(self._beam_pert_mode_file(mi), preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as f:
+                dset_evals = f.create_dataset('evals', data=kl_ev[0])
+                dset_evecs = f.create_dataset('evecs', data=kl_ev[1])
+                f.attrs["reg_mult"] = self.regulariser
+                f.attrs["reg_diag"] = self.regulariser * unpert_diag_max
+
+    def _preprocess_beam_transfer_matrix(self, mi, b):
+        """Preprocess beam transfer matrix before prewhitening.
+
+        This assumes b is packed as [freq,msign,base,freq,pol,ell].
+
+        This is the first time beam-pert-basis information will be used
+        for this m, so we define the filtering matrix here and return it
+        and the second return value.
+        """
+
+        # Open file for this m, and read eigenvalues and eigenvectors of Delta C.
+        # evals are packed in ascending order, and evecs[:,-i] is i^th eigenvector
+        with h5py.File(self._beam_pert_mode_file(mi), "r") as f:
+            evals = f['evals'][:]
+            evecs = f['evecs'][:]
+
+        # Define vector of ones with same length as ext_sig, put zeros
+        # for modes we want to cut, and convert to a diagonal matrix
+        Z = np.ones(evecs.shape[0])
+        if self.beamwidth_modes_to_cut > 0:
+            Z[-self.beamwidth_modes_to_cut:] = 0.0
+        Z = np.diag(Z)
+
+        # Define a projection matrix at P.Z.P^-1, where P (=evecs) is matrix
+        # with eigenvectors as columns, that filters out specified eigenvectors
+        try:
+            evecs_dagger_inv = la.inv(evecs.T.conj())
+        except LinAlgError:
+            print('*** m = %d: error inverting beam-KL evecs! Trying pinv...')
+            evecs_dagger_inv = la.pinv(evecs.T.conj())
+        proj = np.dot(evecs_dagger_inv, np.dot(Z, evecs.T.conj()))
+        # print(mi, np.real(np.diag(proj)))
+        # print(proj[0])
+
+        # Apply this projection matrix to the beam transfer matrix from the left
+        b_shape = b.shape
+        # b_old = b.copy()
+        b = np.dot(proj, b.reshape(np.prod(b_shape[:3]), -1)).reshape(b_shape)
+        # print(np.allclose(b, b_old))
+
+        # Return filtered B and projection matrix
+        return b, proj
+
 
     # ===================================================

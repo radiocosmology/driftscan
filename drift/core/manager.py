@@ -230,6 +230,8 @@ class ProductManager(object):
                 btclass = beamtransfer.BeamTransferFullFreqExtSVD
             elif yconf["config"].get("beam_pert_filtering"): # Apply beam-pert filtering
                 btclass = beamtransfer.BeamTransferFullFreqBeamWidthPert
+            elif yconf["config"].get("beam_pert_KL_filtering"): # Apply KL beam-pert filtering
+                btclass = beamtransfer.BeamTransferFullFreqBeamWidthPertKL
             else:
                 btclass = beamtransfer.BeamTransferFullFreq
 
@@ -252,7 +254,7 @@ class ProductManager(object):
             if "external_sv_mode_cut" in yconf["config"]:
                 self.beamtransfer.external_sv_mode_cut = int(yconf["config"]["external_sv_mode_cut"])
 
-        if yconf["config"].get("beam_pert_filtering"):
+        if yconf["config"].get("beam_pert_filtering") or yconf["config"].get("beam_pert_KL_filtering"):
             # Specify config file specifying perturbed telescope
             self.beamtransfer.perturbed_telescope_config = yconf["config"]["perturbed_telescope_config"]
 

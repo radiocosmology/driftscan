@@ -980,7 +980,7 @@ class BeamTransfer(config.Reader):
         Returns
         -------
         tvec : np.ndarray
-            Telescope vector to return.
+            Telescope vector to return, packed as [nfreq, ntel]
         """
 
         vecf = np.zeros((self.nfreq, 2, self.telescope.nbase), dtype=np.complex128)
@@ -1745,6 +1745,53 @@ class BeamTransferNoSVD(BeamTransfer):
 
     def project_vector_telescope_to_svd(self, mi, vec, *args, **kwargs):
         return vec
+
+    def project_vector_svd_to_sky(self, mi, vec, temponly=False, conj=False):
+        """Project a vector from the the SVD basis into the sky basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            SVD vector, packed as [ndof, ...]
+
+        Returns
+        -------
+        svec : np.ndarray
+            Sky vector to return, packed as [nfreq, npol, lmax+1, ...]
+        """
+
+        if temponly:
+            raise NotImplementedError("temponly not implemented for no-SVD project_vector_svd_to_sky!")
+
+        # Create the output matrix
+        svec = np.zeros(
+            (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+            + vec.shape[1:],
+            dtype=np.complex128,
+        )
+
+        # Get inverse or Hermitian conjugate of beam matrix
+        if conj:
+            beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
+
+            # Loop through frequencies, doing tel-to-sky projection at each freq
+            for fi in range(self.nfreq):
+                svec[fi] = np.dot(beam[fi].T.conj(), vec.reshape(self.nfreq, self.ntel, -1)[fi]).reshape(
+                    (self.telescope.num_pol_sky, self.telescope.lmax + 1) + vec.shape[1:]
+                )
+
+        else:
+            ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
+
+            # Loop through frequencies, doing tel-to-sky projection at each freq
+            for fi in range(self.nfreq):
+                svec[fi] = np.dot(ibeam[fi], vec.reshape(self.nfreq, self.ntel, -1)[fi]).reshape(
+                    (self.telescope.num_pol_sky, self.telescope.lmax + 1) + vec.shape[1:]
+                )
+
+        return svec
 
     def beam_svd(self, mi, *args, **kwargs):
         return self.beam_m(mi)

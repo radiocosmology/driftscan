@@ -1071,7 +1071,7 @@ class BeamTransfer(config.Reader):
             (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
         )
 
-    def project_matrix_sky_to_telescope(self, mi, mat):
+    def project_matrix_sky_to_telescope(self, mi, mat, temponly=False):
         """Project a covariance matrix from the sky into the visibility basis.
 
         Parameters
@@ -1080,16 +1080,20 @@ class BeamTransfer(config.Reader):
             Mode index to fetch for.
         mat : np.ndarray
             Sky matrix packed as [pol, pol, l, freq, freq]
+        temponly: boolean
+            Force projection of temperature (TT) part only (default: False)
 
         Returns
         -------
         tmat : np.ndarray
             Covariance in telescope basis, packed as [nfreq, ntel, nfreq, ntel].
         """
-        npol = self.telescope.num_pol_sky
+        npol = 1 if temponly else self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
 
-        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, npol, lside))
+        beam = self.beam_m(mi).reshape(
+            (self.nfreq, self.ntel, self.telescope.num_pol_sky, lside)
+        )
 
         matf = np.zeros(
             (self.nfreq, self.ntel, self.nfreq, self.ntel), dtype=np.complex128
@@ -1732,7 +1736,9 @@ class BeamTransferFullSVD(BeamTransfer):
 class BeamTransferNoSVD(BeamTransfer):
     svcut = 0.0
 
-    def project_matrix_sky_to_svd(self, mi, mat, *args, **kwargs):
+    noise_weight = False
+
+    def project_matrix_sky_to_svd(self, mi, mat, temponly=False):
         """Project a covariance matrix from the sky into the SVD basis.
 
         Parameters
@@ -1741,6 +1747,8 @@ class BeamTransferNoSVD(BeamTransfer):
             Mode index to fetch for.
         mat : np.ndarray
             Sky matrix packed as [pol, pol, l, freq, freq].
+        temponly: boolean
+            Force projection of temperature (TT) part only (default: False)
 
         Returns
         -------
@@ -1748,7 +1756,7 @@ class BeamTransferNoSVD(BeamTransfer):
             SVD-basis matrix, packed as [ndof, ndof]. Recall that
             ndof = ntel * nfreq = 2 * nbase * nfreq.
         """
-        return self.project_matrix_sky_to_telescope(mi, mat).reshape(
+        return self.project_matrix_sky_to_telescope(mi, mat, temponly=temponly).reshape(
             self.ndof(mi), self.ndof(mi)
         )
 

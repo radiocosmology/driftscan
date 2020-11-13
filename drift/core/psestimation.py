@@ -520,6 +520,9 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
             fisher, bias = self._work_fisher_bias_m(mi)
 
+            ###SJF temp
+            if mi == 2: print('m=2 fisher:', fisher)
+
             # Delete ext-SVD info for this m, to save memory
             if self.external_svd_basis_dir is not None \
                 and os.path.exists(self._external_svdfile(mi)):
@@ -721,6 +724,10 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
                 # Generate derived quantities (covariance, errors..)
+
+                ###SJF temp
+                print(self.fisher)
+
                 cv = la.pinv(self.fisher, rcond=1e-8)
                 err = cv.diagonal() ** 0.5
                 cr = cv / np.outer(err, err)
@@ -950,7 +957,7 @@ class PSExact(PSEstimation):
             + "/ps_c_m_"
             + util.intpattern(self.telescope.mmax)
             + "_b_"
-            + util.natpattern(len(self.bands) - 1)
+            + util.natpattern(self.nbands - 1)
             + ".hdf5"
         )
 
@@ -978,6 +985,8 @@ class PSExact(PSEstimation):
         # return self.kltrans.project_sky_matrix_forward(mi, self.clarray[bi], self.threshold)
 
         clarray = self.clarray[bi].reshape((1, 1) + self.clarray[bi].shape)
+        ###SJF temp
+        print('clarray.shape:', clarray.shape)
         svdmat = self.kltrans.beamtransfer.project_matrix_sky_to_svd(
             mi, clarray, temponly=True
         )

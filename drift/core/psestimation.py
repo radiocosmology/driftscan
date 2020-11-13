@@ -957,7 +957,7 @@ class PSExact(PSEstimation):
             + "/ps_c_m_"
             + util.intpattern(self.telescope.mmax)
             + "_b_"
-            + util.natpattern(self.nbands - 1)
+            + util.natpattern(self.nbands)
             + ".hdf5"
         )
 
@@ -985,8 +985,6 @@ class PSExact(PSEstimation):
         # return self.kltrans.project_sky_matrix_forward(mi, self.clarray[bi], self.threshold)
 
         clarray = self.clarray[bi].reshape((1, 1) + self.clarray[bi].shape)
-        ###SJF temp
-        print('clarray.shape:', clarray.shape)
         svdmat = self.kltrans.beamtransfer.project_matrix_sky_to_svd(
             mi, clarray, temponly=True
         )

@@ -1738,6 +1738,9 @@ class BeamTransferNoSVD(BeamTransfer):
 
     noise_weight = False
 
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+        print("======== Skipping telescope SVD step ========")
+
     def project_matrix_sky_to_svd(self, mi, mat, temponly=False):
         """Project a covariance matrix from the sky into the SVD basis.
 
@@ -1773,9 +1776,9 @@ class BeamTransferNoSVD(BeamTransfer):
         Returns
         -------
         tvec : np.ndarray
-            Telescope vector to return, packed as [nfreq, ntel].
+            Telescope vector to return, packed as [ndof].
         """
-        return self.project_vector_sky_to_telescope(mi, vec)
+        return self.project_vector_sky_to_telescope(mi, vec).flatten()
 
     def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, *args, **kwargs):
         """Project a diagonal matrix from the telescope basis to the SVD basis.
@@ -1807,9 +1810,9 @@ class BeamTransferNoSVD(BeamTransfer):
         Returns
         -------
         tvec : np.ndarray
-            SVD vector to return, packed as [nfreq, ntel].
+            SVD vector to return, packed as [ndof].
         """
-        return vec
+        return vec.flatten()
 
     def project_vector_svd_to_sky(self, mi, vec, temponly=False, conj=False):
         """Project a vector from the the SVD basis into the sky basis.

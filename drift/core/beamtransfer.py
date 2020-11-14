@@ -1894,6 +1894,23 @@ class BeamTransferNoSVD(BeamTransfer):
         """
         return self.project_vector_sky_to_telescope(mi, vec).flatten()
 
+    def project_matrix_telescope_to_svd(self, mi, mat):
+        """Map a matrix from the telescope space into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Telescope-basis matrix, packed as [freq, baseline, freq, baseline].
+
+        Returns
+        -------
+        out_mat : np.ndarray
+            SVD-basis matrix, packed as [ndof, ndof].
+        """
+        return mat.reshape(self.ndof(mi), self.ndof(mi))
+
     def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, *args, **kwargs):
         """Project a diagonal matrix from the telescope basis to the SVD basis.
 

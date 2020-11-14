@@ -51,9 +51,6 @@ class PSMonteCarlo(psestimation.PSEstimation):
 
         evals, evecs = self.kltrans.modes_m(mi)
 
-        ###SJF temp:
-        if mi == 2: print('m=2 evals:', evals)
-
         # Calculate C**(1/2), this is the weight to generate a draw from C
         w = np.ones_like(evals) if noiseonly else (evals + 1.0) ** 0.5
 

@@ -520,9 +520,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
             fisher, bias = self._work_fisher_bias_m(mi)
 
-            ###SJF temp
-            if mi == 2: print('m=2 fisher:', fisher)
-
             # Delete ext-SVD info for this m, to save memory
             if self.external_svd_basis_dir is not None \
                 and os.path.exists(self._external_svdfile(mi)):
@@ -724,10 +721,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
                 # Generate derived quantities (covariance, errors..)
-
-                ###SJF temp
-                print(self.fisher)
-
                 cv = la.pinv(self.fisher, rcond=1e-8)
                 err = cv.diagonal() ** 0.5
                 cr = cv / np.outer(err, err)

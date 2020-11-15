@@ -1738,6 +1738,30 @@ class BeamTransferNoSVD(BeamTransfer):
 
     noise_weight = False
 
+    def _svd_num(self, mi):
+        """Compute number of SVD modes meeting the cut.
+        
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        svnum : np.ndarray
+            Number of remaining SV modes at each frequency.
+        svbounds : np.ndarray
+            Indices bounding SV modes after concatenation over frequency.
+            Has size nfreq+1.
+        """
+        # Number of significant sv modes at each frequency
+        svnum = (np.ones(self.nfreq) * self.ntel).astype(int)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+
+        return svnum, svbounds
+
     def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
         print("======== Skipping telescope SVD step ========")
 

@@ -1852,6 +1852,18 @@ class BeamTransferNoSVD(BeamTransfer):
 
     noise_weight = False
 
+    def _svd_num(self, mi):
+        ## Calculate the number of SVD modes meeting the cut for each
+        ## frequency, return the number and the array bounds
+
+        # Number of significant sv modes at each frequency
+        svnum = (np.ones(self.nfreq) * self.ntel).astype(int)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+
+        return svnum, svbounds
+
     def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
         print("======== Skipping telescope SVD step ========")
 

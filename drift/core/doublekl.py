@@ -36,7 +36,7 @@ class DoubleKL(kltransform.KLTransform):
 
     def _transform_m(self, mi):
 
-        print("Solving for double-KL eigenvalues....")
+        # print("m = %d: Solving for double-KL eigenvalues...." % mi)
 
         # Start timer
         st = time.time()
@@ -60,7 +60,7 @@ class DoubleKL(kltransform.KLTransform):
             cs = cs.reshape(nside, nside)
             cn = cn.reshape(nside, nside)
         et = time.time()
-        print("Time to generate S,F covariances =\t\t", (et - st))
+        print("m = %d: Time to generate S,F covariances =\t\t" % mi, (et - st))
 
         # If desired, compute traces of S and N covariances, so we can
         # save them later
@@ -78,10 +78,10 @@ class DoubleKL(kltransform.KLTransform):
             evals = 1./evals[::-1]
             evecs2 = evecs[:, ::-1]
             sf_str = "F/S"
-            
+
         evecs = evecs2.T.conj()
         et = time.time()
-        print("Time to solve generalized %s EV problem =\t" % sf_str, (et - st))
+        print("m = %d: Time to solve generalized %s EV problem =\t" % (mi, sf_str), (et - st))
 
         # Get the indices that extract the high-S/F ratio modes.
         # This is subtle in the case where the F/S transform has been done
@@ -129,24 +129,30 @@ class DoubleKL(kltransform.KLTransform):
 
         if evals.size > 0:
             # Generate the full S and F+N covariances in the truncated basis
+            # st = time.time()
+            # self.use_thermal = True
+            # cs, cn = self.sn_covariance(mi)
+            # if self.external_svd_basis_dir is None:
+            #     cs = cs.reshape(nside, nside)
+            #     cn = cn.reshape(nside, nside)
+            # et = time.time()
+            # print("m = %d: Time to generate S,F+N covariances =\t\t" % mi, (et - st))
             st = time.time()
-            self.use_thermal = True
-            cs, cn = self.sn_covariance(mi)
+            cn_thermal = self.thermalnoise_covariance(mi)
             if self.external_svd_basis_dir is None:
-                cs = cs.reshape(nside, nside)
-                cn = cn.reshape(nside, nside)
+                cn_thermal = cn_thermal.reshape(nside, nside)
             et = time.time()
-            print("Time to generate S,F+N covariances =\t\t", (et - st))
+            print("m = %d: Time to generate thermal noise covariance =\t" % mi, (et - st))
 
             cs = np.dot(evecs, np.dot(cs, evecs.T.conj()))
-            cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
+            cn = np.dot(evecs, np.dot(cn + cn_thermal, evecs.T.conj()))
 
             # Find the eigenbasis and the transformation into it.
             st = time.time()
             evals, evecs2, ac = kltransform.eigh_gen(cs, cn, message="m = %d; KL step 2" % mi)
             evecs = np.dot(evecs2.T.conj(), evecs)
             et = time.time()
-            print("Time to solve generalized S/(F+N) EV problem =\t", (et - st))
+            print("m = %d: Time to solve generalized S/(F+N) EV problem =\t" % mi, (et - st))
 
             # Construct the inverse if required.
             if self.inverse:

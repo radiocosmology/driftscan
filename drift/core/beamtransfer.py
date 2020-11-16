@@ -1983,7 +1983,7 @@ class BeamTransferNoSVD(BeamTransfer):
             dtype=np.complex128,
         )
 
-        # Get inverse or Hermitian conjuage of beam matrix
+        # Get inverse or Hermitian conjugate of beam matrix
         if conj:
             beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
 

@@ -62,7 +62,7 @@ def collect_m_array(mlist, func, shape, dtype):
     return res[0] if mpiutil.rank0 else None
 
 
-def eigh_gen(A, B, message=""):
+def eigh_gen(A, B, message="", eigvals=None):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
 
@@ -76,6 +76,11 @@ def eigh_gen(A, B, message=""):
         Matrices to operate on.
     message : string, optional
         Optional string to print if an exception is thrown. Default: "".
+    eigvals : tuple (lo, hi), optional
+        Indices of the smallest and largest (in ascending order) eigenvalues
+        and corresponding eigenvectors to be returned: 0 <= lo <= hi <= M-1.
+        If omitted, all eigenvalues and eigenvectors are returned.
+        Default: None
 
     Returns
     -------
@@ -97,7 +102,9 @@ def eigh_gen(A, B, message=""):
     else:
 
         try:
-            evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
+            evals, evecs = la.eigh(
+                A, B, overwrite_a=True, overwrite_b=True, eigvals=eigvals
+            )
         except la.LinAlgError as e:
             print("Error occurred in eigenvalue solve: %s" % message)
             # Get error number
@@ -1019,8 +1026,8 @@ class KLTransform(config.Reader):
             evals = evals[ind]
             evecs = evecs[ind]
             print(
-                "Modes with S/N > %f: %i of %i"
-                % (self.threshold, evals.size, evalsf.size)
+                "m = %d: Modes with S/N > %f: %i of %i"
+                % (mi, self.threshold, evals.size, evalsf.size)
             )
 
         # Write out potentially reduced eigen spectrum.

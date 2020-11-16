@@ -29,10 +29,18 @@ class DoubleKL(kltransform.KLTransform):
     foreground_mode_cut : int, optional
         If specified, overrides foreground_threshold and simply cuts the N modes
         with highest F/S ratio, where N=foreground_mode_cut. Default: None
+    foreground_ev_compute_fraction: float, optional
+        If specified, we only compute the highest N S/F or lowest N F/S
+        modes in step 1 of the KL transform, where
+            N = foreground_ev_compute_fraction * evs_total ,
+        for computational efficiency. We make sure that these N modes cover
+        the desired foreground threshold range, and if not, we solve the full
+        eigenvalue problem. Default: None
     """
 
     foreground_threshold = config.Property(proptype=float, default=100.0)
     foreground_mode_cut = config.Property(proptype=int, default=None)
+    foreground_ev_compute_fraction = config.Property(proptype=float, default=None)
 
     def _transform_m(self, mi):
 
@@ -68,16 +76,58 @@ class DoubleKL(kltransform.KLTransform):
             s_trace = np.trace(cs)
             n_trace = np.trace(cn)
 
+        # If we want to restrict our computation to the highest/lowest eigenvectors,
+        # translate the desired fraction into indices
+        compute_indices = None
+        if self.foreground_ev_compute_fraction is not None:
+            max_evs = cs.shape[0]
+            ev_frac = int(self.foreground_ev_compute_fraction * max_evs)
+            if not self.do_NoverS:
+                # If doing S/N, we want the highest values
+                compute_indices = (max_evs-1-ev_frac, max_evs-1)
+            else:
+                # If doing N/S, we want the lowest values
+                compute_indices = (0, ev_frac)
+
         # Find joint eigenbasis and transformation matrix
         st = time.time()
         if not self.do_NoverS:
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn, message="m = %d; KL step 1" % mi)
+            evals, evecs2, ac = kltransform.eigh_gen(
+                cs, cn, message="m = %d; KL step 1" % mi, eigvals=compute_indices
+            )
             sf_str = "S/F"
+
+            if compute_indices is not None:
+                print("m = %d: Step 1 threshold = %g, min eval computed = %g" \
+                        % (mi, self.foreground_threshold, evals[0]))
+
+                if evals[0] >= self.foreground_threshold:
+                    print("**** m = %d: Attempted to cut too many KL modes in S/F computation!" % mi)
+                    print("**** m = %d: Re-running full S/F transform..." % mi)
+                    evals, evecs2, ac = kltransform.eigh_gen(
+                        cs, cn, message="m = %d; KL step 1" % mi, eigvals=None
+                    )
+
         else:
-            evals, evecs, ac = kltransform.eigh_gen(cn, cs, message="m = %d; KL step 1" % mi)
+            evals, evecs, ac = kltransform.eigh_gen(
+                cn, cs, message="m = %d; KL step 1" % mi, eigvals=compute_indices
+            )
             evals = 1./evals[::-1]
             evecs2 = evecs[:, ::-1]
             sf_str = "F/S"
+
+            if compute_indices is not None:
+                print("**** m = %d: Threshold = %g, min equivalent S/F eval computed = %g" \
+                        % (mi, self.foreground_threshold, 1/evals[-1]))
+
+                if 1/evals[-1] >= self.foreground_threshold:
+                    print("**** m = %d: Attempted to cut too many KL modes in F/S computation!" % mi)
+                    print("**** m = %d: Re-running full F/S transform..." % mi)
+                    evals, evecs, ac = kltransform.eigh_gen(
+                        cn, cs, message="m = %d; KL step 1" % mi, eigvals=None
+                    )
+                    evals = 1./evals[::-1]
+                    evecs2 = evecs[:, ::-1]
 
         evecs = evecs2.T.conj()
         et = time.time()

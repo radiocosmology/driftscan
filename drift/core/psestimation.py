@@ -275,13 +275,15 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         self.ext_svd_sig = {}
         self.ext_svd_vh = {}
         self.ext_svd_cut = {}
-        self.beam_svd_with_ext_filtering = {}
+        # self.beam_svd_with_ext_filtering = {}
+        self.ext_svd_V_proj = {}
         for mi in range(self.telescope.mmax + 1):
             self.ext_svd_u[mi] = None
             self.ext_svd_sig[mi] = None
             self.ext_svd_vh[mi] = None
             self.ext_svd_cut[mi] = None
-            self.beam_svd_with_ext_filtering[mi] = None
+            self.ext_svd_V_proj[mi] = None
+            # self.beam_svd_with_ext_filtering[mi] = None
 
         # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
@@ -575,6 +577,12 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             True if stuff was read from disk, False if it already existed
             in memory.
         """
+
+        if not self.no_telsvd:
+            raise NotImplementedError(
+                "Please only use filtering in PSEstimator for BeamTransferNoSVD!"
+            )
+
         # If everything is in the dicts already, return False
         if self.ext_svd_u[mi] is not None and self.ext_svd_sig[mi] is not None \
             and self.ext_svd_vh[mi] is not None and self.ext_svd_cut[mi] is not None:
@@ -597,78 +605,85 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                 > self.external_sv_threshold_local * self.ext_svd_sig[mi][0]).sum()
             self.ext_svd_cut[mi] = max(global_ext_sv_cut, local_ext_sv_cut)
 
-        # Expand beam transfer matrix to 2 freq axes,
-        # packed as [freq,msign,base,freq,pol,ell]
-        b_diag = self.kltrans.beamtransfer.beam_m(mi)
-        b_diag_shape = b_diag.shape
-        b_full_shape = b_diag_shape[:3] + (b_diag_shape[0], b_diag_shape[3], b_diag_shape[4],)
-        b_full = np.zeros(b_full_shape, dtype=np.complex128)
-        for i in range(self.telescope.nfreq):
-            b_full[i,:,:,i,:,:] = b_diag[i]
-        b_diag = None
+        # Construct matrix that filters out freq (V) modes of ext-SVD
+        Z = np.ones(self.telescope.nfreq)
+        Z[:self.ext_svd_cut[mi]] = 0
+        Z = np.diag(Z)
+        proj = np.dot(self.ext_svd_vh[mi].T.conj(), np.dot(Z, self.ext_svd_vh[mi]))
+        self.ext_svd_V_proj[mi] = proj
 
-        # beam_m = beam_m.reshape(
-        #     self.telescope.nfreq,
-        #     self.kltrans.beamtransfer.ntel,
-        #     -1
-        # )
-
-        # Apply ext-SVD projection to beam_m, along freq axis
-        if self.use_external_sv_freq_modes:
-            # Construct matrix that filters out freq (V) modes of ext-SVD
-            vh = self.ext_svd_vh[mi]
-            Z = np.ones(self.telescope.nfreq)
-            Z[:self.ext_svd_cut[mi]] = 0
-            Z = np.diag(Z)
-            proj = np.dot(vh.T.conj(), np.dot(Z, vh))
-
-            # Apply this projection matrix to the beam transfer matrix from the left,
-            b_full_shape = b_full.shape
-            b_full = np.dot(proj.T, b_full.reshape(self.telescope.nfreq, -1)).reshape(b_full_shape)
-
-            # TODO: optimize what is stored and used later to do svd_to_sky:
-            # it shouldn't be necessary to store full off-diag-freq matrix
-            # if all we're doing is matrix multiplication in the end...
-
-            # ############# pretty sure this is wrong...
-            # # Apply filtering to beam_m
-            # beam_m_proj = np.dot(proj, beam_m.reshape(self.telescope.nfreq, -1)).reshape(
-            #     self.telescope.nfreq,
-            #     self.kltrans.beamtransfer.ntel,
-            #     -1
-            # )
-
-        else:
-            raise NotImplementedError('u proj not implented!')
-
-        if self.no_telsvd:
-            # Store modified beam_svd matrix
-            self.beam_svd_with_ext_filtering[mi] = b_full
-
-        else:
-            # My old code for this is wrong, since it doesn't properly incorporate
-            # elements of the filtered BTM that are off-diagonal in frequency,
-            # but I don't expect to use this code if we're using the tel-SVD
-            # basis, so we just raise an error.
-            raise NotImplementedError(
-                "Can't manually to data-SVD in PS estimation when using tel-SVD basis!"
-            )
-
-            # # Get matrix that does tel-to-tel-SVD transform.
-            # # Matrix comes packed as [nfreq,nsvd,ntel].
-            # # Note that beam_svd is just the dot product of beam_m and beam_ut.
-            # beam_ut = self.kltrans.beamtransfer.beam_ut(mi)
-            #
-            # # Construct beam_svd matrix
-            # beam_svd = np.zeros((self.telescope.nfreq,
-            #     beam_ut.shape[1],
-            #     self.kltrans.beamtransfer.nsky
-            # ), dtype=np.complex128)
-            # for fi in np.arange(self.telescope.nfreq):
-            #     beam_svd[fi] = np.dot(beam_ut[fi], beam_m_proj[fi])
-            #
-            # # Store modified beam_svd matrix
-            # self.beam_svd_with_ext_filtering[mi] = beam_svd
+        # # Expand beam transfer matrix to 2 freq axes,
+        # # packed as [freq,msign,base,freq,pol,ell]
+        # b_diag = self.kltrans.beamtransfer.beam_m(mi)
+        # b_diag_shape = b_diag.shape
+        # b_full_shape = b_diag_shape[:3] + (b_diag_shape[0], b_diag_shape[3], b_diag_shape[4],)
+        # b_full = np.zeros(b_full_shape, dtype=np.complex128)
+        # for i in range(self.telescope.nfreq):
+        #     b_full[i,:,:,i,:,:] = b_diag[i]
+        # b_diag = None
+        #
+        # # beam_m = beam_m.reshape(
+        # #     self.telescope.nfreq,
+        # #     self.kltrans.beamtransfer.ntel,
+        # #     -1
+        # # )
+        #
+        # # Apply ext-SVD projection to beam_m, along freq axis
+        # if self.use_external_sv_freq_modes:
+        #     # Construct matrix that filters out freq (V) modes of ext-SVD
+        #     vh = self.ext_svd_vh[mi]
+        #     Z = np.ones(self.telescope.nfreq)
+        #     Z[:self.ext_svd_cut[mi]] = 0
+        #     Z = np.diag(Z)
+        #     proj = np.dot(vh.T.conj(), np.dot(Z, vh))
+        #
+        #     # Apply this projection matrix to the beam transfer matrix from the left,
+        #     b_full_shape = b_full.shape
+        #     b_full = np.dot(proj.T, b_full.reshape(self.telescope.nfreq, -1)).reshape(b_full_shape)
+        #
+        #     # TODO: optimize what is stored and used later to do svd_to_sky:
+        #     # it shouldn't be necessary to store full off-diag-freq matrix
+        #     # if all we're doing is matrix multiplication in the end...
+        #
+        #     # ############# pretty sure this is wrong...
+        #     # # Apply filtering to beam_m
+        #     # beam_m_proj = np.dot(proj, beam_m.reshape(self.telescope.nfreq, -1)).reshape(
+        #     #     self.telescope.nfreq,
+        #     #     self.kltrans.beamtransfer.ntel,
+        #     #     -1
+        #     # )
+        #
+        # else:
+        #     raise NotImplementedError('u proj not implented!')
+        #
+        # if self.no_telsvd:
+        #     # Store modified beam_svd matrix
+        #     self.beam_svd_with_ext_filtering[mi] = b_full
+        #
+        # else:
+        #     # My old code for this is wrong, since it doesn't properly incorporate
+        #     # elements of the filtered BTM that are off-diagonal in frequency,
+        #     # but I don't expect to use this code if we're using the tel-SVD
+        #     # basis, so we just raise an error.
+        #     raise NotImplementedError(
+        #         "Can't manually to data-SVD in PS estimation when using tel-SVD basis!"
+        #     )
+        #
+        #     # # Get matrix that does tel-to-tel-SVD transform.
+        #     # # Matrix comes packed as [nfreq,nsvd,ntel].
+        #     # # Note that beam_svd is just the dot product of beam_m and beam_ut.
+        #     # beam_ut = self.kltrans.beamtransfer.beam_ut(mi)
+        #     #
+        #     # # Construct beam_svd matrix
+        #     # beam_svd = np.zeros((self.telescope.nfreq,
+        #     #     beam_ut.shape[1],
+        #     #     self.kltrans.beamtransfer.nsky
+        #     # ), dtype=np.complex128)
+        #     # for fi in np.arange(self.telescope.nfreq):
+        #     #     beam_svd[fi] = np.dot(beam_ut[fi], beam_m_proj[fi])
+        #     #
+        #     # # Store modified beam_svd matrix
+        #     # self.beam_svd_with_ext_filtering[mi] = beam_svd
 
         return True
 
@@ -684,7 +699,8 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         self.ext_svd_sig[mi] = None
         self.ext_svd_vh[mi] = None
         self.ext_svd_cut[mi] = None
-        self.beam_svd_with_ext_filtering[mi] = None
+        # self.beam_svd_with_ext_filtering[mi] = None
+        self.ext_svd_V_proj[mi] = None
 
     # ===================================================
 
@@ -935,19 +951,30 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
                 "_project_vector_svd_to_sky_with_ext_svd not implemented with tel_SVD basis!"
             )
 
-        # Fetch matrix that transforms from sky to filtered tel basis,
-        # packed as [freq,msign,base,freq,pol,ell]. We reshape to
-        # [ndof = nfreq * ntel, nfreq * nsky = nfreq * npol * (lmax+1)]
-        filt_beam = self.beam_svd_with_ext_filtering[mi].reshape(
-            self.kltrans.beamtransfer.ndof(mi), self.telescope.nfreq * self.kltrans.beamtransfer.nsky
-        )
+        # # Fetch matrix that transforms from sky to filtered tel basis,
+        # # packed as [freq,msign,base,freq,pol,ell]. We reshape to
+        # # [ndof = nfreq * ntel, nfreq * nsky = nfreq * npol * (lmax+1)]
+        # filt_beam = self.beam_svd_with_ext_filtering[mi].reshape(
+        #     self.kltrans.beamtransfer.ndof(mi), self.telescope.nfreq * self.kltrans.beamtransfer.nsky
+        # )
+        #
+        # # Dot Hermitian conjugate of BTM into input vec,
+        # # and reshape to [nfreq, npol, lmax+1, ...]
+        # vec_sky = np.dot(filt_beam.T.conj(), vec).reshape(
+        #     (self.telescope.nfreq,
+        #     self.telescope.num_pol_sky,
+        #     self.telescope.lmax + 1) + vec.shape[1:]
+        # )
 
-        # Dot Hermitian conjugate of BTM into input vec,
-        # and reshape to [nfreq, npol, lmax+1, ...]
-        vec_sky = np.dot(filt_beam.T.conj(), vec).reshape(
-            (self.telescope.nfreq,
-            self.telescope.num_pol_sky,
-            self.telescope.lmax + 1) + vec.shape[1:]
+        # Filtered BTM is proj.T dot B, so we apply proj.conj() to vec_2
+        vec_proj = np.dot(
+            self.ext_svd_V_proj[mi].conj(),
+            vec.reshape(self.telescope.nfreq, -1)
+        ).reshape((self.kltrans.beamtransfer.ndof(mi),) + vec.shape[1:])
+        # Then, since telescope and SVD bases are the same in no-SVD case,
+        # apply B^dagger to filtered vec
+        vec_sky = self.kltrans.beamtransfer.project_vector_svd_to_sky(
+            mi, vec_proj, conj=True
         )
 
         return vec_sky

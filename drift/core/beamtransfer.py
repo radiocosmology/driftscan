@@ -1168,15 +1168,35 @@ class BeamTransfer(object):
             (self.nfreq, self.ntel, self.nfreq, self.ntel), dtype=np.complex128
         )
 
-        # Should it be a +=?
+        ###
+        # Old version
+        ###
+        # # Should it be a +=?
+        # for pi in range(npol):
+        #     for pj in range(npol):
+        #         for fi in range(self.nfreq):
+        #             for fj in range(self.nfreq):
+        #                 matf[fi, :, fj, :] += np.dot(
+        #                     (beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]),
+        #                     beam[fj, :, pj, :].T.conj(),
+        #                 )
+
+        # This is an improved version of the above, which makes use of the fact
+        # that the resulting matrix will be Hermitian: we only compute explicitly
+        # for fj <= fi, and fill in the (fj,fi) elements where fj>fi with the Hermitian
+        # conjugate of the (fi,fj) blocks.
         for pi in range(npol):
             for pj in range(npol):
                 for fi in range(self.nfreq):
-                    for fj in range(self.nfreq):
+                    for fj in range(fi+1):
                         matf[fi, :, fj, :] += np.dot(
                             (beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]),
                             beam[fj, :, pj, :].T.conj(),
                         )
+
+        for fi in range(self.nfreq):
+            for fj in range(fi):
+                matf[fj, :, fi, :] = matf[fi, :, fj, :].T.conj()
 
         return matf
 

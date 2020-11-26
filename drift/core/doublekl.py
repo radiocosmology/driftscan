@@ -13,7 +13,7 @@ import h5py
 
 from caput import mpiutil, config
 
-from drift.core import kltransform
+from drift.core import kltransform, skymodel
 
 
 class DoubleKL(kltransform.KLTransform):
@@ -187,6 +187,10 @@ class DoubleKL(kltransform.KLTransform):
             #     cn = cn.reshape(nside, nside)
             # et = time.time()
             # print("m = %d: Time to generate S,F+N covariances =\t\t" % mi, (et - st))
+            #
+            # cs = np.dot(evecs, np.dot(cs, evecs.T.conj()))
+            # cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
+
             st = time.time()
             cn_thermal = self.thermalnoise_covariance(mi)
             if self.external_svd_basis_dir is None:
@@ -273,3 +277,80 @@ class DoubleKL(kltransform.KLTransform):
             f.create_dataset("evals", data=evarray[:, 0])
             f.create_dataset("sf_evals", data=evarray[:, 1])
             f.close()
+
+
+class DoubleKLNewForegroundModel(DoubleKL):
+    """Double-KL transform with updated foreground model.
+
+    Updated foreground model is hard-coded for now...
+    """
+
+    def foreground(self):
+        """Compute the foreground covariance matrix (on the sky).
+
+        Returns
+        -------
+        cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
+        """
+        # Fit to all frequency auto and cross spectra for 80 frequencies
+        # from 400-800MHz
+        A_TT =      39.6
+        ell0_TT =   9.32
+        p1_TT =     0.730
+        p2_TT =     -0.921
+
+        # Fit to all frequency auto (not cross!) spectra for 80 frequencies
+        # from 400-800MHz
+        A_EE =      0.00911
+        p1_EE =     -0.543
+
+        # Fit to all frequency auto (not cross!) spectra for 80 frequencies
+        # from 400-800MHz
+        A_BB =      0.00933
+        p1_BB =     0.559
+
+        if self._cvfg is None:
+
+            npol = self.telescope.num_pol_sky
+
+            if npol != 1 and npol != 3 and npol != 4:
+                raise Exception(
+                    "Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3)."
+                )
+
+            # If not polarised then zero out the polarised components of the array
+            if self.use_polarised:
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax,
+                    self.telescope.frequencies,
+                    npol,
+                    pol_length=self.pol_length,
+                )
+            else:
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax, self.telescope.frequencies, npol, pol_frac=0.0
+                )
+
+            # Multiply TT model correction into base model.
+            # Model correction is a frequency-independent broken power law,
+            # constrained to be continuous at break
+            ell = np.arange(self.telescope.lmax+1)
+            cl_corr = np.zeros_like(ell)
+
+            if np.any(ell<ell0_TT):
+                cl_corr[ell<ell0_TT] = A_TT * (ell[ell<ell0_TT]/100)**p1_TT
+            if np.any(ell>=ell0_TT):
+                cl_corr[ell>=ell0_TT] = A_TT * (ell0_TT/100)**(p1_TT-p2_TT) \
+                                        * (ell[ell>=ell0_TT]/100)**p2_TT
+
+            print(self._cvfg[0,0].shape, cl_corr.shape)
+            self._cvfg[0,0] *= cl_corr[:, np.newaxis, np.newaxis]
+
+            # If polarised, multiply EE and BB model corrections into base model.
+            # Model corrections are frequency-independent power laws
+            if self.use_polarised:
+                self._cvfg[1,1] *= (A_EE * (ell/100)*p1_EE)[:, np.newaxis, np.newaxis]
+                self._cvfg[2,2] *= (A_BB * (ell/100)*p1_BB)[:, np.newaxis, np.newaxis]
+
+        return self._cvfg

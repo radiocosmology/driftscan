@@ -294,8 +294,8 @@ class DoubleKLNewForegroundModel(DoubleKL):
         """
         # Fit to all frequency auto and cross spectra for 80 frequencies
         # from 400-800MHz
-        A_TT =      39.6
-        ell0_TT =   9.32
+        A_TT =      9.32
+        ell0_TT =   39.6
         p1_TT =     0.730
         p2_TT =     -0.921
 
@@ -307,7 +307,7 @@ class DoubleKLNewForegroundModel(DoubleKL):
         # Fit to all frequency auto (not cross!) spectra for 80 frequencies
         # from 400-800MHz
         A_BB =      0.00933
-        p1_BB =     0.559
+        p1_BB =     -0.559
 
         if self._cvfg is None:
 
@@ -335,21 +335,22 @@ class DoubleKLNewForegroundModel(DoubleKL):
             # Multiply TT model correction into base model.
             # Model correction is a frequency-independent broken power law,
             # constrained to be continuous at break
-            ell = np.arange(self.telescope.lmax+1)
-            cl_corr = np.zeros_like(ell)
+            ell = np.arange(1,self.telescope.lmax+1)
+            cl_corr = np.ones_like(ell, dtype=np.float64)
 
             if np.any(ell<ell0_TT):
-                cl_corr[ell<ell0_TT] = A_TT * (ell[ell<ell0_TT]/100)**p1_TT
+                cl_corr[ell<ell0_TT] = A_TT * (ell[ell<ell0_TT]/100.)**p1_TT
             if np.any(ell>=ell0_TT):
-                cl_corr[ell>=ell0_TT] = A_TT * (ell0_TT/100)**(p1_TT-p2_TT) \
-                                        * (ell[ell>=ell0_TT]/100)**p2_TT
+                cl_corr[ell>=ell0_TT] = A_TT * (ell0_TT/100.)**(p1_TT-p2_TT) \
+                                        * (ell[ell>=ell0_TT]/100.)**p2_TT
 
-            self._cvfg[0,0] *= cl_corr[:, np.newaxis, np.newaxis]
+            print(cl_corr)
+            self._cvfg[0,0,1:] *= cl_corr[:, np.newaxis, np.newaxis]
 
             # If polarised, multiply EE and BB model corrections into base model.
             # Model corrections are frequency-independent power laws
             if self.use_polarised:
-                self._cvfg[1,1] *= (A_EE * (ell/100)*p1_EE)[:, np.newaxis, np.newaxis]
-                self._cvfg[2,2] *= (A_BB * (ell/100)*p1_BB)[:, np.newaxis, np.newaxis]
+                self._cvfg[1,1,1:] *= (A_EE * (ell/100.)**p1_EE)[:, np.newaxis, np.newaxis]
+                self._cvfg[2,2,1:] *= (A_BB * (ell/100.)**p1_BB)[:, np.newaxis, np.newaxis]
 
         return self._cvfg

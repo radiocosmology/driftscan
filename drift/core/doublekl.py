@@ -344,7 +344,6 @@ class DoubleKLNewForegroundModel(DoubleKL):
                 cl_corr[ell>=ell0_TT] = A_TT * (ell0_TT/100.)**(p1_TT-p2_TT) \
                                         * (ell[ell>=ell0_TT]/100.)**p2_TT
 
-            print(cl_corr)
             self._cvfg[0,0,1:] *= cl_corr[:, np.newaxis, np.newaxis]
 
             # If polarised, multiply EE and BB model corrections into base model.

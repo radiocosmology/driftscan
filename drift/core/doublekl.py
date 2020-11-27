@@ -353,3 +353,70 @@ class DoubleKLNewForegroundModel(DoubleKL):
                 self._cvfg[2,2,1:] *= (A_BB * (ell/100.)**p1_BB)[:, np.newaxis, np.newaxis]
 
         return self._cvfg
+
+
+class DoubleKLNewForegroundModelTOnly(DoubleKL):
+    """Double-KL transform with updated foreground model.
+
+    This assumes that E and B have the same angular power spectrum as T,
+    but does not assume any T/E/B correlations. It should work if we
+    input a foreground map where Q and U are the same as T...
+    """
+
+    def foreground(self):
+        """Compute the foreground covariance matrix (on the sky).
+
+        Returns
+        -------
+        cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
+        """
+        # Fit to all frequency auto and cross spectra for 80 frequencies
+        # from 400-800MHz
+        A_TT =      9.32
+        ell0_TT =   39.6
+        p1_TT =     0.730
+        p2_TT =     -0.921
+
+        if self._cvfg is None:
+
+            npol = self.telescope.num_pol_sky
+
+            if npol != 1 and npol != 3 and npol != 4:
+                raise Exception(
+                    "Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3)."
+                )
+
+            # If not polarised then zero out the polarised components of the array
+            if self.use_polarised:
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax,
+                    self.telescope.frequencies,
+                    npol,
+                    pol_length=self.pol_length,
+                )
+            else:
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax, self.telescope.frequencies, npol, pol_frac=0.0
+                )
+
+            # Multiply TT model correction into base model.
+            # Model correction is a frequency-independent broken power law,
+            # constrained to be continuous at break
+            ell = np.arange(1,self.telescope.lmax+1)
+            cl_corr = np.ones_like(ell, dtype=np.float64)
+
+            if np.any(ell<ell0_TT):
+                cl_corr[ell<ell0_TT] = A_TT * (ell[ell<ell0_TT]/100.)**p1_TT
+            if np.any(ell>=ell0_TT):
+                cl_corr[ell>=ell0_TT] = A_TT * (ell0_TT/100.)**(p1_TT-p2_TT) \
+                                        * (ell[ell>=ell0_TT]/100.)**p2_TT
+
+            self._cvfg[0,0,1:] *= cl_corr[:, np.newaxis, np.newaxis]
+
+            # If polarised, set E and B spectra to be the same as T spectrum
+            if self.use_polarised:
+                self._cvfg[1,1] = self._cvfg[0,0]
+                self._cvfg[2,2] = self._cvfg[0,0]
+
+        return self._cvfg

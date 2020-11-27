@@ -47,6 +47,7 @@ kltype_dict = {
     "KLTransform": kltransform.KLTransform,
     "DoubleKL": doublekl.DoubleKL,
     "DoubleKLNewForegroundModel": doublekl.DoubleKLNewForegroundModel,
+    "DoubleKLNewForegroundModelTOnly": doublekl.DoubleKLNewForegroundModelTOnly,
 }
 
 

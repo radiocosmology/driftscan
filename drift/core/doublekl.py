@@ -420,3 +420,39 @@ class DoubleKLNewForegroundModelTOnly(DoubleKL):
                 self._cvfg[2,2] = self._cvfg[0,0]
 
         return self._cvfg
+
+
+class DoubleKLForegroundModelFromDisk(DoubleKL):
+    """Double-KL transform with updated foreground model, read from disk
+    """
+
+    fg_cov_file = config.Property(proptype=str, default=None)
+
+    def foreground(self):
+        """Compute the foreground covariance matrix (on the sky).
+
+        Returns
+        -------
+        cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
+        """
+        if self.fg_cov_file is None:
+            raise RuntimeError("fg_cov_file not specified!")
+
+        if self._cvfg is None:
+
+            npol = self.telescope.num_pol_sky
+
+            if npol != 1 and npol != 3 and npol != 4:
+                raise Exception(
+                    "Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3)."
+                )
+
+            self._cvfg = np.load(self.fg_cov_file)
+
+            # If not polarised then zero out the polarised components of the array
+            if not self.use_polarised:
+                self._cvfg[1, 1, :] = 0.
+                self._cvfg[2, 2, :] = 0.
+
+        return self._cvfg

@@ -24,6 +24,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 import pickle
 import os
 import time
+import logging
 
 import numpy as np
 import scipy.linalg as la
@@ -244,6 +245,8 @@ class BeamTransfer(object):
 
     def __init__(self, directory, telescope=None):
 
+        self.log = logging.getLogger(__name__)
+
         self.directory = directory
         self.telescope = telescope
 
@@ -254,7 +257,7 @@ class BeamTransfer(object):
         mpiutil.barrier()
 
         if self.telescope is None:
-            print("Attempting to read telescope from disk...")
+            self.log("Attempting to read telescope from disk...")
 
             try:
                 with open(self._picklefile, "rb") as f:
@@ -552,7 +555,7 @@ class BeamTransfer(object):
         # Save pickled telescope object
         if mpiutil.rank0:
             with open(self._picklefile, "wb") as f:
-                print("=== Saving Telescope object. ===")
+                self.log.info("=== Saving Telescope object. ===")
                 pickle.dump(self.telescope, f)
 
         self._generate_mfiles(regen)
@@ -566,7 +569,7 @@ class BeamTransfer(object):
         et = time.time()
 
         if mpiutil.rank0:
-            print("***** Beam generation time: %f" % (et - st))
+            self.log.info("***** Beam generation time: %f" % (et - st))
 
     generate_cache = generate  # For compatibility with old code
 
@@ -597,12 +600,12 @@ class BeamTransfer(object):
         for fi in mpiutil.mpirange(self.nfreq):
 
             if os.path.exists(self._ffile(fi)) and not regen:
-                print(
+                self.log.info(
                     "f index %i. File: %s exists. Skipping..." % (fi, (self._ffile(fi)))
                 )
                 continue
             else:
-                print("f index %i. Creating file: %s" % (fi, (self._ffile(fi))))
+                self.log.info("f index %i. Creating file: %s" % (fi, (self._ffile(fi))))
 
             f = h5py.File(self._ffile(fi), "w")
 
@@ -636,7 +639,7 @@ class BeamTransfer(object):
                 np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self._mem_switch)
             )
 
-            print(
+            self.log.info(
                 "Dividing calculation of %f GB array into %i sections."
                 % (np.prod(dsize) * 16.0 / 2 ** 30.0, nsections)
             )
@@ -650,7 +653,7 @@ class BeamTransfer(object):
 
             # Iterate over each section, generating transfers and save them.
             for si in range(nsections):
-                print("Calculating section %i of %i...." % (si, nsections))
+                self.log.info("Calculating section %i of %i...." % (si, nsections))
                 b_ind, f_ind = b_sec[si], f_sec[si]
                 tarray = self.telescope.transfer_matrices(b_ind, f_ind)
                 dset[
@@ -670,7 +673,7 @@ class BeamTransfer(object):
 
         if os.path.exists(self.directory + "/beam_m/COMPLETED") and not regen:
             if mpiutil.rank0:
-                print("******* m-files already generated ********")
+                self.log.info("******* m-files already generated ********")
             return
 
         st = time.time()
@@ -696,7 +699,7 @@ class BeamTransfer(object):
         )  # Number of chunks to break the calculation into
 
         if mpiutil.rank0:
-            print("Splitting into %i chunks...." % num_chunks)
+            self.log.info("Splitting into %i chunks...." % num_chunks)
 
         # The local m sections
         lm, sm, em = mpiutil.split_local(self.telescope.mmax + 1)
@@ -705,7 +708,7 @@ class BeamTransfer(object):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._mfile(mi)) and not regen:
-                print(
+                self.log.debug(
                     "m index %i. File: %s exists. Skipping..." % (mi, (self._mfile(mi)))
                 )
                 continue
@@ -743,7 +746,7 @@ class BeamTransfer(object):
         for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
 
             if mpiutil.rank0:
-                print("Starting chunk %i of %i" % (ci + 1, num_chunks))
+                self.log.info("Starting chunk %i of %i" % (ci + 1, num_chunks))
 
             # Unpack freq-baselines range into num, start and end
             fbnum, fbstart, fbend = fbrange
@@ -770,9 +773,13 @@ class BeamTransfer(object):
 
             if loc_num > 0:
 
+                if mpiutil.rank0:
+                    self.log.info("Calculating BTM...")
                 # Calculate the local Beam Matrices
                 tarray = self.telescope.transfer_matrices(bl_ind, f_ind)
 
+                if mpiutil.rank0:
+                    self.log.info("Copying BTM...")
                 # Expensive memory copy into array section
                 for mi in range(1, self.telescope.mmax + 1):
                     fb_array[:, 0, ..., mi] = tarray[..., mi]
@@ -783,7 +790,7 @@ class BeamTransfer(object):
                 del tarray
 
             if mpiutil.rank0:
-                print("Transposing and writing chunk.")
+                self.log.info("Transposing chunk.")
 
             # Perform an in memory MPI transpose to get the m-ordered array
             m_array = mpiutil.transpose_blocks(
@@ -798,6 +805,9 @@ class BeamTransfer(object):
             )
 
             del fb_array
+
+            if mpiutil.rank0:
+                self.log.info("Writing chunk.")
 
             # Write out the current set of chunks into the m-files.
             for lmi, mi in enumerate(range(sm, em)):
@@ -823,7 +833,7 @@ class BeamTransfer(object):
             open(self.directory + "/beam_m/COMPLETED", "a").close()
 
             # Print out timing
-            print("=== MPI transpose took %f s ===" % (et - st))
+            self.log.info("=== MPI transpose took %f s ===" % (et - st))
 
     def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
 
@@ -836,13 +846,13 @@ class BeamTransfer(object):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
+                self.log.info(
                     "m index %i. File: %s exists. Skipping..."
                     % (mi, (self._svdfile(mi)))
                 )
                 continue
             else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                self.log.info("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), "r")
@@ -1441,8 +1451,8 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
-        print("temponly", temponly)
-        print("npol", npol)
+        self.log.info("temponly", temponly)
+        self.log.info("npol", npol)
 
         # if not conj:
         #     raise Exception("Not implemented non conj yet.")
@@ -1528,13 +1538,13 @@ class BeamTransferTempSVD(BeamTransfer):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
+                self.log.info(
                     "m index %i. File: %s exists. Skipping..."
                     % (mi, (self._svdfile(mi)))
                 )
                 continue
             else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                self.log.info("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), "r")
@@ -1667,13 +1677,13 @@ class BeamTransferFullSVD(BeamTransfer):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
+                self.log.info(
                     "m index %i. File: %s exists. Skipping..."
                     % (mi, (self._svdfile(mi)))
                 )
                 continue
             else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                self.log.info("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
 
             # Open m beams for reading.
             fm = h5py.File(self._mfile(mi), "r")

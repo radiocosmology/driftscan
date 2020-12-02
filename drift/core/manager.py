@@ -10,6 +10,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 import os.path
 import shutil
 import warnings
+import logging
 
 import yaml
 
@@ -205,6 +206,17 @@ class ProductManager(object):
         self.directory = yconf["config"]["output_directory"]
         self.directory = os.path.expanduser(self.directory)
         self.directory = os.path.expandvars(self.directory)
+
+        # Set up logging
+        fmt = (
+            "%(asctime)s "
+            + "[MPI %i/%i]" % (mpiutil.rank, mpiutil.size)
+            + " - %(levelname)-8s %(name)s: %(message)s"
+        )
+        logging.basicConfig(
+            level=yconf["config"].get("log_level", "INFO"),
+            format=fmt,
+        )
 
         if mpiutil.rank0:
             print("Product directory:", self.directory)

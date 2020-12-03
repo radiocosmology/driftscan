@@ -511,7 +511,7 @@ class DoubleKLNewForegroundTypoFix(DoubleKL):
 
                 for i in range(self.telescope.nfreq):
                     for j in range(self.telescope.nfreq):
-                        self._cvfg[1,1,1:] = Cl_pol_fixed(
+                        self._cvfg[1,1,1:,i,j] = Cl_pol_fixed(
                             ell, self.telescope.frequencies[i], self.telescope.frequencies[j]
                         )
                 self._cvfg[2,2,1:] = self.cvfg[1,1,1:]

@@ -456,3 +456,69 @@ class DoubleKLForegroundModelFromDisk(DoubleKL):
                 self._cvfg[2, 2, :] = 0.
 
         return self._cvfg
+
+
+class DoubleKLNewForegroundTypoFix(DoubleKL):
+    """Double-KL transform with polarization zeta typo fixed.
+    """
+
+    def foreground(self):
+        """Compute the foreground covariance matrix (on the sky).
+
+        Returns
+        -------
+        cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
+        """
+
+        def Cl_pol_fixed(ell, nu1, nu2):
+            A = 1.65e-3
+            beta = 2.8
+            nu_0 = 408.0
+            l_0 = 100.0
+            zeta = 0.04
+            alpha = 2.8
+
+            zeta = 0.64
+            A = 1.65e-3
+
+            ell_dependence = (ell/l_0)**(-1*alpha)
+            nu_power = (nu1*nu2/nu_0**2)**(-1*beta)
+            nu_exp = np.exp(-1/(2*zeta**2) * np.log(nu1/nu2)**2)
+
+            return A * ell_dependence * nu_power * nu_exp
+
+        if self._cvfg is None:
+
+            npol = self.telescope.num_pol_sky
+
+            if npol != 1 and npol != 3 and npol != 4:
+                raise Exception(
+                    "Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3)."
+                )
+
+            # If not polarised then zero out the polarised components of the array
+            if self.use_polarised:
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax,
+                    self.telescope.frequencies,
+                    npol,
+                    pol_length=self.pol_length,
+                )
+
+                # Replace polarized part with my own version with zeta typo fixed
+                ell = np.arange(1,self.telescope.lmax+1)
+
+                for i in range(self.telescope.nfreq):
+                    for j in range(self.telescope.nfreq):
+                        self._cvfg[1,1,1:] = Cl_pol_fixed(
+                            ell, self.telescope.frequencies[i], self.telescope.frequencies[j]
+                        )
+                self._cvfg[2,2,1:] = self.cvfg[1,1,1:]
+
+            else:
+                self._cvfg = skymodel.foreground_model(
+                    self.telescope.lmax, self.telescope.frequencies, npol, pol_frac=0.0
+                )
+
+        return self._cvfg

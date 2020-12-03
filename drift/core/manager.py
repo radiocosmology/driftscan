@@ -49,6 +49,7 @@ kltype_dict = {
     "DoubleKLNewForegroundModel": doublekl.DoubleKLNewForegroundModel,
     "DoubleKLNewForegroundModelTOnly": doublekl.DoubleKLNewForegroundModelTOnly,
     "DoubleKLForegroundModelFromDisk": doublekl.DoubleKLForegroundModelFromDisk,
+    "DoubleKLNewForegroundTypoFix": doublekl.DoubleKLNewForegroundTypoFix
 }
 
 

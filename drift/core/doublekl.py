@@ -514,7 +514,7 @@ class DoubleKLNewForegroundTypoFix(DoubleKL):
                         self._cvfg[1,1,1:,i,j] = Cl_pol_fixed(
                             ell, self.telescope.frequencies[i], self.telescope.frequencies[j]
                         )
-                self._cvfg[2,2,1:] = self.cvfg[1,1,1:]
+                self._cvfg[2,2,1:] = self._cvfg[1,1,1:]
 
             else:
                 self._cvfg = skymodel.foreground_model(

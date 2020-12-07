@@ -213,7 +213,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         return fisher, bias
 
 
-class PSMonteCarloXLarge(PSMonteCarlo):
+class PSMonteCarloLarge(PSMonteCarlo):
     """An extension of the PSEstimation class to support estimation of the
     Fisher matrix via Monte-Carlo simulations for very large arrays.
 
@@ -274,15 +274,11 @@ class PSMonteCarloXLarge(PSMonteCarlo):
 
         st = time.time()
 
+        # Split up all m-modes such that each MPI process receives one m-mode
         m_chunks, low_bound, upp_bound = self.split_single(
             (self.telescope.mmax + 1), size
         )
         num_chunks = m_chunks.shape[0]
-
-        if mpiutil.rank0:
-            print(
-                "M chunks, lower bounds, upper bounds", m_chunks, low_bound, upp_bound
-            )
 
         n = self.nsamples
 
@@ -317,11 +313,11 @@ class PSMonteCarloXLarge(PSMonteCarlo):
                 if self.num_evals(mi) > 0:
                     # Generate random KL data
                     x = self.gen_sample(mi, n)
-                    vec1, vec2 = self.project_vector_kl_to_sky(mi, x)
+                    vec1 = self.project_vector_kl_to_sky(mi, x)
                     # Make array contiguous
                     vec1 = np.ascontiguousarray(vec1.reshape(nfreq, lmax + 1, n))
 
-                # If I don't have evals - return zero vector
+                # If I don't have evals - return zero vector. Each MPI process must have some data to pass around. Otherwise send and receive won't work.
                 else:
                     vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
 
@@ -332,6 +328,7 @@ class PSMonteCarloXLarge(PSMonteCarlo):
 
             dsize = np.prod(vec1.shape)
 
+            # Loop over total number of ranks given by `size`.
             for ir in range(size):
                 # Only fill qa if we haven't reached mmax
                 if mi < (self.telescope.mmax + 1):
@@ -383,13 +380,30 @@ class PSMonteCarloXLarge(PSMonteCarlo):
         self.write_fisher_file()
 
     def q_estimator(self, mi, vec1, vec2, noise=False):
-        """Calculate the quadratic estimator for this mi with data vec1 and vec2"""
+        """Estimate the q-parameters from given data (see paper).
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode we are calculating for.
+        vec1, vec2 : np.ndarrays[num_kl, num_realisatons]
+            The vector(s) of data we are estimating from. These are KL-mode coefficients. Passing in `vec2` different from `vec1` is for cross power spectrum calculation.
+        noise : boolean, optional
+            Whether we should project against the noise matrix. Used for
+            estimating the bias by Monte-Carlo. Default is False.
+
+        Returns
+        -------
+        qa : np.ndarray[numbands]
+            Array of q-parameters. If noise=True then the array is one longer, and the last parameter is the projection against the noise.
+        """
+
         # if data vector is filled with zeros, return q = 0.0 for this m
-        if np.all(vec1 == 0) and np.all(vec2 == 0):
+        if np.all(vec1 == 0) or np.all(vec2 == 0):
             self.qa[mi, :] = 0.0
 
-        # if data vector is empty, return q = 0.0 for this m
-        elif (vec1.shape[0], vec2.shape[0]) == (0, 0):
+        # If one of the data vectors is empty, return q = 0.0 for this m
+        elif (vec1.shape[0] == 0) or (vec2.shape[0] == 0):
             self.qa[mi, :] = 0.0
 
         else:
@@ -416,6 +430,21 @@ class PSMonteCarloXLarge(PSMonteCarlo):
             )
 
     def recv_send_data(self, data, axis):
+        """Send data from one MPI process to the next by using a vector buffer.
+
+        Parameters
+        ----------
+        data : np.ndarray, complex
+            Data vector that is sent to the next rank. Expecting
+            a complex data type.
+        axis : int
+            Axis over which the data is devided into chunks of 4GB.
+
+        Returns
+        -------
+        recv_buffer : np.ndarray
+            The data vector received from the previous rank.
+        """
 
         comm = MPI.COMM_WORLD
         size = comm.Get_size()
@@ -433,10 +462,6 @@ class PSMonteCarloXLarge(PSMonteCarlo):
         message_size = 4 * 2 ** 30.0
         dsize = np.prod(shape) * 16.0
         num_messages = int(np.ceil(dsize / message_size))
-
-        # If dsize =0.0 you get 0 num_messages and it throws error. hack.
-        if num_messages == 0:
-            num_messages = 1
 
         num, sm, em = mpiutil.split_m(shape[axis], num_messages)
 
@@ -462,6 +487,24 @@ class PSMonteCarloXLarge(PSMonteCarlo):
         return recv_buffer
 
     def split_single(self, m, size):
+        """Split number of m elements into chunks of `size`. Also return the lower and upper bounds of `size` elements in m.
+
+        Parameters
+        -----------
+        m : int
+            Number of total elements.
+        size: size
+            Number of MPI processes running.
+
+        Returns
+        -------
+        m_chunks : list
+            List of chunk sizes.
+        low_bound : list
+            Lower bound of where chunk starts.
+        upp_bound : list
+            Upper bound where chunk stops.
+        """
 
         quotient = m // size
         rem = m % size

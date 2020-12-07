@@ -51,7 +51,7 @@ pstype_dict = {
     "Full": psestimation.PSExact,
     "MonteCarlo": psmc.PSMonteCarlo,
     "MonteCarloAlt": psmc.PSMonteCarloAlt,
-    "MonteCarloXLarge": psmc.PSMonteCarloXLarge,
+    "MonteCarloLarge": psmc.PSMonteCarloLarge,
     "Cross": crosspower.CrossPower,
 }
 

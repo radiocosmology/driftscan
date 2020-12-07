@@ -597,28 +597,25 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
     # ====== Estimate the q-parameters from data ========
 
-    def project_vector_kl_to_sky(self, mi, vec1, vec2=None):
+    def project_vector_kl_to_sky(self, mi, vec1):
         """
         Parameters
         ----------
         mi : integer
             M-mode index to fetch for.
-        vec : np.ndarrays
-            The vector(s) of data in the KL-basis packed as [num_kl, num_realisatons]
+        vec1 : np.ndarray
+            The vector of data in the KL-basis packed as [num_kl, num_realisatons].
 
         Returns
         -------
-        x2, y2 : np.ndarray
-            The vectors(s) of data in the sky basis packed as [nfreq, lmax+1, num_realisations]
+        x2 : np.ndarray
+            The vector of data in the sky basis packed as [nfreq, lmax+1, num_realisations]
         """
 
         evals, evecs = self.kltrans.modes_m(mi)
 
         if evals is None:
-            return (
-                np.zeros((0,), dtype=np.complex128),
-                np.zeros((0,), dtype=np.complex128),
-            )
+            return np.zeros((0,), dtype=np.complex128)
 
         # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
         x0 = (vec1.T / (evals + 1.0)).T
@@ -633,20 +630,7 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         # Slice array for temponly
         x2 = x2[:, 0]
 
-        if vec2 is not None:
-            y0 = (vec2.T / (evals + 1.0)).T
-            y1 = np.dot(evecs.T.conj(), x0)
-            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
-                mi, x1, temponly=True, conj=True
-            )
-            # Slice array for temponly
-            y2 = y2[:, 0]
-
-        else:
-            y0 = x0
-            y2 = x2
-
-        return x2, y2
+        return x2
 
     def q_estimator(self, mi, vec1, vec2=None, noise=False):
         """Estimate the q-parameters from given data (see paper).
@@ -655,9 +639,8 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
         ----------
         mi : integer
             The m-mode we are calculating for.
-        vec : np.ndarray[num_kl, num_realisatons]
-            The vector(s) of data we are estimating from. These are KL-mode
-            coefficients.
+        vec1, vec2 : np.ndarrays[num_kl, num_realisatons]
+            The vector(s) of data we are estimating from. These are KL-mode coefficients. Passing in `vec2` is optional and for cross power spectrum calculation.
         noise : boolean, optional
             Whether we should project against the noise matrix. Used for
             estimating the bias by Monte-Carlo. Default is False.
@@ -671,7 +654,12 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         evals, evecs = self.kltrans.modes_m(mi)
 
-        x2, y2 = self.project_vector_kl_to_sky(mi, vec1, vec2=None)
+        x2 = self.project_vector_kl_to_sky(mi, vec1)
+
+        if vec2 is not None:
+            y2 = self.project_vector_kl_to_sky(mi, vec2)
+        else:
+            y2 = x2
 
         if (x2.shape[0], y2.shape[0]) == (0, 0):
             return np.zeros((self.nbands + 1 if noise else self.nbands,))

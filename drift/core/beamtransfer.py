@@ -27,12 +27,14 @@ import time
 
 import numpy as np
 import scipy.linalg as la
+import scipy.constants
 import h5py
 
 from caput import mpiutil, misc
 
 from drift.util import util, blockla
 from drift.core import kltransform
+from draco.util import tools as draco_tools
 
 
 def svd_gen(A, errmsg=None, *args, **kwargs):
@@ -1901,3 +1903,489 @@ class BeamTransferNoSVD(BeamTransfer):
     @property
     def ndofmax(self):
         return self.ntel * self.nfreq
+
+
+class BeamTransferNSBeams(BeamTransfer):
+    """BeamTransfer class for hybrid EW-baseline/NS-beam visibilities.
+
+    In addition this provides methods for projecting vectors and matrices
+    between the sky and the telescope basis.
+
+    Attributes
+    ----------
+    el_cut
+    scaled
+    """
+
+    # Throw away NS beams with |el| > el_cut
+    el_cut = 1.1
+
+    # Scale the window to match the lowest frequency. This should make the
+    # beams more frequency independent.
+    scaled = False
+
+    # How to weight the non-redundant baselines:
+    #     'natural' - each baseline weighted by its redundancy (default)
+    #     'uniform' - each baseline given equal weight
+    #     'blackman' - use a Blackman window
+    #     'nutall' - use a Blackman-Nutall window
+    weight = "natural"
+
+
+    # ========= Filenames =========
+
+    def _nsbeamfile(self, mi):
+        # Pattern to form the `m` ordered file.
+        pat = (
+            self.directory
+            + "/beam_m/"
+            + util.natpattern(self.telescope.mmax)
+            + "/nsbeam.hdf5"
+        )
+        return pat % mi
+
+
+    # ====== Beamforming info =======
+
+    _n_ew = None
+    _n_ns = None
+
+    @property
+    def n_ew(self):
+        """Number of unique EW baseline distances."""
+        if self._n_ew is None:
+            self._n_ew = np.unique(self.telescope.baselines[:,0]).shape[0]
+
+        return self._n_ew
+
+    @property
+    def n_ns(self):
+        """Number of unique NS baseline vectors."""
+        if self._n_ns is None:
+            self._n_ns = np.unique(self.telescope.baselines[:,1]).shape[0]
+
+        return self._n_ns
+
+    _el = None
+
+    @property
+    def el(self):
+        """Elevation coordinates for NS beams.
+
+        By default, set to number of NS baseline vectors
+        (= 2 * number of feeds in NS direction).
+        """
+        if self._el is None:
+            self._el = np.linspace(-1.0, 1.0, self.n_ns)
+            self._el = self._el[np.abs(self._el) < self.el_cut]
+
+        return self._el
+
+    @property
+    def nbeam(self):
+        """Number of NS beams within desired elevation range."""
+        return self.el.shape[0]
+
+    _n_pol_obs = None
+
+    @property
+    def n_pol_obs(self):
+        """Number of observed polarization combinations."""
+        if self._n_pol_obs is None:
+            self._n_pol_obs = np.unique(self.telescope.polarisation).shape[0]**2
+
+        return self._n_pol_obs
+
+
+    # ====== Routines =======
+
+    def generate(self, regen=False, skip_svd=False, skip_svd_inv=False):
+        """Save all beam transfer matrices to disk.
+
+        Parameters
+        ----------
+        regen : boolean, optional
+            Force regeneration even if cache files exist (default: False).
+        skip_svd : boolen, optional
+            Skip telescope-SVD decomposition.
+        """
+
+        st = time.time()
+
+        self._generate_dirs()
+
+        # Save pickled telescope object
+        if mpiutil.rank0:
+            with open(self._picklefile, "wb") as f:
+                print("=== Saving Telescope object. ===")
+                pickle.dump(self.telescope, f)
+
+        self._generate_mfiles(regen)
+
+        self._generate_nsbeamfiles(regen)
+
+        if not skip_svd:
+            self._generate_svdfiles(regen, skip_svd_inv)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+        et = time.time()
+
+        if mpiutil.rank0:
+            print("***** Beam generation time: %f" % (et - st))
+
+
+    def _generate_nsbeamfiles(self, regen=False):
+        """Generate files with BTM in NS-beam basis.
+        """
+
+        ## Generate the beam transfer matrices with NS beams instead of
+        ## NS baseline distances
+
+        m_list = np.arange(self.telescope.mmax + 1)
+        if mpiutil.rank0:
+            # For each m, check whether the file exists, if so, whether we
+            # can open it. If these tests all pass, we can skip the file.
+            # Otherwise, we need to generate a new SVD file for that m.
+            for mi in m_list:
+                if os.path.exists(self._nsbeamfile(mi)) and not regen:
+
+                    # File may exist but be un-openable, so we catch such an
+                    # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                    # but we catch it just in case.
+                    try:
+                        fs = h5py.File(self._nsbeamfile(mi), "r")
+                        fs.close()
+
+                        print(
+                            "m index %i. Complete file: %s exists. Skipping..."
+                            % (mi, (self._nsbeamfile(mi)))
+                        )
+                        m_list[mi] = -1
+                    except:
+                        print(
+                            "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
+                            % (mi, (self._nsbeamfile(mi)))
+                        )
+
+            # Reduce m_list to the m's that we need to compute
+            m_list = m_list[m_list != -1]
+
+        # Broadcast reduced list to all tasks
+        m_list = mpiutil.bcast(m_list)
+
+        # Print m list
+        if mpiutil.rank0:
+            print("****************")
+            print("m's remaining in NS-beam BTM transformation:")
+            print(m_list)
+            print("****************")
+        mpiutil.barrier()
+
+        # Distribute m list over tasks, and do computations
+        for mi in mpiutil.partition_list_mpi(m_list):
+            print("m index %i. Creating NS-beam file: %s" % (mi, self._nsbeamfile(mi)))
+            self._generate_nsbeamfile_m(mi)
+
+        # If we're part of an MPI run, synchronise here.
+        mpiutil.barrier()
+
+
+    def _generate_nsbeamfile_m(self, mi):
+        """For single m, generate file with BTM in NS-beam basis.
+        """
+
+        # Open file to write NS-beam results into, using caput.misc.lock_file()
+        # to guard against crashes while the file is open. With preserve=True,
+        # the temp file will be saved with a period in front of its name
+        # if a crash occurs.
+        with misc.lock_file(self._nsbeamfile(mi), preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as fs:
+
+                dsize = (
+                    self.telescope.nfreq,
+                    2,
+                    self.n_pol_obs,
+                    self.n_ew,
+                    self.nbeam,
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                csize = (
+                    1,
+                    2,
+                    self.n_pol_obs,
+                    self.n_ew,
+                    min(10, self.nbeam),
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                dset = fs.create_dataset(
+                    "beam_m", dsize, chunks=csize, compression="lzf", dtype=np.complex128
+                )
+
+                ## For each frequency, read in the BTM, do NS beamforming,
+                ## and save the result.
+                for fi, nu in enumerate(self.telescope.frequencies):
+
+                    # Read BTM at this frequency, packed as
+                    # [msign, base, pol, ell]
+                    with h5py.File(self._mfile(mi), "r") as fm:
+                        bf = fm["beam_m"][fi][:]
+
+                    # Reshape baseline axis into 3d grid corresponding to
+                    # observed polarization pair, EW and NS baseline distances.
+                    # Result is packed as [msign, pol_obs, dx, dy, pol_sky, ell]
+                    bf, ew, ns, redundancy_grid = self._beam_m_freq_baseline_grid(bf)
+
+                    # Perform beamforming operation in NS direction.
+                    # Result is packed as [msign, pol_obs, dx, beam_index, pol, ell]
+                    bf = self._beam_m_freq_nsbeamform(nu, bf, ew, ns, redundancy_grid)
+
+                    # Save to file
+                    dset[fi] = bf
+
+                # Write a few useful attributes to file
+                fs.attrs["baselines"] = self.telescope.baselines
+                fs.attrs["m"] = mi
+                fs.attrs["frequencies"] = self.telescope.frequencies
+                fs.attrs["el"] = self.el
+                fs.attrs["el_cut"] = self.el_cut
+                fs.attrs["weight"] = self.weight
+                fs.attrs["scaled"] = self.scaled
+
+
+    def _beam_m_freq_baseline_grid(self, bf):
+        """Reshape baseline axis of BTM at single m, freq into [dx, dy].
+
+        This routine is adapted from draco.analysis.ringmapmaker.MakeVisGrid(),
+        from draco/pull/65 (as of 01/05/2021). When this PR is merged, we
+        can change this routine to refer to
+        draco.analysis.ringmapmaker.find.basis() and find_grid_indices()
+        instead of defining them separately here.
+
+        Parameters
+        ----------
+        bf : np.ndarray (2, nbase, n_pol_sky, ell_max+1)
+            Input beam transfer matrix at single m, frequency.
+
+        Returns
+        -------
+        bf_grid : np.ndarray (2, n_pol_obs, nx, ny, n_pol_sky, ell_max+1)
+            Beam transfer matrix with baselines shaped onto (pol,x,y) grid.
+        ew : np.ndarray (n_ew)
+            EW baseline distances in BTM.
+        ns : np.ndarray (n_ns)
+            NS baseline distances in BTM.
+        redundancy_grid : np.ndarray (nx, ny)
+            Redundancy of each unique baseline, on same (x,y) grid as bf_grid.
+        """
+
+        def find_basis(baselines):
+            """Find the basis unit vectors of the grid of baselines.
+
+            Parameters
+            ----------
+            baselines : np.ndarray[nbase, 2]
+                X and Y displacements of the baselines.
+
+            Returns
+            -------
+            xhat, yhat : np.ndarray[2]
+                Unit vectors pointing in the mostly X and mostly Y directions of the grid.
+            """
+
+            # Find the shortest baseline, this should give one of the axes
+            bl = np.abs(baselines)
+            bl[bl == 0] = 1e30
+            ind = np.argmin(bl)
+
+            # Determine the basis vectors and label them xhat and yhat
+            e1 = baselines[ind]
+            e2 = np.array([e1[1], -e1[0]])
+
+            xh, yh = (e1, e2) if abs(e1[0]) > abs(e2[0]) else (e2, e1)
+
+            xh = xh / np.dot(xh, xh) ** 0.5 * np.sign(xh[0])
+            yh = yh / np.dot(yh, yh) ** 0.5 * np.sign(yh[1])
+
+            return xh, yh
+
+        def find_grid_indices(baselines):
+            """Find the indices of each baseline in the grid, and the spacing.
+
+            Parameters
+            ----------
+            baselines : np.ndarray[nbase, 2]
+                X and Y displacements of the baselines.
+
+            Returns
+            -------
+            xind, yind : np.ndarray[nbase]
+                Indices of the baselines in the grid.
+            dx, dy : float
+                Spacing of the grid in each direction.
+            """
+
+            def _get_inds(s):
+                s_abs = np.abs(s)
+                d = s_abs[s_abs > 1e-4].min()
+                return np.rint(s / d).astype(np.int), d
+
+            xh, yh = find_basis(baselines)
+
+            xind, dx = _get_inds(np.dot(baselines, xh))
+            yind, dy = _get_inds(np.dot(baselines, yh))
+
+            return xind, yind, dx, dy
+
+
+        # Calculate polarization pairs of every baseline index (XX, YY etc.)
+        polpair = self.telescope.polarisation[self.telescope.uniquepairs].view("U2")
+
+        # Get list of unique polarizations (pol) and index into pol of
+        # every baseline index (pind)
+        pol, pind = np.unique(polpair, return_inverse=True)
+        npol = pol.shape[0]
+
+        # Find the mapping from each polarization to its complement with the
+        # feeds reverse (e.g. XX maps to XX, but XY maps to YX)
+        pconjmap = np.unique([pj + pi for pi, pj in pol], return_inverse=True)[1]
+
+        # Determine the layout of the visibilities on the grid. This isn't trivial
+        # because of potential rotation of the telescope with respect to NS
+        xind, yind, min_xsep, min_ysep = find_grid_indices(self.telescope.baselines)
+
+        # Define several variables describing the baseline configuration:
+        ## Number of unique EW distances
+        nx = np.abs(xind).max() + 1
+        ## Number of unique NS baseline vectors. These are oriented so that
+        ## north is positive, so north-pointing and south-pointing baselines
+        ## with the same distance are distinct, and there is also the NS=0
+        ## baseline
+        ny = 2 * np.abs(yind).max() + 1
+        ## Unique EW distances
+        vis_pos_x = np.arange(nx) * min_xsep
+        ## Unique NS baseline vectors
+        vis_pos_y = np.fft.fftfreq(ny, d=(1.0 / (ny * min_ysep)))
+
+        # Make arrays for output BTM and baseline redundancy
+        bf_grid = np.zeros(
+            (2, npol, nx, ny, self.telescope.num_pol_sky, self.telescope.lmax + 1),
+            dtype=np.complex128
+        )
+        redundancy_grid = np.zeros((nx, ny), dtype=np.float32)
+
+        # Calculate the redundancy of each unique baseline
+        redundancy = self.telescope.redundancy
+
+        # Unpack visibilities into new array
+        for vis_ind, (p_ind, x_ind, y_ind) in enumerate(zip(pind, xind, yind)):
+
+            bf_grid[:, p_ind, x_ind, y_ind, :, :] = bf[:, vis_ind, :, :]
+            redundancy_grid[x_ind, y_ind] = redundancy[vis_ind]
+
+            # For pure NS baselines, map complex conjugated, pol-flipped
+            # BTM element to flipped NS baseline vector
+            if x_ind == 0:
+                bf_grid[:, pconjmap[p_ind], x_ind, -y_ind, :, :] = (
+                    bf[:, vis_ind, :, :].conj()
+                )
+                redundancy_grid[x_ind, -y_ind] = redundancy[vis_ind]
+
+        return bf_grid, vis_pos_x, vis_pos_y, redundancy_grid
+
+
+    def _beam_m_freq_nsbeamform(self, nu, bf, ew, ns, redundancy_grid):
+        """Form NS beams from BTM elements at single m, freq.
+
+        Reshape baseline axis of BTM at single m, freq into [dx, dy].
+
+        This routine is adapted from draco.analysis.ringmapmaker.BeamformNS(),
+        from draco/pull/65 (as of 01/05/2021).
+
+        Parameters
+        ----------
+        nu : float
+            Frequency of interest [MHz].
+        bf : np.ndarray (2, n_pol_obs, nx, ny, n_pol_sky, ell_max+1)
+            Input beam transfer matrix at single m, frequency.
+            Must already have been reshaped from linear baseline axis
+            to (pol, dx, dy) grid by self._beam_m_freq_baseline_grid().
+        ew : np.ndarray (n_ew)
+            EW baseline distances in BTM.
+        ns : np.ndarray (n_ns)
+            NS baseline distances in BTM.
+        redundancy_grid : np.ndarray (nx, ny)
+            Redundancy of each unique baseline, on same (x,y) grid as bf_grid.
+
+        Returns
+        -------
+        bf_nsbeams : np.ndarray (2, n_pol_obs, nx, nbeams, n_pol_sky, ell_max+1)
+            Beam transfer matrix NS baseline distance replaced by NS
+            beam index.
+        """
+
+        nspos = ns
+        nsmax = np.abs(nspos).max()
+
+        # Get current weavelength
+        wv = scipy.constants.c * 1e-6 / nu
+
+        # Get NS baseline lengths in units of wavelength
+        vpos = nspos / wv
+
+        # If desired, scale uv-plane baseline lengths to lowest frequency
+        if self.scaled:
+            wvmin = scipy.constants.c * 1e-6 / freq.min()
+            vmax = nsmax / wvmin
+        else:
+            vmax = nsmax / wv
+
+        # Set weights for NS beamforming, packed as [nx,ny].
+        # When beamforming a measured set of visibilities, the weights
+        # would also involve a contribution determined by properties of
+        # the data, but we don't include that here (yet...)
+        if self.weight == "inverse_variance":
+            raise NotImplementedError(
+                "weight = inverse_variance not implemented in BeamTransferNSBeams!"
+            )
+        elif self.weight == "natural":
+
+            weight = redundancy_grid.astype(np.float32)
+        else:
+            x = 0.5 * (vpos / vmax + 1)
+            ns_weight = draco_tools.window_generalised(x, window=self.weight)
+            # Weights are the same for each EW distance
+            weight = np.tile(ns_weight, (ew.shape[0], 1))
+
+        # BeamformNS() has this line, which appears to multiply the weights
+        # for all frequencies but the lowest by 2, but I'm not sure why...
+        # gw[:, 1:] *= 2
+
+        # Normalize by sum of weights
+        norm = np.sum(weight, axis=1)
+        weight *= draco_tools.invert_no_zero(norm)[:, np.newaxis]
+
+        # Apply normalized weights to bf
+        bf *= weight[np.newaxis, np.newaxis, :, :,  np.newaxis, np.newaxis]
+
+        # Create array that will be used for the inverse
+        # discrete Fourier transform in y-direction.
+        # F is packed as [nbeam, ny]
+        phase = 2.0 * np.pi * nspos[np.newaxis, :] * self.el[:, np.newaxis] / wv
+        F = np.exp(-1.0j * phase)
+
+        # Calculate the hybrid BTM elements.
+        # bf is packed as (2, n_pol_obs, nx, ny, n_pol_sky, ell_max+1)
+        # and F as [nbeam, ny], so we transpose bf to
+        # (2, n_pol_obs, nx, n_pol_sky, ny, ell_max+1), perform matrix
+        # multiplication (which requires last 2 indices of bf to be matrix
+        # indices), and then transpose result back to
+        # (2, n_pol_obs, nx, nbeam, n_pol_sky, ell_max+1)
+        bf_nsbeams = np.matmul(
+            F, bf.transpose(0, 1, 2, 4, 3, 5)
+        ).transpose(0, 1, 2, 4, 3, 5)
+
+        return bf_nsbeams

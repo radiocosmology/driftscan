@@ -225,6 +225,8 @@ class ProductManager(object):
             btclass = beamtransfer.BeamTransferNoSVD
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
+        if yconf["config"].get("nsbeams"):  # Use NS beamforming in BTM
+            btclass = beamtransfer.BeamTransferNSBeams
 
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)
@@ -242,6 +244,14 @@ class ProductManager(object):
 
         if yconf["config"].get("skip_svd"):
             self.skip_svd = True
+
+        if btclass == beamtransfer.BeamTransferNSBeams:
+            if "el_cut" in yconf["config"]:
+                self.beamtransfer.el_cut = float(yconf["config"]["el_cut"])
+            if yconf["config"].get("scaled"):
+                self.beamtransfer.scaled = True
+            if "weight" in yconf["config"]:
+                self.beamtransfer.weight = str(yconf["config"]["weight"])
 
         ## Configure the KL Transforms
         self.kltransforms = {}

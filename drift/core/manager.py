@@ -252,6 +252,10 @@ class ProductManager(object):
                 self.beamtransfer.scaled = True
             if "weight" in yconf["config"]:
                 self.beamtransfer.weight = str(yconf["config"]["weight"])
+            if "standard_bt_dir" in yconf["config"]:
+                self.beamtransfer.standard_bt_dir = str(
+                    yconf["config"]["standard_bt_dir"]
+                )
 
         ## Configure the KL Transforms
         self.kltransforms = {}

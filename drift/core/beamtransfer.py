@@ -1931,8 +1931,21 @@ class BeamTransferNSBeams(BeamTransfer):
     #     'nutall' - use a Blackman-Nutall window
     weight = "natural"
 
+    # Telescope beamtransfer directory containing standard BTMs, if these BTMs
+    # already exist elsewhere on disk and we don't want to recompute them
+    standard_bt_dir = None
+
 
     # ========= Filenames =========
+
+    def _mfile(self, mi):
+        # Pattern to form the `m` ordered file.
+        if self.standard_bt_dir is not None:
+            pat = self.standard_bt_dir + "/beam_m/" + util.natpattern(self.telescope.mmax)
+            mdir = pat % abs(mi)
+            return mdir + "/beam.hdf5"
+        else:
+            return self._mdir(mi) + "/beam.hdf5"
 
     def _nsbeamfile(self, mi):
         # Pattern to form the `m` ordered file.
@@ -2020,7 +2033,8 @@ class BeamTransferNSBeams(BeamTransfer):
                 print("=== Saving Telescope object. ===")
                 pickle.dump(self.telescope, f)
 
-        self._generate_mfiles(regen)
+        if self.standard_bt_dir is None:
+            self._generate_mfiles(regen)
 
         self._generate_nsbeamfiles(regen)
 

@@ -115,7 +115,7 @@ class ProductManager(object):
         )
 
         if not os.path.exists(configfile):
-            raise Exception("Configuration file does not exist.")
+            raise Exception(f"Configuration file does not exist {configfile}.")
 
         if os.path.isdir(configfile):
             configfile = configfile + "/config.yaml"

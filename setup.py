@@ -4,20 +4,16 @@ import versioneer
 
 drift_data = {"drift.telescope": ["gmrtpositions.dat"]}
 
+# Load the requirements list
+with open("requirements.txt", "r") as fh:
+    requires = fh.readlines()
+
 setup(
     name="driftscan",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    install_requires=[
-        "numpy>=1.7",
-        "scipy",
-        "healpy>=1.8",
-        "h5py",
-        "caput>=0.3",
-        "click",
-        "cora",
-    ],
+    install_requires=requires,
     package_data=drift_data,
     entry_points="""
         [console_scripts]

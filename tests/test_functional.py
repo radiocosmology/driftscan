@@ -1,12 +1,5 @@
 """Functional test suite for checking integrity of the analysis product
 generation."""
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-from future.moves.urllib.request import urlretrieve
-
-# === End Python 2/3 compatibility
 
 import shutil
 import os
@@ -17,6 +10,8 @@ import sys
 import numpy as np
 import pytest
 import h5py
+
+from urllib.request import urlretrieve
 
 # Ensure we're using the correct package
 _basedir = os.path.realpath(os.path.dirname(__file__))

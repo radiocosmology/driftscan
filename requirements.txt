@@ -5,6 +5,5 @@ mpi4py
 h5py
 click
 pytest
--e git+https://github.com/radiocosmology/caput#egg=caput
--e git+https://github.com/radiocosmology/cora#egg=cora
-
+caput @ git+https://github.com/radiocosmology/caput.git
+cora @ git+https://github.com/radiocosmology/cora.git

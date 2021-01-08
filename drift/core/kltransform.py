@@ -922,3 +922,98 @@ class KLTransform(config.Reader):
 
         # Return the projections (rank=0) or None elsewhere.
         return proj_arr
+
+
+class KlTransformNSBeams(KLTransform):
+    """Perform KL transform, with BTM in NS-beam basis.
+
+    The only difference from the base KLTransform class is in sn_covariance(),
+    in the way the thermal noise covariance is handled.
+    """
+
+    def sn_covariance(self, mi):
+        """Compute the signal and noise covariances (on the telescope).
+
+        The signal is formed from the 21cm signal, whereas the noise includes
+        both foregrounds and instrumental noise. This is for a single m-mode.
+
+        Parameters
+        ----------
+        mi : integer
+            The m-mode to calculate at.
+
+        Returns
+        -------
+        s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
+            Signal and noice covariance matrices.
+        """
+
+        if not (self.use_foregrounds or self.use_thermal):
+            raise Exception(
+                "Either `use_thermal` or `use_foregrounds`, or both must be True."
+            )
+
+        # Project the signal and foregrounds from the sky onto the telescope.
+        cvb_s = self.beamtransfer.project_matrix_sky_to_svd(mi, self.signal())
+
+        if self.use_foregrounds:
+            cvb_n = self.beamtransfer.project_matrix_sky_to_svd(mi, self.foreground())
+        else:
+            cvb_n = np.zeros_like(cvb_s)
+
+        # Add in a small diagonal to regularise the noise matrix.
+        cnr = cvb_n.reshape((self.beamtransfer.ndof(mi), -1))
+        cnr[np.diag_indices_from(cnr)] += self._foreground_regulariser * cnr.max()
+
+        # Even if noise=False, we still want a very small amount of
+        # noise, so we multiply by a constant to turn Tsys -> 1 mK.
+        nc = 1.0
+        if not self.use_thermal:
+            nc = (1e-3 / self.telescope.tsys_flat) ** 2
+
+        # Get thermal noise covariance, packed as
+        # [nfreq, n_pol_obs, n_ew, nbeam, nbeam]
+        _, noise_cov = self.beamtransfer.nsbeam_m(mi, noise=True)
+
+        # Make array to hold reshaped noise covariance, packed as
+        # [nfreq, 2, n_pol_obs, n_ew, nbeam, 2, n_pol_obs, n_ew, nbeam],
+        # and fill it such that it is diagonal in freq, msign, and EW baseline,
+        # but not diagonal in beam.
+        noise_cov_rs = np.zeros((
+            self.telescope.nfreq,
+            2,
+            self.beamtransfer.n_pol_obs,
+            self.beamtransfer.n_ew,
+            self.beamtransfer.nbeam,
+            self.telescope.nfreq,
+            2,
+            self.beamtransfer.n_pol_obs,
+            self.beamtransfer.n_ew,
+            self.beamtransfer.nbeam
+        ), dtype = np.complex128)
+        for fi in range(self.telescope.nfreq):
+            for msigni in range(2):
+                for pi in range(self.beamtransfer.n_pol_obs):
+                    for xi in range(self.beamtransfer.n_ew):
+                        noise_cov_rs[fi, msigni, pi, xi, :, fi, msigni, pi, xi, :] = (
+                            noise_cov[fi, pi, xi]
+                        )
+        noise_cov_rs = noise_cov_rs.reshape(
+            self.telescope.nfreq,
+            self.beamtransfer.ntel,
+            self.telescope.nfreq,
+            self.beamtransfer.ntel
+        )
+
+        # # Construct diagonal noise power in telescope basis
+        # bl = np.arange(self.telescope.npairs)
+        # bl = np.concatenate((bl, bl))
+        # npower = nc * self.telescope.noisepower(
+        #     bl[np.newaxis, :], np.arange(self.telescope.nfreq)[:, np.newaxis]
+        # ).reshape(self.telescope.nfreq, self.beamtransfer.ntel)
+
+        # Project into SVD basis and add into noise matrix
+        cvb_n += self.beamtransfer.project_matrix_telescope_to_svd(mi, noise_cov_rs)
+        # cvb_n += self.beamtransfer.project_matrix_diagonal_telescope_to_svd(mi, npower)
+
+        return cvb_s, cvb_n

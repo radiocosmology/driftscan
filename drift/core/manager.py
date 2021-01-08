@@ -43,7 +43,12 @@ teltype_dict = {
 
 
 ## KLTransform configuration
-kltype_dict = {"KLTransform": kltransform.KLTransform, "DoubleKL": doublekl.DoubleKL}
+kltype_dict = {
+    "KLTransform": kltransform.KLTransform,
+    "DoubleKL": doublekl.DoubleKL,
+    "KLTransformNSBeams": kltransform.KlTransformNSBeams,
+    "DoubleKLNSBeams": doublekl.DoubleKLNSBeams,
+}
 
 
 ## Power spectrum estimation configuration

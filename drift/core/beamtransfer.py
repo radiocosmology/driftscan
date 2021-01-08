@@ -1403,6 +1403,49 @@ class BeamTransfer(object):
 
         return vecf
 
+    def project_matrix_telescope_to_svd(self, mi, mat):
+        """Map a matrix from the telescope space into the SVD basis.
+
+        This projection may be lose information about the sky, depending on
+        the polarisation filtering.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Telescope-basis matrix, packed as [freq, tel, freq, tel].
+
+        Returns
+        -------
+        out_mat : np.ndarray
+            SVD-basis matrix, packed as [svdnum, svdnum].
+        """
+
+        # Number of significant sv modes at each frequency, and corresponding
+        # array bounds
+        svnum, svbounds = self._svd_num(mi)
+
+        # Get SVD beam matrix, packed as (nfreq, svd_len, ntel)
+        beam = self.beam_ut(mi)
+
+        # Make empty array for output matrix
+        out_mat = np.zeros((svbounds[-1],svbounds[-1]), dtype=np.complex128)
+
+        # Loop over frequencies, projecting each frequency block of the input
+        # matrix using the SVD beam matrix at that frequency
+        for fi in self._svd_freq_iter(mi):
+            fi_beam = beam[fi, : svnum[fi], :]
+
+            for fj in self._svd_freq_iter(mi):
+                fj_beam = beam[fj, : svnum[fj], :]
+
+                out_mat[svbounds[fi] : svbounds[fi + 1], svbounds[fj] : svbounds[fj + 1]] \
+                    = np.dot(fi_beam, np.dot(mat[fi, :, fj, :], fj_beam.T.conj()))
+
+        return out_mat
+
+
     def project_vector_svd_to_telescope(self, mi, svec):
         """Map a vector from the SVD basis into the original data basis.
 
@@ -1513,8 +1556,6 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
-        print("temponly", temponly)
-        print("npol", npol)
 
         # if not conj:
         #     raise Exception("Not implemented non conj yet.")
@@ -2932,6 +2973,7 @@ class BeamTransferNSBeams(BeamTransfer):
         return matf
 
     project_matrix_forward = project_matrix_sky_to_telescope
+
 
     def project_vector_svd_to_telescope(self, mi, svec):
         """Map a vector from the SVD basis into the original data basis.

@@ -1,0 +1,80 @@
+name: driftscan-ci-build
+on:
+  pull_request:
+    branches:
+    - master
+  push:
+    branches:
+    - master
+
+jobs:
+
+  lint-code:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.9
+
+    - name: Install black and pydocstyle
+      run: pip install black pydocstyle
+
+    - name: Check code with black
+      run: black --check .
+
+    # TODO: add the rest of the project to this test
+    - name: Check docstrings
+      run: pydocstyle --convention=numpy tests/test_simplepolarizationtelescope.py
+
+  run-tests:
+
+    strategy:
+      matrix:
+        python-version: [3.6, 3.9]
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install apt dependencies
+      run: |
+        sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install pip dependencies
+      run: |
+        pip install pytest
+        pip install --use-deprecated=legacy-resolver -e .
+    - name: Run tests
+      env:
+        OMP_NUM_THREADS: 1
+      run: cd tests && pytest -s ./
+
+  build-docs:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.9
+
+    - name: Install apt dependencies
+      run: |
+        sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
+
+    - name: Install pip dependencies
+      run: |
+        pip install -r doc/requirements.txt
+        pip install --use-deprecated=legacy-resolver -e .
+    - name: Build sphinx docs
+      run: sphinx-build -b html doc/ doc/_build/html

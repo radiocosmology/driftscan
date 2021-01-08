@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 ## An example of how to calculate the KL modes, and Power spectrum fisher matrix for a cylinder
 ##
 import os
@@ -12,8 +5,6 @@ import os
 from drift.telescope import cylinder
 from drift.core import beamtransfer
 from drift.core import kltransform
-from drift.core import doublekl
-from drift.core import psmc
 
 cyl = cylinder.UnpolarisedCylinderTelescope()
 

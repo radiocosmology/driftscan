@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import pickle
 import os
 
@@ -650,17 +643,17 @@ def cross_powerspectrum(timestreams, psname, psfile):
             err = cv.diagonal() ** 0.5
             cr = cv / np.outer(err, err)
 
-            f.create_dataset("fisher/", data=fisher)
-            #                f.create_dataset('bias/', data=self.bias)
-            f.create_dataset("covariance/", data=cv)
-            f.create_dataset("error/", data=err)
-            f.create_dataset("correlation/", data=cr)
+            f.create_dataset("fisher", data=fisher)
+            #                f.create_dataset('bias', data=self.bias)
+            f.create_dataset("covariance", data=cv)
+            f.create_dataset("error", data=err)
+            f.create_dataset("correlation", data=cr)
 
-            f.create_dataset("bandpower/", data=ps.band_power)
-            # f.create_dataset('k_start/', data=ps.k_start)
-            # f.create_dataset('k_end/', data=ps.k_end)
-            # f.create_dataset('k_center/', data=ps.k_center)
-            # f.create_dataset('psvalues/', data=ps.psvalues)
+            f.create_dataset("bandpower", data=ps.band_power)
+            # f.create_dataset('k_start', data=ps.k_start)
+            # f.create_dataset('k_end', data=ps.k_end)
+            # f.create_dataset('k_center', data=ps.k_center)
+            # f.create_dataset('psvalues', data=ps.psvalues)
 
             f.create_dataset("powerspectrum", data=powerspectrum)
 

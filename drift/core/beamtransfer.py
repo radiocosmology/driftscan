@@ -1960,6 +1960,129 @@ class BeamTransferNSBeams(BeamTransfer):
         )
         return pat % mi
 
+    # ===================================================
+
+    # ====== Loading m-order beams ======================
+
+    def _load_nsbeam_m(self, mi, fi=None, noise=False):
+        ## Read in beam from disk
+        mfile = h5py.File(self._nsbeamfile(mi), "r")
+
+        # If fi is None, return all frequency blocks. Otherwise just the one requested.
+        if fi is None:
+            beam = mfile["beam_m"][:]
+            if noise: noise_cov = mfile["noise_cov_m"][:]
+        else:
+            beam = mfile["beam_m"][fi][:]
+            if noise: noise_cov = mfile["noise_cov_m"][fi][:]
+
+        mfile.close()
+
+        if noise:
+            return beam, noise_cov
+        else:
+            return beam
+
+    @util.cache_last
+    def nsbeam_m(self, mi, fi=None, noise=False):
+        """Fetch the beam transfer matrix for a given m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+        fi : integer
+            frequency block to fetch. fi=None (default) returns all.
+        noise : bool
+            Optionally, also return noise covariance in NS-beam basis.
+
+        Returns
+        -------
+        beam : np.ndarray (nfreq, 2, n_pol_obs, n_ew, nbeam, npol_sky, lmax+1)
+            Desired BTM in NS-beam basis.
+        noise_cov : np.ndarray (nfreq, n_pol_obs, n_ew, nbeam, nbeam)
+            Thermal noise covariance in NS-beam basis.
+        """
+
+        return self._load_nsbeam_m(mi, fi=fi, noise=noise)
+
+    # ===================================================
+
+
+    # ====== Pseudo-inverse beams =======================
+
+    noise_weight_nsbeam = True
+
+    @util.cache_last
+    def invnsbeam_m(self, mi):
+        """Pseudo-inverse of the beam (for a given m).
+
+        Uses the Moore-Penrose Pseudo-inverse as the optimal inverse for
+        reconstructing the data. No `single` option as this only makes sense
+        when combined.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to calculate.
+
+        Returns
+        -------
+        invbeam : np.ndarray (nfreq, npol_sky, lmax+1, 2, n_pol_obs, n_ew, nbeam)
+        """
+
+        # Read BTM, packed as [nfreq, 2, n_pol_obs, nx, nbeam, n_pol_sky, lmax+1].
+        beam, noise_cov = self.nsbeam_m(mi, noise=True)
+
+        if self.noise_weight_nsbeam:
+            n_inv_sqrt = np.zeros(
+                (self.telescope.nfreq, self.n_pol_obs, self.n_ew, self.nbeam, self.nbeam),
+                dtype=np.complex128
+            )
+            for fi in range(self.telescope.nfreq):
+                for p in range(self.n_pol_obs):
+                    for x in range(self.n_ew):
+                        n_inv = la.inv(noise_cov[fi, p, x])
+                        n_inv_sqrt[fi, p, x] = la.cholesky(n_inv)
+                        beam[fi, :, p, x] = np.matmul(
+                            n_inv_sqrt[fi, p, x],
+                            beam[fi, :, p, x].transpose(0, 2, 1, 3)
+                        ).transpose(0, 2, 1, 3)
+
+            # noisew = self.telescope.noisepower(
+            #     np.arange(self.telescope.npairs), 0
+            # ).flatten() ** (-0.5)
+            # beam = beam * noisew[:, np.newaxis, np.newaxis]
+
+        beam = beam.reshape((self.nfreq, self.ntel, self.nsky))
+
+        # Take inverse in each frequency block.
+        # ibeam is packed as [nfreq, nsky, ntel]
+        ibeam = blockla.pinv_dm(beam, rcond=1e-6)
+
+        if self.noise_weight_nsbeam:
+            ibeam = ibeam.reshape(
+                (self.telescope.nfreq, self.nsky, 2, self.n_pol_obs, self.n_ew, self.nbeam)
+            )
+            for fi in range(self.telescope.nfreq):
+                for p in range(self.n_pol_obs):
+                    for x in range(self.n_ew):
+                        ibeam[fi, :, :, p, x] = np.dot(
+                            ibeam[fi, :, :, p, x],
+                            n_inv_sqrt[fi, p, x]
+                        )
+            # ibeam = ibeam * noisew
+
+        shape = (
+            self.nfreq,
+            self.telescope.num_pol_sky,
+            self.telescope.lmax + 1,
+            self.ntel,
+        )
+
+        return ibeam.reshape(shape)
+
+    # ===================================================
 
     # ====== Beamforming info =======
 
@@ -2706,3 +2829,178 @@ class BeamTransferNSBeams(BeamTransfer):
                 fs.attrs["baselines"] = self.telescope.baselines
                 fs.attrs["m"] = mi
                 fs.attrs["frequencies"] = self.telescope.frequencies
+
+
+
+
+
+    # ====== Projection between spaces ==================
+
+    def project_vector_sky_to_telescope(self, mi, vec):
+        """Project a vector from the sky into the visibility basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [nfreq, npol, lmax+1]
+
+        Returns
+        -------
+        tvec : np.ndarray
+            Telescope vector to return.
+        """
+
+        vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
+
+        with h5py.File(self._nsbeamfile(mi), "r") as mfile:
+
+            for fi in range(self.nfreq):
+                beamf = mfile["beam_m"][fi][:].reshape((self.ntel, self.nsky))
+                vecf[fi] = np.dot(beamf, vec[fi].reshape(self.nsky))
+
+        return vecf
+
+    project_vector_forward = project_vector_sky_to_telescope
+
+    def project_vector_telescope_to_sky(self, mi, vec):
+        """Invert a vector from the telescope space onto the sky. This is the
+        map-making process.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [freq, baseline, polarisation]
+
+        Returns
+        -------
+        tvec : np.ndarray
+            Sky vector to return.
+        """
+
+        ibeam = self.invnsbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
+
+        vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
+        vec = vec.reshape((self.nfreq, self.ntel))
+
+        for fi in range(self.nfreq):
+            vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(self.ntel))
+
+        return vecb.reshape(
+            (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+        )
+
+    project_vector_backward = project_vector_telescope_to_sky
+
+    def project_matrix_sky_to_telescope(self, mi, mat):
+        """Project a covariance matrix from the sky into the visibility basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq]
+
+        Returns
+        -------
+        tmat : np.ndarray
+            Covariance in telescope basis.
+        """
+        npol = self.telescope.num_pol_sky
+        lside = self.telescope.lmax + 1
+
+        beam = self.nsbeam_m(mi).reshape((self.nfreq, self.ntel, npol, lside))
+
+        matf = np.zeros(
+            (self.nfreq, self.ntel, self.nfreq, self.ntel), dtype=np.complex128
+        )
+
+        # Should it be a +=?
+        for pi in range(npol):
+            for pj in range(npol):
+                for fi in range(self.nfreq):
+                    for fj in range(self.nfreq):
+                        matf[fi, :, fj, :] += np.dot(
+                            (beam[fi, :, pi, :] * mat[pi, pj, :, fi, fj]),
+                            beam[fj, :, pj, :].T.conj(),
+                        )
+
+        return matf
+
+    project_matrix_forward = project_matrix_sky_to_telescope
+
+    def project_vector_svd_to_telescope(self, mi, svec):
+        """Map a vector from the SVD basis into the original data basis.
+
+        This projection may be lose information about the sky, depending on the
+        polarisation filtering. This essentially uses the pseudo-inverse which
+        is simply related to the original projection matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        svec : np.ndarray
+            SVD data vector.
+
+        Returns
+        -------
+        vec : np.ndarray[freq, sign, baseline]
+            Data vector to return.
+        """
+
+        # Number of significant sv modes at each frequency, and the array bounds
+        svnum, svbounds = self._svd_num(mi)
+
+        # Get the SVD beam matrix
+        beam = self.beam_ut(mi)
+
+        # Create the output matrix (shape is calculated from input shape)
+        vecf = np.zeros(
+            (self.nfreq, 2, self.n_pol_obs, self.n_ew, self.nbeam),
+            dtype=np.complex128
+        )
+
+        # Should it be a +=?
+        for fi in self._svd_freq_iter(mi):
+
+            _, noise_cov = self.nsbeam_m(mi, noise=True, fi=fi)
+
+            # noise = self.telescope.noisepower(
+            #     np.arange(self.telescope.npairs), fi
+            # ).flatten()
+            # noise = np.concatenate([noise, noise])
+
+            fbeam = beam[fi, : svnum[fi], :]  # Beam matrix for this frequency and cut
+            lvec = svec[
+                svbounds[fi] : svbounds[fi + 1]
+            ]  # Matrix section for this frequency
+
+            # As the form of the forward projection is simply a scaling and then
+            # projection onto an orthonormal basis, the pseudo-inverse is simply
+            # related.
+            ## First, transform from SVD to telescope basis, without correcting
+            ## for noise prewhitening. We reshape to [2, n_pol_obs, n_ew, nbeam]
+            ## and then transpose to [nbeam, 2, n_pol_obs, n_ew] to facilitate
+            ## multiplying by the noise covariance.
+            vecf_temp = np.dot(fbeam.T.conj(), lvec).reshape(
+                2, self.n_pol_obs, self.n_ew, self.nbeam
+            ).transpose(3, 0, 1, 2)
+            ## For each pol and EW baseline, multiply by noise covariance to
+            ## correct for noise prewhitening
+            for p in range(self.n_pol_obs):
+                for x in range(self.n_ew):
+                    vecf_temp = np.dot(
+                        noise_cov[fi, p, x],
+                        vecf[fi].reshape(self.nbeam, -1)
+                    ).reshape(self.nbeam, 2, self.n_pol_obs, self.n_ew)
+            ## Transpose back to [2, n_pol_obs, n_ew, nbeam]
+            vecf[fi, :] = vecf_temp.transpose(1, 2, 3, 0)
+
+        return vecf
+
+    # ===================================================

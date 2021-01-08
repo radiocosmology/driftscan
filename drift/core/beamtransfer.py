@@ -1908,13 +1908,16 @@ class BeamTransferNoSVD(BeamTransfer):
 class BeamTransferNSBeams(BeamTransfer):
     """BeamTransfer class for hybrid EW-baseline/NS-beam visibilities.
 
-    In addition this provides methods for projecting vectors and matrices
-    between the sky and the telescope basis.
+    Note that this currently only works if no baselines are masked in
+    telescope object: in the telescope config, we require
+    auto_correlations=True and no minlength or maxlength options.
 
     Attributes
     ----------
     el_cut
     scaled
+    weight
+    standard_bt_dir
     """
 
     # Throw away NS beams with |el| > el_cut
@@ -1986,7 +1989,7 @@ class BeamTransferNSBeams(BeamTransfer):
         """Elevation coordinates for NS beams.
 
         By default, set to number of NS baseline vectors
-        (= 2 * number of feeds in NS direction).
+        (= 2 * number of feeds in NS direction - 1).
         """
         if self._el is None:
             self._el = np.linspace(-1.0, 1.0, self.n_ns)
@@ -2008,6 +2011,14 @@ class BeamTransferNSBeams(BeamTransfer):
             self._n_pol_obs = np.unique(self.telescope.polarisation).shape[0]**2
 
         return self._n_pol_obs
+
+
+    # ====== Dimensionality of the various spaces =======
+
+    @property
+    def ntel(self):
+        """Degrees of freedom measured by the telescope (per frequency)"""
+        return 2 * self.n_pol_obs * self.n_ew * self.nbeam
 
 
     # ====== Routines =======
@@ -2117,7 +2128,7 @@ class BeamTransferNSBeams(BeamTransfer):
         with misc.lock_file(self._nsbeamfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
 
-                dsize = (
+                dsize_beam = (
                     self.telescope.nfreq,
                     2,
                     self.n_pol_obs,
@@ -2126,7 +2137,7 @@ class BeamTransferNSBeams(BeamTransfer):
                     self.telescope.num_pol_sky,
                     self.telescope.lmax + 1,
                 )
-                csize = (
+                csize_beam = (
                     1,
                     2,
                     self.n_pol_obs,
@@ -2135,8 +2146,26 @@ class BeamTransferNSBeams(BeamTransfer):
                     self.telescope.num_pol_sky,
                     self.telescope.lmax + 1,
                 )
-                dset = fs.create_dataset(
-                    "beam_m", dsize, chunks=csize, compression="lzf", dtype=np.complex128
+                dset_beam = fs.create_dataset(
+                    "beam_m", dsize_beam, chunks=csize_beam, compression="lzf", dtype=np.complex128
+                )
+
+                dsize_noise = (
+                    self.telescope.nfreq,
+                    self.n_pol_obs,
+                    self.n_ew,
+                    self.nbeam,
+                    self.nbeam
+                )
+                csize_noise = (
+                    1,
+                    self.n_pol_obs,
+                    self.n_ew,
+                    min(10, self.nbeam),
+                    min(10, self.nbeam)
+                )
+                dset_noise = fs.create_dataset(
+                    "noise_cov_m", dsize_noise, chunks=csize_noise, compression="lzf", dtype=np.complex128
                 )
 
                 ## For each frequency, read in the BTM, do NS beamforming,
@@ -2151,14 +2180,15 @@ class BeamTransferNSBeams(BeamTransfer):
                     # Reshape baseline axis into 3d grid corresponding to
                     # observed polarization pair, EW and NS baseline distances.
                     # Result is packed as [msign, pol_obs, dx, dy, pol_sky, ell]
-                    bf, ew, ns, redundancy_grid = self._beam_m_freq_baseline_grid(bf)
+                    bf, ew, ns, redundancy_grid, noise_cov = self._beam_m_freq_baseline_grid(bf, fi)
 
                     # Perform beamforming operation in NS direction.
                     # Result is packed as [msign, pol_obs, dx, beam_index, pol, ell]
-                    bf = self._beam_m_freq_nsbeamform(nu, bf, ew, ns, redundancy_grid)
+                    bf, noise_cov = self._beam_m_freq_nsbeamform(nu, bf, ew, ns, redundancy_grid, noise_cov)
 
                     # Save to file
-                    dset[fi] = bf
+                    dset_beam[fi] = bf
+                    dset_noise[fi] = noise_cov
 
                 # Write a few useful attributes to file
                 fs.attrs["baselines"] = self.telescope.baselines
@@ -2170,7 +2200,7 @@ class BeamTransferNSBeams(BeamTransfer):
                 fs.attrs["scaled"] = self.scaled
 
 
-    def _beam_m_freq_baseline_grid(self, bf):
+    def _beam_m_freq_baseline_grid(self, bf, fi):
         """Reshape baseline axis of BTM at single m, freq into [dx, dy].
 
         This routine is adapted from draco.analysis.ringmapmaker.MakeVisGrid(),
@@ -2183,6 +2213,8 @@ class BeamTransferNSBeams(BeamTransfer):
         ----------
         bf : np.ndarray (2, nbase, n_pol_sky, ell_max+1)
             Input beam transfer matrix at single m, frequency.
+        fi : int
+            Frequency index.
 
         Returns
         -------
@@ -2194,6 +2226,8 @@ class BeamTransferNSBeams(BeamTransfer):
             NS baseline distances in BTM.
         redundancy_grid : np.ndarray (nx, ny)
             Redundancy of each unique baseline, on same (x,y) grid as bf_grid.
+        noise_cov : np.ndarray (n_pol_obs, nx, ny)
+            Thermal noise covariance of baselines.
         """
 
         def find_basis(baselines):
@@ -2284,34 +2318,57 @@ class BeamTransferNSBeams(BeamTransfer):
         ## Unique NS baseline vectors
         vis_pos_y = np.fft.fftfreq(ny, d=(1.0 / (ny * min_ysep)))
 
-        # Make arrays for output BTM and baseline redundancy
+        # Make arrays for output BTM, baseline redundancy, and thermal
+        # noise covariance
         bf_grid = np.zeros(
             (2, npol, nx, ny, self.telescope.num_pol_sky, self.telescope.lmax + 1),
             dtype=np.complex128
         )
         redundancy_grid = np.zeros((nx, ny), dtype=np.float32)
+        noise_cov = np.zeros((npol, nx, ny), dtype=np.complex128)
 
         # Calculate the redundancy of each unique baseline
         redundancy = self.telescope.redundancy
 
-        # Unpack visibilities into new array
+        # Compute the thermal noise power of each unique baseline
+        noisepower = self.telescope.noisepower(
+            np.arange(self.telescope.npairs), fi
+        ).flatten() #* self.telescope.redundancy
+
+        # Unpack visibilities, redundancies, and noise power into new array
         for vis_ind, (p_ind, x_ind, y_ind) in enumerate(zip(pind, xind, yind)):
 
             bf_grid[:, p_ind, x_ind, y_ind, :, :] = bf[:, vis_ind, :, :]
             redundancy_grid[x_ind, y_ind] = redundancy[vis_ind]
+            if x_ind == 0 and y_ind == 0:
+                if pol[p_ind][0] == pol[p_ind][1]:
+                    # XX and YY autos are purely real, so noise power is 1/2 its non-auto value
+                    noise_cov[p_ind, x_ind, y_ind] = noisepower[vis_ind] / 2
+                else:
+                    noise_cov[p_ind, x_ind, y_ind] = noisepower[vis_ind]
+            else:
+                noise_cov[p_ind, x_ind, y_ind] = noisepower[vis_ind]
 
             # For pure NS baselines, map complex conjugated, pol-flipped
-            # BTM element to flipped NS baseline vector
-            if x_ind == 0:
+            # BTM element to flipped NS baseline vector.
+            if x_ind == 0 and y_ind != 0:
                 bf_grid[:, pconjmap[p_ind], x_ind, -y_ind, :, :] = (
                     bf[:, vis_ind, :, :].conj()
                 )
                 redundancy_grid[x_ind, -y_ind] = redundancy[vis_ind]
+                noise_cov[p_ind, x_ind, -y_ind] = noisepower[vis_ind]
 
-        return bf_grid, vis_pos_x, vis_pos_y, redundancy_grid
+        # Only one of XY and YX feed autos (probably XY) are stored
+        # in the telescope baseline array, so we find the nonzero one and store its
+        # noisepower in both the XY and YX entries of noise_cov
+        crosspolind = np.arange(len(pol))[pconjmap != np.arange(len(pol))]
+        for pi in crosspolind:
+            noise_cov[pi, 0, 0] = np.max(noise_cov[crosspolind, 0, 0])
+
+        return bf_grid, vis_pos_x, vis_pos_y, redundancy_grid, noise_cov
 
 
-    def _beam_m_freq_nsbeamform(self, nu, bf, ew, ns, redundancy_grid):
+    def _beam_m_freq_nsbeamform(self, nu, bf, ew, ns, redundancy_grid, noise_cov):
         """Form NS beams from BTM elements at single m, freq.
 
         Reshape baseline axis of BTM at single m, freq into [dx, dy].
@@ -2333,12 +2390,17 @@ class BeamTransferNSBeams(BeamTransfer):
             NS baseline distances in BTM.
         redundancy_grid : np.ndarray (nx, ny)
             Redundancy of each unique baseline, on same (x,y) grid as bf_grid.
+        noise_cov : np.ndarray (n_pol_obs, nx, ny)
+            Thermal noise covariance of baselines, on same (pol,x,y) grid as bf_grid.
 
         Returns
         -------
         bf_nsbeams : np.ndarray (2, n_pol_obs, nx, nbeams, n_pol_sky, ell_max+1)
-            Beam transfer matrix NS baseline distance replaced by NS
+            Beam transfer matrix with NS baseline distance replaced by NS
             beam index.
+        noise_cov_nsbeams : np.ndarray(n_pol_obs, nx, nbeams, nbeams)
+            Thermal noise covariance, off-diagonal in NS beam but still diagonal
+            in EW baseline distance and observed polarization.
         """
 
         nspos = ns
@@ -2357,16 +2419,12 @@ class BeamTransferNSBeams(BeamTransfer):
         else:
             vmax = nsmax / wv
 
-        # Set weights for NS beamforming, packed as [nx,ny].
-        # When beamforming a measured set of visibilities, the weights
-        # would also involve a contribution determined by properties of
-        # the data, but we don't include that here (yet...)
+        # Set weights for NS beamforming, packed as [nx,ny]
         if self.weight == "inverse_variance":
             raise NotImplementedError(
                 "weight = inverse_variance not implemented in BeamTransferNSBeams!"
             )
         elif self.weight == "natural":
-
             weight = redundancy_grid.astype(np.float32)
         else:
             x = 0.5 * (vpos / vmax + 1)
@@ -2374,16 +2432,15 @@ class BeamTransferNSBeams(BeamTransfer):
             # Weights are the same for each EW distance
             weight = np.tile(ns_weight, (ew.shape[0], 1))
 
-        # BeamformNS() has this line, which appears to multiply the weights
-        # for all frequencies but the lowest by 2, but I'm not sure why...
-        # gw[:, 1:] *= 2
-
         # Normalize by sum of weights
         norm = np.sum(weight, axis=1)
         weight *= draco_tools.invert_no_zero(norm)[:, np.newaxis]
 
-        # Apply normalized weights to bf
+        # Apply normalized weights to bf and noise_cov
         bf *= weight[np.newaxis, np.newaxis, :, :,  np.newaxis, np.newaxis]
+        noise_cov *= (
+            weight[np.newaxis, :, :] * weight[np.newaxis, :, :].conj()
+        )
 
         # Create array that will be used for the inverse
         # discrete Fourier transform in y-direction.
@@ -2402,4 +2459,250 @@ class BeamTransferNSBeams(BeamTransfer):
             F, bf.transpose(0, 1, 2, 4, 3, 5)
         ).transpose(0, 1, 2, 4, 3, 5)
 
-        return bf_nsbeams
+        # Calculate the noise covariance. We wish to take F N F^dagger,
+        # multiplying the y axes. Since N is diagonal in y, this is
+        # \sum_y F_{by} N_{pxy} F^*_{yb'}.
+        noise_cov_nsbeams = np.zeros(
+            (self.n_pol_obs, self.n_ew, self.nbeam, self.nbeam),
+            dtype=np.complex128
+        )
+        for p in range(self.n_pol_obs):
+            for x in range(self.n_ew):
+                noise_cov_nsbeams[p, x] = np.dot(F * noise_cov[p, x], F.T.conj())
+
+        return bf_nsbeams, noise_cov_nsbeams
+
+
+    def _generate_svdfile_m(self, mi, skip_svd_inv=False):
+        """For single m, generate file with BTM in NS-beam basis.
+
+        Parameters
+        ----------
+        mi : int
+            M of interest.
+        skip_svd_inv : bool
+            Whether to skip computation of SVD inverse (default: False).
+        """
+
+        # Open file to write SVD results into, using caput.misc.lock_file()
+        # to guard against crashes while the file is open. With preserve=True,
+        # the temp file will be saved with a period in front of its name
+        # if a crash occurs.
+        with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as fs:
+
+                # Create a chunked dataset for writing the SVD beam matrix into.
+                dsize_bsvd = (
+                    self.telescope.nfreq,
+                    self.svd_len,
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                csize_bsvd = (
+                    1,
+                    min(10, self.svd_len),
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                dset_bsvd = fs.create_dataset(
+                    "beam_svd",
+                    dsize_bsvd,
+                    chunks=csize_bsvd,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                if not skip_svd_inv:
+                    # Create a chunked dataset for writing the inverse SVD beam matrix into.
+                    dsize_ibsvd = (
+                        self.telescope.nfreq,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        self.svd_len,
+                    )
+                    csize_ibsvd = (
+                        1,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        min(10, self.svd_len),
+                    )
+                    dset_ibsvd = fs.create_dataset(
+                        "invbeam_svd",
+                        dsize_ibsvd,
+                        chunks=csize_ibsvd,
+                        compression="lzf",
+                        dtype=np.complex128,
+                    )
+
+                # Create a chunked dataset for the stokes T U-matrix (left evecs)
+                dsize_ut = (self.telescope.nfreq, self.svd_len, self.ntel)
+                csize_ut = (1, min(10, self.svd_len), self.ntel)
+                dset_ut = fs.create_dataset(
+                    "beam_ut",
+                    dsize_ut,
+                    chunks=csize_ut,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                # Create a dataset for the singular values.
+                dsize_sig = (self.telescope.nfreq, self.svd_len)
+                dset_sig = fs.create_dataset(
+                    "singularvalues", dsize_sig, dtype=np.float64
+                )
+
+                ## For each frequency in the m-files: read in the block, SVD it,
+                ## and construct the new beam matrix, and save.
+                for fi in np.arange(self.telescope.nfreq):
+
+                    # Read the BTM, packed as
+                    # [2, n_pol_obs, nx, nbeam, n_pol_sky, lmax+1].
+                    # Also read in the thermal noise covariance in NS-beam basis,
+                    # packed as [n_pol_obs, nx, nbeam, nbeam]
+                    with h5py.File(self._nsbeamfile(mi), "r") as fm:
+                        bf = fm["beam_m"][fi][:]
+                        noise_cov = fm["noise_cov_m"][fi][:]
+
+                    # Prewhiten the BTM: for each observed pol and EW baseline
+                    # distance, find N^-1/2 via Cholesky decomposition, and
+                    # multiply into BTM along beam axis.
+                    n_inv_sqrt = np.zeros(
+                        (self.n_pol_obs, self.n_ew, self.nbeam, self.nbeam),
+                        dtype=np.complex128
+                    )
+                    for p in range(self.n_pol_obs):
+                        for x in range(self.n_ew):
+                            n_inv = la.inv(noise_cov[p, x])
+                            n_inv_sqrt[p, x] = la.cholesky(n_inv)
+                            bf[:, p, x] = np.matmul(
+                                n_inv_sqrt[p, x],
+                                bf[:, p, x].transpose(0, 2, 1, 3)
+                            ).transpose(0, 2, 1, 3)
+
+                    # noisew = self.telescope.noisepower(
+                    #     np.arange(self.telescope.npairs), fi
+                    # ).flatten() ** (-0.5)
+                    # noisew = np.concatenate([noisew, noisew])
+                    # bf = bf * noisew[:, np.newaxis, np.newaxis]
+
+                    # Reshape total beam to a 2D matrix
+                    bfr = bf.reshape(self.ntel, -1)
+
+                    # If unpolarised skip straight to the final SVD, otherwise
+                    # project onto the polarised null space.
+                    if self.telescope.num_pol_sky == 1:
+                        bf2 = bfr
+                        ut2 = np.identity(self.ntel, dtype=np.complex128)
+                    else:
+                        ## SVD 1 - coarse projection onto sky-modes
+                        u1, s1 = matrix_image(
+                            bfr, rtol=1e-10, errmsg=("SVD1 m=%i f=%i" % (mi, fi))
+                        )
+
+                        ut1 = u1.T.conj()
+                        bf1 = np.dot(ut1, bfr)
+
+                        ## SVD 2 - project onto polarisation null space
+                        bfp = bf1.reshape(
+                            bf1.shape[0],
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
+                        )[:, 1:]
+                        bfp = bfp.reshape(
+                            bf1.shape[0],
+                            (self.telescope.num_pol_sky - 1)
+                            * (self.telescope.lmax + 1),
+                        )
+                        u2, s2 = matrix_nullspace(
+                            bfp,
+                            rtol=self.polsvcut,
+                            errmsg=("SVD2 m=%i f=%i" % (mi, fi)),
+                        )
+
+                        ut2 = np.dot(u2.T.conj(), ut1)
+                        bf2 = np.dot(ut2, bfr)
+
+                    # Check to ensure polcut hasn't thrown away all modes. If it
+                    # has, just leave datasets blank.
+                    if bf2.shape[0] > 0 and (
+                        self.telescope.num_pol_sky == 1 or (s1 > 0.0).any()
+                    ):
+
+                        ## SVD 3 - decompose polarisation null space
+                        bft = bf2.reshape(
+                            -1, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                        )[:, 0]
+
+                        u3, s3 = matrix_image(
+                            bft, rtol=0.0, errmsg=("SVD3 m=%i f=%i" % (mi, fi))
+                        )
+                        ut3 = np.dot(u3.T.conj(), ut2)
+
+                        nmodes = ut3.shape[0]
+
+                        # Skip if nmodes is zero for some reason.
+                        if nmodes == 0:
+                            continue
+
+                        # Final products
+                        ut = ut3
+                        sig = s3[:nmodes]
+                        beam = np.dot(ut3, bfr)
+
+                        # Save out the evecs (for transforming from the telescope frame into the SVD basis).
+                        # First, need to multiply ut by prewhitening matrix from the right
+                        ut = ut.reshape(nmodes, 2, self.n_pol_obs, self.n_ew, self.nbeam)
+                        for p in range(self.n_pol_obs):
+                            for x in range(self.n_ew):
+                                ut[:, :, p, x] = np.dot(ut[:, :, p, x], n_inv_sqrt[p, x])
+                        dset_ut[fi, :nmodes] = ut.reshape(nmodes, -1)
+
+                        # # Save out the evecs (for transforming from the telescope frame into the SVD basis)
+                        # dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
+
+                        # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
+                        dset_bsvd[fi, :nmodes] = beam.reshape(
+                            nmodes, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                        )
+
+                        if not skip_svd_inv:
+                            # Find the pseudo-inverse of the beam matrix and save to disk.
+                            # First try la.pinv, which uses a least-squares solver.
+                            try:
+                                ibeam = la.pinv(beam)
+                            except la.LinAlgError as e:
+                                # If la.pinv fails, try la.pinv2, which is SVD-based and
+                                # more likely to succeed. If successful, add file attribute
+                                # indicating pinv2 was used for this frequency.
+                                print(
+                                    "***pinv failure: m = %d, fi = %d. Trying pinv2..."
+                                    % (mi, fi)
+                                )
+                                try:
+                                    ibeam = la.pinv2(beam)
+                                    if "inv_bsvd_from_pinv2" not in fs.attrs.keys():
+                                        fs.attrs["inv_bsvd_from_pinv2"] = [fi]
+                                    else:
+                                        bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
+                                        fs.attrs[
+                                            "inv_bsvd_from_pinv2"
+                                        ] = bad_freqs.append(fi)
+                                except:
+                                    # If pinv2 fails, print error message
+                                    raise Exception(
+                                        "pinv2 failure: m = %d, fi = %d" % (mi, fi)
+                                    )
+
+                            dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
+                                self.telescope.num_pol_sky,
+                                self.telescope.lmax + 1,
+                                nmodes,
+                            )
+
+                        # Save out the singular values for each block
+                        dset_sig[fi, :nmodes] = sig
+
+                # Write a few useful attributes.
+                fs.attrs["baselines"] = self.telescope.baselines
+                fs.attrs["m"] = mi
+                fs.attrs["frequencies"] = self.telescope.frequencies

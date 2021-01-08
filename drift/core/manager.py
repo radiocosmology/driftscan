@@ -228,6 +228,7 @@ class ProductManager(object):
         if yconf["config"].get("nsbeams"):  # Use NS beamforming in BTM
             btclass = beamtransfer.BeamTransferNSBeams
 
+
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)
 
@@ -255,6 +256,17 @@ class ProductManager(object):
             if "standard_bt_dir" in yconf["config"]:
                 self.beamtransfer.standard_bt_dir = str(
                     yconf["config"]["standard_bt_dir"]
+                )
+
+            # Check that we're including autos in telescope object, and
+            # not otherwise restricting included baselines
+            if not self.telescope.auto_correlations:
+                raise ValueError(
+                    "NS beams require auto_correlations=True in telescope config!"
+                )
+            if "minlength" in yconf["telescope"] or "maxlength" in yconf["telescope"]:
+                raise ValueError(
+                    "NS beams require no restrictions on which baselines are included!"
                 )
 
         ## Configure the KL Transforms

@@ -17,7 +17,6 @@ from drift.core import skymodel
 from drift.util import util
 
 from mpi4py import MPI
-from future.utils import with_metaclass
 
 
 def uniform_band(k, kstart, kend):
@@ -143,7 +142,7 @@ def decorrelate_ps_file(fname):
     return decorrelate_ps(f1["powerspectrum"][:], f1["fisher"][:])
 
 
-class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
+class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
     """Base class for quadratic powerspectrum estimation.
 
     See Tegmark 1997 for details.

@@ -4,7 +4,6 @@ healpy>=1.8
 mpi4py
 h5py
 click
-future
 pytest
 -e git+https://github.com/radiocosmology/caput#egg=caput
 -e git+https://github.com/radiocosmology/cora#egg=cora

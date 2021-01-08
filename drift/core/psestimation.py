@@ -528,35 +528,35 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             f = h5py.File(self.psdir + "/fisher.hdf5", "w")
             f.attrs["bandtype"] = np.string_(self.bandtype)  # HDF5 string issues
 
-            f.create_dataset("fisher/", data=self.fisher)
-            f.create_dataset("bias/", data=self.bias)
-            f.create_dataset("covariance/", data=cv)
-            f.create_dataset("errors/", data=err)
-            f.create_dataset("correlation/", data=cr)
+            f.create_dataset("fisher", data=self.fisher)
+            f.create_dataset("bias", data=self.bias)
+            f.create_dataset("covariance", data=cv)
+            f.create_dataset("errors", data=err)
+            f.create_dataset("correlation", data=cr)
 
-            f.create_dataset("band_power/", data=self.band_power)
+            f.create_dataset("band_power", data=self.band_power)
 
             if self.bandtype == "polar":
-                f.create_dataset("k_start/", data=self.k_start)
-                f.create_dataset("k_end/", data=self.k_end)
-                f.create_dataset("k_center/", data=self.k_center)
+                f.create_dataset("k_start", data=self.k_start)
+                f.create_dataset("k_end", data=self.k_end)
+                f.create_dataset("k_center", data=self.k_center)
 
-                f.create_dataset("theta_start/", data=self.theta_start)
-                f.create_dataset("theta_end/", data=self.theta_end)
-                f.create_dataset("theta_center/", data=self.theta_center)
+                f.create_dataset("theta_start", data=self.theta_start)
+                f.create_dataset("theta_end", data=self.theta_end)
+                f.create_dataset("theta_center", data=self.theta_center)
 
                 f.create_dataset("k_bands", data=self.k_bands)
                 f.create_dataset("theta_bands", data=self.theta_bands)
 
             elif self.bandtype == "cartesian":
 
-                f.create_dataset("kpar_start/", data=self.kpar_start)
-                f.create_dataset("kpar_end/", data=self.kpar_end)
-                f.create_dataset("kpar_center/", data=self.kpar_center)
+                f.create_dataset("kpar_start", data=self.kpar_start)
+                f.create_dataset("kpar_end", data=self.kpar_end)
+                f.create_dataset("kpar_center", data=self.kpar_center)
 
-                f.create_dataset("kperp_start/", data=self.kperp_start)
-                f.create_dataset("kperp_end/", data=self.kperp_end)
-                f.create_dataset("kperp_center/", data=self.kperp_center)
+                f.create_dataset("kperp_start", data=self.kperp_start)
+                f.create_dataset("kperp_end", data=self.kperp_end)
+                f.create_dataset("kperp_center", data=self.kperp_center)
 
                 f.create_dataset("kpar_bands", data=self.kpar_bands)
                 f.create_dataset("kperp_bands", data=self.kperp_bands)

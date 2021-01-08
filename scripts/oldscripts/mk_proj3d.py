@@ -10,7 +10,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-from matplotlib import rc, colors
+from matplotlib import rc
 
 rc("font", **{"family": "serif", "serif": ["Palatino"], "size": 10.0})
 rc("text", usetex=True)

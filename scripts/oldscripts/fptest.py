@@ -1,7 +1,5 @@
 from drift.core import focalplane, beamtransfer, kltransform, psestimation
 
-import healpy
-
 fpa = focalplane.FocalPlaneArray(latitude=0)
 
 fpa.beam_spacing_u = 0.0

@@ -1,6 +1,3 @@
-
-import os
-import sys
 import argparse
 
 import numpy as np
@@ -10,11 +7,9 @@ import healpy
 
 from cora.util import hputil
 
-from drift.telescope import cylinder
 from drift.core import beamtransfer
 from drift.core import kltransform
 from drift.util import mpiutil
-from mpi4py import MPI
 
 ## Read arguments in.
 parser = argparse.ArgumentParser(description="Filter a map using S/N eigenmodes.")

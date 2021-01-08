@@ -5,8 +5,6 @@ import os
 from drift.telescope import cylinder
 from drift.core import beamtransfer
 from drift.core import kltransform
-from drift.core import doublekl
-from drift.core import psmc
 
 cyl = cylinder.UnpolarisedCylinderTelescope()
 

@@ -10,10 +10,7 @@ from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder
 from drift.core import beamtransfer
 
 from drift.core import kltransform, doublekl
-from drift.core import psestimation, psmc
 from drift.core import skymodel
-
-from drift.core import projection
 
 parser = argparse.ArgumentParser(description="Run a simulation job.")
 parser.add_argument(

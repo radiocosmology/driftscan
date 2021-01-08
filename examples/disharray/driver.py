@@ -1,7 +1,3 @@
-
-import numpy as np
-import h5py
-
 from drift.core import beamtransfer, manager
 from drift.pipeline import timestream
 

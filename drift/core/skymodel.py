@@ -1,11 +1,8 @@
 import numpy as np
 
-import scipy.integrate
-
 from cora.core import skysim
 from cora.signal import corr21cm
 from cora.foreground import gaussianfg, galaxy
-from cora.util import units
 
 _cr = None
 

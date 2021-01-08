@@ -1,7 +1,6 @@
 """Manage access to and generation of driftscan analysis products."""
 
 import os.path
-import shutil
 import warnings
 
 import yaml

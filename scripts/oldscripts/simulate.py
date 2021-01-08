@@ -1,7 +1,5 @@
 import argparse
 import os.path
-import shutil
-import re
 
 import yaml
 

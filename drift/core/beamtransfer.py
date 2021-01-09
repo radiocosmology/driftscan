@@ -1,19 +1,4 @@
-"""
-========================================================
-Beam Transfer Matrices (:mod:`~drift.core.beamtransfer`)
-========================================================
-
-A class for calculating and managing Beam Transfer matrices
-
-Classes
-=======
-
-.. autosummary::
-    :toctree: generated/
-
-    BeamTransfer
-
-"""
+"""Calculation and management of Beam Transfer matrices"""
 
 import pickle
 import os
@@ -155,35 +140,6 @@ class BeamTransfer(object):
     telescope : drift.core.telescope.TransitTelescope, optional
         Telescope object to use for calculation. If `None` (default), try to
         load a cached version from the given directory.
-
-    Attributes
-    ----------
-    svcut
-    polsvcut
-    ntel
-    nsky
-    nfreq
-    svd_len
-    ndofmax
-
-
-    Methods
-    -------
-    ndof
-    beam_m
-    invbeam_m
-    beam_svd
-    beam_ut
-    invbeam_svd
-    beam_singularvalues
-    generate
-    project_vector_sky_to_telescope
-    project_vector_telescope_to_sky
-    project_vector_sky_to_svd
-    project_vector_svd_to_sky
-    project_vector_telescope_to_svd
-    project_matrix_sky_to_telescope
-    project_matrix_sky_to_svd
     """
 
     _mem_switch = 2.0  # Rough chunks (in GB) to divide calculation into.

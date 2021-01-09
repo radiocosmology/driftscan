@@ -132,10 +132,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
     The last two are required for supporting polarised beam functions.
 
-    Properties
+    Attributes
     ----------
-    zenith : [theta, phi]
-        The position of the zenith spherical polars (in radians). Read only.
     freq_lower, freq_higher : scalar
         The center of the lowest and highest frequency bands. Deprecated, use
         `freq_start`, `freq_end` instead.
@@ -231,7 +229,15 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
     @property
     def zenith(self):
-        """The zenith vector in spherical polars."""
+        """
+        The zenith vector in spherical polars.
+
+        The position of the zenith spherical polars (in radians). Read only.
+
+        Returns
+        -------
+            zenith : [theta, phi]
+        """
 
         # Set polar angle
         theta = np.pi / 2.0 - np.radians(self.latitude)
@@ -1003,10 +1009,10 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     are the `feedpositions`, `_get_unique` and the `beam` function, as well
     as the polarization property.
 
-    Abstract Methods
-    ----------------
+    Methods
+    -------
     beam : methods
-        Routines giving the field pattern for the x and y feeds.
+        (abstract method) Routines giving the field pattern for the x and y feeds.
     """
 
     _npol_sky_ = 4
@@ -1085,10 +1091,10 @@ class SimpleUnpolarisedTelescope(UnpolarisedTelescope, metaclass=abc.ABCMeta):
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
 
-    Abstract Methods
-    ----------------
+    Methods
+    -------
     beamx, beamy : methods
-        Routines giving the field pattern for the x and y feeds.
+        (abstract methods) Routines giving the field pattern for the x and y feeds.
     """
 
     @property
@@ -1112,10 +1118,10 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
 
-    Abstract Methods
-    ----------------
+    Methods
+    -------
     beamx, beamy : methods
-        Routines giving the field pattern for the x and y feeds.
+        (abstract methods) Routines giving the field pattern for the x and y feeds.
     """
 
     @property

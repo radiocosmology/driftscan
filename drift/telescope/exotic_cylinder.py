@@ -82,10 +82,10 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
     Again, an abstract class, but the only things that require implementing are
     the `feedpositions`, `_get_unique` and the beam functions `beamx` and `beamy`.
 
-    Abstract Methods
-    ----------------
+    Methods
+    -------
     beamx, beamy : methods
-        Routines giving the field pattern for the x and y feeds.
+        (abstract methods) Routines giving the field pattern for the x and y feeds.
     """
 
     npert = 2

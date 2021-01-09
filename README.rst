@@ -24,3 +24,8 @@ or to develop the package ::
 It should also be installable directly with `pip` using the command::
 
 	$ pip install [-e] git+ssh://git@github.com/radiocosmology/driftscan
+
+
+Documentation
+=============
+ The full documentation of `driftscan` is at https://radiocosmology.github.io/driftscan/.

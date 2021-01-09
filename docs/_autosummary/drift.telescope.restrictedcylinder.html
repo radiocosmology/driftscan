@@ -1,0 +1,412 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>drift.telescope.restrictedcylinder &mdash; driftscan 0+untagged.1.g0ac3c58 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="drift.util" href="drift.util.html" />
+    <link rel="prev" title="drift.telescope.oldcylinder" href="drift.telescope.oldcylinder.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> driftscan
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0+untagged.1.g0ac3c58
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="drift.core.html">drift.core</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="drift.telescope.html">drift.telescope</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.cylbeam.html">drift.telescope.cylbeam</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.cylinder.html">drift.telescope.cylinder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.disharray.html">drift.telescope.disharray</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.exotic_cylinder.html">drift.telescope.exotic_cylinder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.focalplane.html">drift.telescope.focalplane</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.gmrt.html">drift.telescope.gmrt</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.oldcylinder.html">drift.telescope.oldcylinder</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.telescope.restrictedcylinder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="drift.util.html">drift.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../reference.html">Programming References</a> &raquo;</li>
+        
+          <li><a href="drift.telescope.html">drift.telescope</a> &raquo;</li>
+        
+      <li>drift.telescope.restrictedcylinder</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/_autosummary/drift.telescope.restrictedcylinder.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-drift.telescope.restrictedcylinder">
+<span id="drift-telescope-restrictedcylinder"></span><h1>drift.telescope.restrictedcylinder<a class="headerlink" href="#module-drift.telescope.restrictedcylinder" title="Permalink to this headline">¶</a></h1>
+<p class="rubric">Functions</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">gaussian_fwhm</span></code>(x, fwhm)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedBeam" title="drift.telescope.restrictedcylinder.RestrictedBeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RestrictedBeam</span></code></a>([latitude, longitude])</p></td>
+<td><p>Initialise a telescope object.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedCylinder" title="drift.telescope.restrictedcylinder.RestrictedCylinder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RestrictedCylinder</span></code></a>([latitude, longitude])</p></td>
+<td><p>Initialise a telescope object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedExtra" title="drift.telescope.restrictedcylinder.RestrictedExtra"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RestrictedExtra</span></code></a>([latitude, longitude])</p></td>
+<td><p>Initialise a telescope object.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder" title="drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RestrictedPolarisedCylinder</span></code></a>([latitude, …])</p></td>
+<td><p>Initialise a telescope object.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="drift.telescope.restrictedcylinder.RestrictedBeam">
+<em class="property">class </em><code class="sig-prename descclassname">drift.telescope.restrictedcylinder.</code><code class="sig-name descname">RestrictedBeam</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">latitude</span><span class="o">=</span><span class="default_value">45</span></em>, <em class="sig-param"><span class="n">longitude</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedBeam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="drift.telescope.cylinder.html#drift.telescope.cylinder.CylinderTelescope" title="drift.telescope.cylinder.CylinderTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">drift.telescope.cylinder.CylinderTelescope</span></code></a></p>
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="drift.telescope.restrictedcylinder.RestrictedCylinder">
+<em class="property">class </em><code class="sig-prename descclassname">drift.telescope.restrictedcylinder.</code><code class="sig-name descname">RestrictedCylinder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">latitude</span><span class="o">=</span><span class="default_value">45</span></em>, <em class="sig-param"><span class="n">longitude</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedCylinder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedBeam" title="drift.telescope.restrictedcylinder.RestrictedBeam"><code class="xref py py-class docutils literal notranslate"><span class="pre">drift.telescope.restrictedcylinder.RestrictedBeam</span></code></a>, <a class="reference internal" href="drift.telescope.cylinder.html#drift.telescope.cylinder.UnpolarisedCylinderTelescope" title="drift.telescope.cylinder.UnpolarisedCylinderTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">drift.telescope.cylinder.UnpolarisedCylinderTelescope</span></code></a></p>
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="drift.telescope.restrictedcylinder.RestrictedCylinder.beam">
+<code class="sig-name descname">beam</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedCylinder.beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam for a particular feed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feed</strong> (<em>integer</em>) – Index for the feed.</p></li>
+<li><p><strong>freq</strong> (<em>integer</em>) – Index for the frequency.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – A Healpix map (of size self._nside) of the beam. Potentially
+complex.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="drift.telescope.restrictedcylinder.RestrictedExtra">
+<em class="property">class </em><code class="sig-prename descclassname">drift.telescope.restrictedcylinder.</code><code class="sig-name descname">RestrictedExtra</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">latitude</span><span class="o">=</span><span class="default_value">45</span></em>, <em class="sig-param"><span class="n">longitude</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedExtra" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedCylinder" title="drift.telescope.restrictedcylinder.RestrictedCylinder"><code class="xref py py-class docutils literal notranslate"><span class="pre">drift.telescope.restrictedcylinder.RestrictedCylinder</span></code></a></p>
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="drift.telescope.restrictedcylinder.RestrictedExtra.feed_positions_cylinder">
+<code class="sig-name descname">feed_positions_cylinder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cylinder_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedExtra.feed_positions_cylinder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the feed positions on the specified cylinder.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>cylinder_index</strong> (<em>integer</em>) – The cylinder index, an integer from 0 to self.num_cylinders.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>feed_positions</strong> – The positions in the telescope plane of the receivers. Packed as
+[[u1, v1], [u2, v2], …].</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder">
+<em class="property">class </em><code class="sig-prename descclassname">drift.telescope.restrictedcylinder.</code><code class="sig-name descname">RestrictedPolarisedCylinder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">latitude</span><span class="o">=</span><span class="default_value">45</span></em>, <em class="sig-param"><span class="n">longitude</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.telescope.restrictedcylinder.RestrictedBeam" title="drift.telescope.restrictedcylinder.RestrictedBeam"><code class="xref py py-class docutils literal notranslate"><span class="pre">drift.telescope.restrictedcylinder.RestrictedBeam</span></code></a>, <a class="reference internal" href="drift.telescope.cylinder.html#drift.telescope.cylinder.PolarisedCylinderTelescope" title="drift.telescope.cylinder.PolarisedCylinderTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">drift.telescope.cylinder.PolarisedCylinderTelescope</span></code></a></p>
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder.beamx">
+<code class="sig-name descname">beamx</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder.beamx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam for the X polarisation feed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feed</strong> (<em>integer</em>) – Index for the feed.</p></li>
+<li><p><strong>freq</strong> (<em>integer</em>) – Index for the frequency.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – Healpix maps (of size [self._nside, 2]) of the field pattern in the
+theta and phi directions.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder.beamy">
+<code class="sig-name descname">beamy</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.restrictedcylinder.RestrictedPolarisedCylinder.beamy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam for the Y polarisation feed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feed</strong> (<em>integer</em>) – Index for the feed.</p></li>
+<li><p><strong>freq</strong> (<em>integer</em>) – Index for the frequency.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – Healpix maps (of size [self._nside, 2]) of the field pattern in the
+theta and phi directions.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="drift.util.html" class="btn btn-neutral float-right" title="drift.util" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="drift.telescope.oldcylinder.html" class="btn btn-neutral float-left" title="drift.telescope.oldcylinder" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2014, J. Richard Shaw.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

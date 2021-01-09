@@ -1,0 +1,327 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>drift.util.util &mdash; driftscan 0+untagged.1.g0ac3c58 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="drift.util.plotutil" href="drift.util.plotutil.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> driftscan
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0+untagged.1.g0ac3c58
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="drift.core.html">drift.core</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.telescope.html">drift.telescope</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="drift.util.html">drift.util</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="drift.util.blockla.html">drift.util.blockla</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.util.plotutil.html">drift.util.plotutil</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.util.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../reference.html">Programming References</a> &raquo;</li>
+        
+          <li><a href="drift.util.html">drift.util</a> &raquo;</li>
+        
+      <li>drift.util.util</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/_autosummary/drift.util.util.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-drift.util.util">
+<span id="drift-util-util"></span><h1>drift.util.util<a class="headerlink" href="#module-drift.util.util" title="Permalink to this headline">¶</a></h1>
+<p class="rubric">Functions</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.util.util.cache_last" title="drift.util.util.cache_last"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_last</span></code></a>(func)</p></td>
+<td><p>A simple decorator to cache the result of the last call to a function.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.util.util.intpattern" title="drift.util.util.intpattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">intpattern</span></code></a>(n)</p></td>
+<td><p>Pattern that prints out a number upto <cite>n</cite> (integer - always shows sign).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.util.util.natpattern" title="drift.util.util.natpattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">natpattern</span></code></a>(n)</p></td>
+<td><p>Pattern that prints out a number upto <cite>n</cite> (natural number - no sign).</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.util.util.ConfigReader" title="drift.util.util.ConfigReader"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ConfigReader</span></code></a>()</p></td>
+<td><p>A class for applying attribute values from a supplied dictionary.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="drift.util.util.ConfigReader">
+<em class="property">class </em><code class="sig-prename descclassname">drift.util.util.</code><code class="sig-name descname">ConfigReader</code><a class="headerlink" href="#drift.util.util.ConfigReader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class for applying attribute values from a supplied dictionary.</p>
+<p>DEPRECATED!! Use routines from drift.util.config instead.</p>
+<dl class="py method">
+<dt id="drift.util.util.ConfigReader.add_config">
+<code class="sig-name descname">add_config</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_options</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.util.util.ConfigReader.add_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add the set of configuration options to those understoof by this class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>config_options</strong> (<em>dict</em>) – Configuration options supplied like this:
+{ ‘paramkey1’ : [ function_to_apply, ‘attributename’], ‘paramkey2’ : …}</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="drift.util.util.ConfigReader.from_config">
+<em class="property">classmethod </em><code class="sig-name descname">from_config</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.util.util.ConfigReader.from_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an instance of the class from the supplied config dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>config</strong> (<em>dict</em>) – Dictionary of config options.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>obj</strong> – Instance of the class.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>cls</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="drift.util.util.ConfigReader.read_config">
+<code class="sig-name descname">read_config</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.util.util.ConfigReader.read_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set attributes from configuration dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>config</strong> (<em>dict</em>) – Dictionary of configuration values.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.util.util.cache_last">
+<code class="sig-prename descclassname">drift.util.util.</code><code class="sig-name descname">cache_last</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">func</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.util.util.cache_last" title="Permalink to this definition">¶</a></dt>
+<dd><p>A simple decorator to cache the result of the last call to a function.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.util.util.intpattern">
+<code class="sig-prename descclassname">drift.util.util.</code><code class="sig-name descname">intpattern</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">n</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.util.util.intpattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pattern that prints out a number upto <cite>n</cite> (integer - always shows sign).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.util.util.natpattern">
+<code class="sig-prename descclassname">drift.util.util.</code><code class="sig-name descname">natpattern</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">n</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.util.util.natpattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pattern that prints out a number upto <cite>n</cite> (natural number - no sign).</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="drift.util.plotutil.html" class="btn btn-neutral float-left" title="drift.util.plotutil" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2014, J. Richard Shaw.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

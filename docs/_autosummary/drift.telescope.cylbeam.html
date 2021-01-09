@@ -1,0 +1,436 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>drift.telescope.cylbeam &mdash; driftscan 0+untagged.1.g0ac3c58 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="drift.telescope.cylinder" href="drift.telescope.cylinder.html" />
+    <link rel="prev" title="drift.telescope" href="drift.telescope.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> driftscan
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0+untagged.1.g0ac3c58
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="drift.core.html">drift.core</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="drift.telescope.html">drift.telescope</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.telescope.cylbeam</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.cylinder.html">drift.telescope.cylinder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.disharray.html">drift.telescope.disharray</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.exotic_cylinder.html">drift.telescope.exotic_cylinder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.focalplane.html">drift.telescope.focalplane</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.gmrt.html">drift.telescope.gmrt</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.oldcylinder.html">drift.telescope.oldcylinder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.telescope.restrictedcylinder.html">drift.telescope.restrictedcylinder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="drift.util.html">drift.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../reference.html">Programming References</a> &raquo;</li>
+        
+          <li><a href="drift.telescope.html">drift.telescope</a> &raquo;</li>
+        
+      <li>drift.telescope.cylbeam</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/_autosummary/drift.telescope.cylbeam.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-drift.telescope.cylbeam">
+<span id="drift-telescope-cylbeam"></span><h1>drift.telescope.cylbeam<a class="headerlink" href="#module-drift.telescope.cylbeam" title="Permalink to this headline">¶</a></h1>
+<p class="rubric">Functions</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.beam_amp" title="drift.telescope.cylbeam.beam_amp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_amp</span></code></a>(angpos, zenith, width, fwhm_x, fwhm_y)</p></td>
+<td><p>Beam amplitude across the sky.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.beam_dipole" title="drift.telescope.cylbeam.beam_dipole"><code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_dipole</span></code></a>(theta, phi, squint)</p></td>
+<td><p>Beam for a dipole above a ground plane.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.beam_exptan" title="drift.telescope.cylbeam.beam_exptan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_exptan</span></code></a>(theta, fwhm)</p></td>
+<td><p>ExpTan beam.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.beam_x" title="drift.telescope.cylbeam.beam_x"><code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_x</span></code></a>(angpos, zenith, width, fwhm_e, fwhm_h)</p></td>
+<td><p>Beam amplitude across the sky for the X dipole (points E).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.beam_y" title="drift.telescope.cylbeam.beam_y"><code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_y</span></code></a>(angpos, zenith, width, fwhm_e, fwhm_h)</p></td>
+<td><p>Beam amplitude across the sky for the Y dipole (points N).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.fraunhofer_cylinder" title="drift.telescope.cylbeam.fraunhofer_cylinder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fraunhofer_cylinder</span></code></a>(antenna_func, width[, res])</p></td>
+<td><p>Calculate the Fraunhofer diffraction pattern for a feed illuminating a cylinder (in 1D).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.polpattern" title="drift.telescope.cylbeam.polpattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">polpattern</span></code></a>(angpos, dipole)</p></td>
+<td><p>Calculate the unit polarisation vectors at each position on the sphere for a dipole direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.telescope.cylbeam.rotate_ypr" title="drift.telescope.cylbeam.rotate_ypr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rotate_ypr</span></code></a>(rot, xhat, yhat, zhat)</p></td>
+<td><p>Rotate the basis with a yaw, pitch and roll.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.beam_amp">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">beam_amp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">angpos</span></em>, <em class="sig-param"><span class="n">zenith</span></em>, <em class="sig-param"><span class="n">width</span></em>, <em class="sig-param"><span class="n">fwhm_x</span></em>, <em class="sig-param"><span class="n">fwhm_y</span></em>, <em class="sig-param"><span class="n">rot</span><span class="o">=</span><span class="default_value">[0.0, 0.0, 0.0]</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.beam_amp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam amplitude across the sky.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angpos</strong> (<em>np.ndarray</em><em>[</em><em>npoints</em><em>]</em>) – Angular position on the sky.</p></li>
+<li><p><strong>zenith</strong> (<em>np.ndarray</em><em>[</em><em>2</em><em>]</em>) – Position of zenin on spherical polars.</p></li>
+<li><p><strong>width</strong> (<em>scalar</em>) – Cylinder width in wavelengths.</p></li>
+<li><p><strong>fwhm_x</strong> (<em>scalar</em>) – Full with at half power in the x and y directions.</p></li>
+<li><p><strong>fwhm_y</strong> (<em>scalar</em>) – Full with at half power in the x and y directions.</p></li>
+<li><p><strong>rot</strong> (<em>[</em><em>yaw</em><em>, </em><em>pitch</em><em>, </em><em>roll</em><em>]</em>) – Rotation to apply to cylinder in yaw, pitch and roll from North.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – Amplitude of beam at each point.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray[npoints]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.beam_dipole">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">beam_dipole</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em>, <em class="sig-param"><span class="n">phi</span></em>, <em class="sig-param"><span class="n">squint</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.beam_dipole" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam for a dipole above a ground plane.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.beam_exptan">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">beam_exptan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em>, <em class="sig-param"><span class="n">fwhm</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.beam_exptan" title="Permalink to this definition">¶</a></dt>
+<dd><p>ExpTan beam.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>theta</strong> (<em>array_like</em>) – Array of angles to return beam at.</p></li>
+<li><p><strong>fwhm</strong> (<em>scalar</em>) – Beam width at half power (note that the beam returned is amplitude).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – The amplitude beam at each requested angle.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>array_like</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.beam_x">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">beam_x</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">angpos</span></em>, <em class="sig-param"><span class="n">zenith</span></em>, <em class="sig-param"><span class="n">width</span></em>, <em class="sig-param"><span class="n">fwhm_e</span></em>, <em class="sig-param"><span class="n">fwhm_h</span></em>, <em class="sig-param"><span class="n">rot</span><span class="o">=</span><span class="default_value">[0.0, 0.0, 0.0]</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.beam_x" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam amplitude across the sky for the X dipole (points E).</p>
+<p>Using ExpTan model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angpos</strong> (<em>np.ndarray</em><em>[</em><em>npoints</em><em>, </em><em>2</em><em>]</em>) – Angular position on the sky.</p></li>
+<li><p><strong>zenith</strong> (<em>np.ndarray</em><em>[</em><em>2</em><em>]</em>) – Position of zenith in spherical polars.</p></li>
+<li><p><strong>width</strong> (<em>scalar</em>) – Cylinder width in wavelengths.</p></li>
+<li><p><strong>fwhm_e</strong> – Full with at half power in the E and H planes of the antenna.</p></li>
+<li><p><strong>fwhm_h</strong> – Full with at half power in the E and H planes of the antenna.</p></li>
+<li><p><strong>rot</strong> (<em>[</em><em>yaw</em><em>, </em><em>pitch</em><em>, </em><em>roll</em><em>]</em>) – Rotation to apply to cylinder in yaw, pitch and roll from North.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – Amplitude vector of beam at each point (in thetahat, phihat)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray[npoints, 2]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.beam_y">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">beam_y</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">angpos</span></em>, <em class="sig-param"><span class="n">zenith</span></em>, <em class="sig-param"><span class="n">width</span></em>, <em class="sig-param"><span class="n">fwhm_e</span></em>, <em class="sig-param"><span class="n">fwhm_h</span></em>, <em class="sig-param"><span class="n">rot</span><span class="o">=</span><span class="default_value">[0.0, 0.0, 0.0]</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.beam_y" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam amplitude across the sky for the Y dipole (points N).</p>
+<p>Using ExpTan model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angpos</strong> (<em>np.ndarray</em><em>[</em><em>npoints</em><em>, </em><em>2</em><em>]</em>) – Angular position on the sky.</p></li>
+<li><p><strong>zenith</strong> (<em>np.ndarray</em><em>[</em><em>2</em><em>]</em>) – Position of zenith in spherical polars.</p></li>
+<li><p><strong>width</strong> (<em>scalar</em>) – Cylinder width in wavelengths.</p></li>
+<li><p><strong>fwhm_e</strong> – Full with at half power in the E and H planes of the antenna.</p></li>
+<li><p><strong>fwhm_h</strong> – Full with at half power in the E and H planes of the antenna.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – Amplitude vector of beam at each point (in thetahat, phihat)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray[npoints, 2]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.fraunhofer_cylinder">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">fraunhofer_cylinder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">antenna_func</span></em>, <em class="sig-param"><span class="n">width</span></em>, <em class="sig-param"><span class="n">res</span><span class="o">=</span><span class="default_value">1.0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.fraunhofer_cylinder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the Fraunhofer diffraction pattern for a feed illuminating a
+cylinder (in 1D).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>antenna_func</strong> (<em>function</em><em>(</em><em>theta</em><em>) </em><em>-&gt; amplitude</em>) – Function describing the antenna amplitude pattern as a function of angle.</p></li>
+<li><p><strong>width</strong> (<em>scalar</em>) – Cylinder width in wavelengths.</p></li>
+<li><p><strong>res</strong> (<em>scalar</em><em>, </em><em>optional</em>) – Resolution boost factor (default is 1.0)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>beam</strong> – The beam pattern, normalised to have unit maximum.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>function(sintheta) -&gt; amplitude</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.polpattern">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">polpattern</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">angpos</span></em>, <em class="sig-param"><span class="n">dipole</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.polpattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the unit polarisation vectors at each position on the sphere
+for a dipole direction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angpos</strong> (<em>np.ndarray</em><em>[</em><em>npoints</em><em>, </em><em>2</em><em>]</em>) – The positions on the sphere to calculate at.</p></li>
+<li><p><strong>dipole</strong> (<em>np.ndarray</em><em>[</em><em>2</em><em> or </em><em>3</em><em>]</em>) – The unit vector for the dipole direction. If length is 2, assume in
+vector is in spherical polars, if 3 it’s cartesian.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>vectors</strong> – Vector at each point in thetahat, phihat basis.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray[npoints, 2]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="drift.telescope.cylbeam.rotate_ypr">
+<code class="sig-prename descclassname">drift.telescope.cylbeam.</code><code class="sig-name descname">rotate_ypr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">rot</span></em>, <em class="sig-param"><span class="n">xhat</span></em>, <em class="sig-param"><span class="n">yhat</span></em>, <em class="sig-param"><span class="n">zhat</span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.telescope.cylbeam.rotate_ypr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rotate the basis with a yaw, pitch and roll.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rot</strong> (<em>[</em><em>yaw</em><em>, </em><em>pitch</em><em>, </em><em>roll</em><em>]</em>) – Angles of rotation in radians.</p></li>
+<li><p><strong>xhat</strong> (<em>np.ndarray</em><em>[</em><em>3</em><em>]</em>) – Basis vectors to rotate.</p></li>
+<li><p><strong>yhat</strong> (<em>np.ndarray</em><em>[</em><em>3</em><em>]</em>) – Basis vectors to rotate.</p></li>
+<li><p><strong>zhat</strong> (<em>np.ndarray</em><em>[</em><em>3</em><em>]</em>) – Basis vectors to rotate.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>xhat, yhat, zhat</strong> – New basis vectors.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray[3]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="drift.telescope.cylinder.html" class="btn btn-neutral float-right" title="drift.telescope.cylinder" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="drift.telescope.html" class="btn btn-neutral float-left" title="drift.telescope" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2014, J. Richard Shaw.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -150,7 +150,7 @@ class DishArray(telescope.TransitTelescope):
         return upairs, redundancy
 
 
-class UnpolarisedDishArray(CMUTelescope, telescope.UnpolarisedTelescope):
-    """Unpolarised dish array class."""
-
-    pass
+# class UnpolarisedDishArray(CMUTelescope, telescope.UnpolarisedTelescope):
+#     """Unpolarised dish array class."""
+#
+#     pass

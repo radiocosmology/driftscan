@@ -150,6 +150,7 @@ class DishArray(telescope.TransitTelescope):
         return upairs, redundancy
 
 
+# Commented out, because: The class CMUTelescope does not exist. If you know what that's supposed to be, please fix it.
 # class UnpolarisedDishArray(CMUTelescope, telescope.UnpolarisedTelescope):
 #     """Unpolarised dish array class."""
 #

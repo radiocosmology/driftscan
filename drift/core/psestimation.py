@@ -687,10 +687,21 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
+            evals, evecs = self.kltrans.modes_m(mi)
+
+            if evals is None:
+                return np.zeros((self.nbands + 1))
 
             # If calculating crosspower don't include instrumental noise
             noisemodes = 0.0 if self.crosspower else 1.0
             noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
+
+            x0 = (vec1.T / (evals + 1.0)).T
+
+            if vec2 is not None:
+                y0 = (vec2.T / (evals + 1.0)).T
+            else:
+                y0 = x0
 
             qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
 

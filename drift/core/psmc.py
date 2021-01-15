@@ -221,14 +221,20 @@ class PSMonteCarloLarge(PSMonteCarlo):
     ----------
     nsamples : integer
         The number of samples to draw from each band.
+    noise : bool
+        Default : False. If set to True, calculate a q_a for the noise power.
     """
 
     nsamples = config.Property(proptype=int, default=500)
+    noise = False
 
     # ==== Calculate the total Fisher matrix/bias =======
 
     def make_clzz_array(self):
-        """Store clarray for power spectrum bands in parallel with MPIArray."""
+        """Calculate the response of the angular powerspectrum to each power spectrum band using an MPI array distributed over the band axis.
+
+        Uses the lmax and frequencies from the telescope object.
+        """
         nbands = self.nbands
         nfreq = self.telescope.nfreq
         lmax = self.telescope.lmax
@@ -255,7 +261,7 @@ class PSMonteCarloLarge(PSMonteCarlo):
         """
         if mpiutil.rank0:
             st = time.time()
-            print("======== Starting PS calculation MC XLARGE ========")
+            print("======== Starting PS calculation LARGE ========")
 
         ffile = self.psdir + "/fisher.hdf5"
 
@@ -282,8 +288,12 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
         n = self.nsamples
 
+        # Option to add another dimension for a noise term
+        nbands = self.nbands + 1 if noise else self.nbands
+
+        # Create an MPI array for the q-estimator distributed over bands
         self.qa = mpiarray.MPIArray(
-            (self.telescope.mmax + 1, self.nbands, n),
+            (self.telescope.mmax + 1, nbands, n),
             axis=1,
             comm=MPI.COMM_WORLD,
             dtype=np.float64,
@@ -291,7 +301,8 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
         self.qa[:] = 0.0
 
-        # This is designed such that at each iteration one rank gets one m-mode.
+        # This loop is designed such that the total number of m's is split up in chunks.
+        # Each chunk contains as many m's as there are ranks such that each rank gets exactly one m-mode.
         for ci, num_m in enumerate(m_chunks):
             if mpiutil.rank0:
                 print("Starting chunk %i of %i" % (ci, num_chunks))
@@ -334,14 +345,14 @@ class PSMonteCarloLarge(PSMonteCarlo):
                 if mi < (self.telescope.mmax + 1):
                     self.q_estimator(mi, vec1, vec1)
 
-                # We do the MPI communications only (size - 1) times
+                # We do the MPI communications between ranks only (size - 1) times
                 if ir == (size - 1):
                     break
 
                 recv_buffer = self.recv_send_data(vec1, axis=-1)
                 vec1 = recv_buffer
 
-                # Sent data to (rank + 1) % size, hence local mi must be updated to (mi -1) % size
+                # Send data to (rank + 1) % size, hence local mi must be updated to (mi -1) % size
                 mi = low_bound[ci] + (mi - 1) % size
 
             etallq = time.time()
@@ -420,13 +431,25 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
-            # If calculating crosspower don't include instrumental noise
-            noisemodes = 0.0 if self.crosspower else 1.0
             evals, evecs = self.kltrans.modes_m(mi)
+
+            if evals is None:
+                self.qa.global_slice[mi, -1] = 0.0
+
+            # If calculating crosspower don't include instrumental noise
+            # noisemodes = 0.0 if self.crosspower else 1.0
+            noisemodes = 1.0
             noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
 
+            x0 = (vec1.T / (evals + 1.0)).T
+
+            if vec2 is not None:
+                y0 = (vec2.T / (evals + 1.0)).T
+            else:
+                y0 = x0
+
             self.qa.global_slice[mi, -1] = np.sum(
-                (vec1 * vec2.conj()).T.real * noisemodes, axis=-1
+                (x0 * y0.conj()).T.real * noisemodes, axis=-1
             )
 
     def recv_send_data(self, data, axis):

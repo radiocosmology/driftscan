@@ -245,3 +245,117 @@ def beam_y(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
     amp = beam_amp(angpos, zenith, width, fwhm_h, fwhm_e, rot=rot)
 
     return amp[:, np.newaxis] * pvec
+
+
+def fast_beam_pol_precompute(zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
+    """Precompute several quantities needed for beam amplitude evaluation.
+
+    Repeated calls to beam_x() or beam_y() for the same telescope and frequency
+    contain a lot of redundant computation, and the pair of this routine and
+    fast_beam_pol_evaluate() provide an alternative.
+
+    This routine precomputes quantities related to the telescope zenith and
+    EW Fraunhofer beam pattern and returns them as a tuple, which is then
+    passed to fast_beam_pol_evaluate().
+
+    Parameters
+    ----------
+    zenith : np.ndarray[2]
+        Position of zenith in spherical polars (e.g. from telescope.zenith).
+    width : scalar
+        Cylinder width in wavelengths.
+    fwhm_e, fwhm_h
+        Full with at half power in the E and H planes of the antenna.
+    rot : [yaw, pitch, roll]
+        Optional rotation to apply to cylinder in yaw, pitch and roll from North.
+
+    Returns
+    -------
+    that, phat : np.ndarray[3]
+        Related to zenith in Cartesian coordinates.
+    xhat, yhat, zhat : np.ndarray[3]
+        Zenith rotated according to input 'rot' argument.
+    beampat_X, beampat_Y : function(sintheta) -> amplitude
+        The X- and Y-pol EW beam patterns, normalised to have unit maximum.
+    fwhm_e, fwhm_h : float
+        E- and H-plane beam FWHM values.
+    zenith_cart : np.ndarray[3]
+        Zenith in Cartesian coordinates.
+    """
+
+    zenith_cart = coord.sph_to_cart(zenith)
+
+    # Reverse as thetahat points south
+    that, phat = coord.thetaphi_plane_cart(zenith)
+    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, zenith_cart)
+
+    # X-plane beam profiles, for X and Y pol
+    xplane_X = lambda t: beam_exptan(t, fwhm_e)
+    xplane_Y = lambda t: beam_exptan(t, fwhm_h)
+
+    # EW beam Fraunhofer pattern
+    # (This is what takes the most time in the regular beam routines)
+    beampat_X = fraunhofer_cylinder(xplane_X, width)
+    beampat_Y = fraunhofer_cylinder(xplane_Y, width)
+
+    return that, phat, xhat, yhat, zhat, beampat_X, beampat_Y, fwhm_e, fwhm_h, zenith_cart
+
+
+def fast_beam_pol_eval(angpos, pre_products, pol, use_horizon=True):
+    """Evaluate primary beam amplitudes given a set of precomputed quantities.
+
+    Repeated calls to beam_x() or beam_y() for the same telescope and frequency
+    contain a lot of redundant computation, and the pair of this routine and
+    fast_beam_pol_precompute() provide an alternative.
+
+    This routine returns equivalent outputs to beam_x() or beam_y(), based on
+    precomputed inputs from fast_beam_pol_precompute() passed to the routine
+    as a tuple.
+
+    Parameters
+    ----------
+    angpos : np.ndarray[npoints, 2]
+        Angular position on the sky.
+    pre_products : tuple
+        Output of fast_beam_pol_precompute() (see that routine's docstring for
+        details).
+    pol : int
+        0 for X, 1 for Y.
+    use_horizon : bool, optional
+        Whether to set the beam to zero below the horizon. Default: True.
+
+    Returns
+    -------
+    beam : np.ndarray[npoints, 2]
+        Amplitude vector of beam at each point (in thetahat, phihat)
+    """
+
+    if pol not in range(2):
+        raise ValueError('In fast_beam_pol_eval(), pol must be 0 (X) or 1 (Y)')
+
+    that, phat, xhat, yhat, zhat, beampat_X, beampat_Y, fwhm_e, fwhm_h, zenith_cart = pre_products
+
+    if pol == 0:
+        fwhm_x, fwhm_y = fwhm_e, fwhm_h
+        beampat = beampat_X
+        pvec = polpattern(angpos, xhat)
+    else:
+        fwhm_x, fwhm_y = fwhm_h, fwhm_e
+        beampat = beampat_Y
+        pvec = polpattern(angpos, yhat)
+
+    xplane = lambda t: beam_exptan(t, fwhm_x)
+    yplane = lambda t: beam_exptan(t, fwhm_y)
+
+    cvec = coord.sph_to_cart(angpos)
+    horizon = (np.dot(cvec,zenith_cart) > 0.0).astype(np.float64)
+
+    ew_amp = beampat(np.dot(cvec, xhat))
+    ns_amp = yplane(np.arcsin(np.dot(cvec, yhat)))
+
+    if use_horizon:
+        beam = ew_amp * ns_amp * horizon
+    else:
+        beam = ew_amp * ns_amp
+
+    return beam[:, np.newaxis] * pvec

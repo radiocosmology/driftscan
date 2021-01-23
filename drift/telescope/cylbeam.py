@@ -298,7 +298,18 @@ def fast_beam_pol_precompute(zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0])
     beampat_X = fraunhofer_cylinder(xplane_X, width)
     beampat_Y = fraunhofer_cylinder(xplane_Y, width)
 
-    return that, phat, xhat, yhat, zhat, beampat_X, beampat_Y, fwhm_e, fwhm_h, zenith_cart
+    return (
+        that,
+        phat,
+        xhat,
+        yhat,
+        zhat,
+        beampat_X,
+        beampat_Y,
+        fwhm_e,
+        fwhm_h,
+        zenith_cart,
+    )
 
 
 def fast_beam_pol_eval(angpos, pre_products, pol, use_horizon=True):
@@ -331,9 +342,20 @@ def fast_beam_pol_eval(angpos, pre_products, pol, use_horizon=True):
     """
 
     if pol not in range(2):
-        raise ValueError('In fast_beam_pol_eval(), pol must be 0 (X) or 1 (Y)')
+        raise ValueError("In fast_beam_pol_eval(), pol must be 0 (X) or 1 (Y)")
 
-    that, phat, xhat, yhat, zhat, beampat_X, beampat_Y, fwhm_e, fwhm_h, zenith_cart = pre_products
+    (
+        that,
+        phat,
+        xhat,
+        yhat,
+        zhat,
+        beampat_X,
+        beampat_Y,
+        fwhm_e,
+        fwhm_h,
+        zenith_cart,
+    ) = pre_products
 
     if pol == 0:
         fwhm_x, fwhm_y = fwhm_e, fwhm_h
@@ -348,7 +370,7 @@ def fast_beam_pol_eval(angpos, pre_products, pol, use_horizon=True):
     yplane = lambda t: beam_exptan(t, fwhm_y)
 
     cvec = coord.sph_to_cart(angpos)
-    horizon = (np.dot(cvec,zenith_cart) > 0.0).astype(np.float64)
+    horizon = (np.dot(cvec, zenith_cart) > 0.0).astype(np.float64)
 
     ew_amp = beampat(np.dot(cvec, xhat))
     ns_amp = yplane(np.arcsin(np.dot(cvec, yhat)))

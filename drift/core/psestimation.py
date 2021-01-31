@@ -652,8 +652,6 @@ class PSEstimation(with_metaclass(abc.ABCMeta, config.Reader)):
             and the last parameter is the projection against the noise.
         """
 
-        evals, evecs = self.kltrans.modes_m(mi)
-
         x2 = self.project_vector_kl_to_sky(mi, vec1)
 
         if vec2 is not None:

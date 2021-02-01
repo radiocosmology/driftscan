@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import os
 
 import numpy as np
@@ -51,9 +44,9 @@ class DoubleKL(kltransform.KLTransform):
 
         # Find joint eigenbasis and transformation matrix
         if self.diagonalisation_order == "sf":
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+            evals, evecs2, ac = kltransform.eigh_gen(cs, cn, message="m = %d; KL step 1" % mi)
         else:
-            evals, evecs2, ac = kltransform.eigh_gen(cn, cs)
+            evals, evecs2, ac = kltransform.eigh_gen(cn, cs, message="m = %d; KL step 1" % mi)
 
         evecs = evecs2.T.conj()
 
@@ -83,7 +76,9 @@ class DoubleKL(kltransform.KLTransform):
             cn = np.dot(evecs, np.dot(cn, evecs.T.conj()))
 
             # Find the eigenbasis and the transformation into it.
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn)
+            evals, evecs2, ac = kltransform.eigh_gen(
+                cs, cn, message="m = %d; KL step 2" % mi
+            )
             evecs = np.dot(evecs2.T.conj(), evecs)
 
             # Construct the inverse if required.

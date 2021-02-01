@@ -1,11 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
-
 import numpy as np
 from scipy.special import jn
 
@@ -102,13 +94,16 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
         pointing = self.beam_pointings[feed]
         bdist = self._angpos - pointing[np.newaxis, :]
-        bdist = np.abs(
-            np.where(
-                (bdist[:, 1] < np.pi)[:, np.newaxis],
-                bdist,
-                bdist - np.array([0, 2 * np.pi])[np.newaxis, :],
+        bdist = (
+            np.abs(
+                np.where(
+                    (bdist[:, 1] < np.pi)[:, np.newaxis],
+                    bdist,
+                    bdist - np.array([0, 2 * np.pi])[np.newaxis, :],
+                )
             )
-        ) / np.radians(self.beam_size)
+            / np.radians(self.beam_size)
+        )
         # bdist = np.abs(np.where((bdist[:, 1] < np.pi)[:, np.newaxis], bdist, bdist - np.array([0, 2*np.pi])[np.newaxis, :])) / np.radians(self.beam_size)
         beam = np.logical_and(bdist[:, 0] < 0.5, bdist[:, 1] < 0.5).astype(np.float64)
 
@@ -139,8 +134,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     @property
     def feedpositions(self):
-        """Feed positions (all zero in FPA).
-        """
+        """Feed positions (all zero in FPA)."""
         return np.zeros([self.nfeed, 2])
 
     def _unique_beams(self):

@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import numpy as np
 from scipy.special import jn
 
@@ -14,7 +7,7 @@ from drift.core import telescope
 
 def beam_circular(angpos, zenith, diameter):
     """Beam pattern for a uniformly illuminated circular dish.
-    
+
     Parameters
     ----------
     angpos : np.ndarray
@@ -23,7 +16,7 @@ def beam_circular(angpos, zenith, diameter):
         Co-ordinates of the zenith.
     diameter : scalar
         Diameter of the dish (in units of wavelength).
-    
+
     Returns
     -------
     beam : np.ndarray
@@ -40,7 +33,7 @@ def beam_circular(angpos, zenith, diameter):
 
 class DishArray(telescope.SimplePolarisedTelescope):
     """A Telescope describing an interferometric array of dishes.
-    
+
     Attributes
     ----------
     gridu, gridv : integer

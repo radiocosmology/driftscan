@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 from math import log10, floor
 import sys
 
@@ -17,7 +10,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-from matplotlib import rc, colors
+from matplotlib import rc
 
 rc("font", **{"family": "serif", "serif": ["Palatino"], "size": 10.0})
 rc("text", usetex=True)

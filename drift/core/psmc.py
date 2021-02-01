@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import numpy as np
 
 from cora.util import nputil
@@ -117,8 +110,7 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
     nswitch = config.Property(proptype=int, default=0)  # 200
 
     def gen_vecs(self, mi):
-        """Generate a cache of sample vectors for each bandpower.
-        """
+        """Generate a cache of sample vectors for each bandpower."""
 
         # Delete cache
         self.vec_cache = []

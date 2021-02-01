@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import argparse
 import os.path
 import shutil
@@ -17,10 +10,7 @@ from drift.telescope import cylinder, gmrt, focalplane, restrictedcylinder
 from drift.core import beamtransfer
 
 from drift.core import kltransform, doublekl
-from drift.core import psestimation, psmc
 from drift.core import skymodel
-
-from drift.core import projection
 
 parser = argparse.ArgumentParser(description="Run a simulation job.")
 parser.add_argument(

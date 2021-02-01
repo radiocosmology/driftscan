@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import abc
 
 import numpy as np
@@ -15,8 +8,6 @@ from caput import time as ctime
 from cora.util import hputil, units
 
 from drift.core import visibility
-from drift.util import util
-from future.utils import with_metaclass
 
 
 def in_range(arr, min, max):
@@ -125,7 +116,7 @@ def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     return lmax, mmax
 
 
-class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer)):
+class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     """Base class for simulating any transit interferometer.
 
     This is an abstract class, and several methods must be implemented before it
@@ -513,8 +504,7 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
     _bl_tol = 6
 
     def _unique_baselines(self):
-        """Map of equivalent baseline lengths, and mask of ones to exclude.
-        """
+        """Map of equivalent baseline lengths, and mask of ones to exclude."""
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
         f_ind = np.indices(fshape)
@@ -540,8 +530,7 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
         return _remap_keyarray(bl2, mask), mask
 
     def _unique_beams(self):
-        """Map of unique beam pairs, and mask of ones to exclude.
-        """
+        """Map of unique beam pairs, and mask of ones to exclude."""
         # Construct array of indices
         fshape = [self.nfeed, self.nfeed]
 
@@ -907,7 +896,7 @@ class TransitTelescope(with_metaclass(abc.ABCMeta, config.Reader, ctime.Observer
     # ===================================================
 
 
-class UnpolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
+class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     """A base for an unpolarised telescope.
 
     Again, an abstract class, but the only things that require implementing are
@@ -1007,7 +996,7 @@ class UnpolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
         return bnoise[..., np.newaxis] * 0.5  # Correction for unpolarisedness
 
 
-class PolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
+class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     """A base for a polarised telescope.
 
     Again, an abstract class, but the only things that require implementing
@@ -1090,7 +1079,7 @@ class PolarisedTelescope(with_metaclass(abc.ABCMeta, TransitTelescope)):
     # ===================================================
 
 
-class SimpleUnpolarisedTelescope(with_metaclass(abc.ABCMeta, UnpolarisedTelescope)):
+class SimpleUnpolarisedTelescope(UnpolarisedTelescope, metaclass=abc.ABCMeta):
     """A base for a polarised telescope.
 
     Again, an abstract class, but the only things that require implementing are
@@ -1117,7 +1106,7 @@ class SimpleUnpolarisedTelescope(with_metaclass(abc.ABCMeta, UnpolarisedTelescop
         return self._single_feedpositions
 
 
-class SimplePolarisedTelescope(with_metaclass(abc.ABCMeta, PolarisedTelescope)):
+class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
     """A base for a polarised telescope.
 
     Again, an abstract class, but the only things that require implementing are

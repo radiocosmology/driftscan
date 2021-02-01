@@ -1,14 +1,6 @@
-"""Manage access to and generation of driftscan analysis products.
-"""
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
+"""Manage access to and generation of driftscan analysis products."""
 
 import os.path
-import shutil
 import warnings
 
 import yaml
@@ -124,7 +116,7 @@ class ProductManager(object):
         )
 
         if not os.path.exists(configfile):
-            raise Exception("Configuration file does not exist.")
+            raise Exception(f"Configuration file does not exist {configfile}.")
 
         if os.path.isdir(configfile):
             configfile = configfile + "/config.yaml"
@@ -290,8 +282,7 @@ class ProductManager(object):
                     )
 
     def generate(self):
-        """Calculate the analysis products.
-        """
+        """Calculate the analysis products."""
 
         # Create the directory if it does not exist
         if not os.path.exists(self.directory):

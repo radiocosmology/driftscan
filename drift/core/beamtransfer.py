@@ -14,12 +14,6 @@ Classes
     BeamTransfer
 
 """
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
 
 import pickle
 import os
@@ -1514,8 +1508,7 @@ class BeamTransfer(object):
 
 
 class BeamTransferTempSVD(BeamTransfer):
-    """BeamTransfer class that performs the old temperature only SVD.
-    """
+    """BeamTransfer class that performs the old temperature only SVD."""
 
     def _generate_svdfiles(self, regen=False):
         ## Generate all the SVD transfer matrices by simply iterating over all
@@ -1654,8 +1647,7 @@ class BeamTransferTempSVD(BeamTransfer):
 
 
 class BeamTransferFullSVD(BeamTransfer):
-    """BeamTransfer class that performs the old temperature only SVD.
-    """
+    """BeamTransfer class that performs the old temperature only SVD."""
 
     def _generate_svdfiles(self, regen=False):
         ## Generate all the SVD transfer matrices by simply iterating over all

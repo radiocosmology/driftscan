@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import time
 import os
 import re
@@ -59,7 +52,7 @@ def collect_m_array(mlist, func, shape, dtype):
     return res[0] if mpiutil.rank0 else None
 
 
-def eigh_gen(A, B):
+def eigh_gen(A, B, message=""):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
 
@@ -71,6 +64,8 @@ def eigh_gen(A, B):
     ----------
     A, B : np.ndarray
         Matrices to operate on.
+    message : string, optional
+        Optional string to print if an exception is thrown. Default: "".
 
     Returns
     -------
@@ -94,9 +89,9 @@ def eigh_gen(A, B):
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
-            print("Error occured in eigenvalue solve.")
+            print("Error occurred in eigenvalue solve: %s" % message)
             # Get error number
-            mo = re.search("order (\\d+)", e.message)
+            mo = re.search("order (\\d+)", e.args[0])
 
             # If exception unrecognised then re-raise.
             if mo is None:
@@ -104,11 +99,11 @@ def eigh_gen(A, B):
 
             errno = mo.group(1)
 
-            if errno < (A.shape[0] + 1):
+            if int(errno) < (A.shape[0] + 1):
 
                 print(
-                    "Matrix probably not positive definite due to numerical issues. \
-                Trying to add a constant diagonal...."
+                    "Matrix probably not positive definite due to numerical issues. "
+                    + "Trying to add a constant diagonal...."
                 )
 
                 evb = la.eigvalsh(B)
@@ -346,7 +341,7 @@ class KLTransform(config.Reader):
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
-        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr)
+        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr, message="m = %d" % mi)
         et = time.time()
         print("Time =", (et - st))
 

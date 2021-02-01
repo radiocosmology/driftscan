@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import functools
 
 import numpy as np
@@ -21,8 +14,7 @@ def natpattern(n):
 
 
 def cache_last(func):
-    """A simple decorator to cache the result of the last call to a function.
-    """
+    """A simple decorator to cache the result of the last call to a function."""
     arg_cache = [None]
     kw_cache = [None]
     ret_cache = [None]
@@ -72,7 +64,7 @@ class ConfigReader(object):
         Parameters
         ----------
         config_options : dict
-            Configuration options supplied like this: 
+            Configuration options supplied like this:
             { 'paramkey1' : [ function_to_apply, 'attributename'], 'paramkey2' : ...}
         """
         if not hasattr(self, "_config_dict"):

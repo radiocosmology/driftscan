@@ -1,10 +1,3 @@
-# === Start Python 2/3 compatibility
-from __future__ import absolute_import, division, print_function, unicode_literals
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-
-# === End Python 2/3 compatibility
-
 import numpy as np
 
 from cora.util import coord, cubicspline
@@ -82,8 +75,7 @@ def rotate_ypr(rot, xhat, yhat, zhat):
 
 
 def beam_dipole(theta, phi, squint):
-    """Beam for a dipole above a ground plane.
-    """
+    """Beam for a dipole above a ground plane."""
     return (1 - np.sin(theta) ** 2 * np.sin(phi) ** 2) ** (squint / 2) * np.sin(
         0.5 * np.pi * np.cos(theta)
     )

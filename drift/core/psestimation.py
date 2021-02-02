@@ -17,7 +17,6 @@ from drift.core import skymodel
 from drift.util import util
 
 from mpi4py import MPI
-from future.utils import with_metaclass
 
 
 def uniform_band(k, kstart, kend):

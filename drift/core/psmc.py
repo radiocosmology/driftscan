@@ -85,7 +85,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
             x = self.gen_sample(mi, n)
             qa[:, s:e] = self.q_estimator(mi, x)
 
-        ft = np.cov(qa)
+        # ft = np.cov(qa)
 
         fisher = np.cov(qa)  # ft[:self.nbands, :self.nbands]
         # bias = ft[-1, :self.nbands]
@@ -272,8 +272,6 @@ class PSMonteCarloLarge(PSMonteCarlo):
         size = comm.Get_size()
         rank = comm.Get_rank()
 
-        st = time.time()
-
         # Split up all m-modes such that each MPI process receives one m-mode
         m_chunks, low_bound, upp_bound = self.split_single(
             (self.telescope.mmax + 1), size
@@ -330,8 +328,6 @@ class PSMonteCarloLarge(PSMonteCarlo):
                 vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
 
             st_q = time.time()
-
-            dsize = np.prod(vec1.shape)
 
             # Loop over total number of ranks given by `size`.
             for ir in range(size):
@@ -421,7 +417,7 @@ class PSMonteCarloLarge(PSMonteCarlo):
             self.qa[mi, :] = 0.0
 
         # If one of the data vectors is empty, return q = 0.0 for this m
-        elif (x2.shape[0] == 0):
+        elif x2.shape[0] == 0:
             self.qa[mi, :] = 0.0
 
         else:

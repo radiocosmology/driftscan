@@ -44,9 +44,13 @@ class DoubleKL(kltransform.KLTransform):
 
         # Find joint eigenbasis and transformation matrix
         if self.diagonalisation_order == "sf":
-            evals, evecs2, ac = kltransform.eigh_gen(cs, cn, message="m = %d; KL step 1" % mi)
+            evals, evecs2, ac = kltransform.eigh_gen(
+                cs, cn, message="m = %d; KL step 1" % mi
+            )
         else:
-            evals, evecs2, ac = kltransform.eigh_gen(cn, cs, message="m = %d; KL step 1" % mi)
+            evals, evecs2, ac = kltransform.eigh_gen(
+                cn, cs, message="m = %d; KL step 1" % mi
+            )
 
         evecs = evecs2.T.conj()
 

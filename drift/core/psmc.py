@@ -412,6 +412,10 @@ class PSMonteCarloLarge(PSMonteCarlo):
             Array of q-parameters. If noise=True then the array is one longer, and the last parameter is the projection against the noise.
         """
 
+        # If y2 is None set it to x2
+        if y2 is None:
+            y2 = x2
+
         # if data vector is filled with zeros, return q = 0.0 for this m
         if np.all(x2 == 0) or np.all(y2 == 0):
             self.qa[mi, :] = 0.0

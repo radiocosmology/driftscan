@@ -1069,7 +1069,8 @@ class BeamTransfer(object):
                                 except:
                                     # If pinv2 fails, print error message
                                     raise Exception(
-                                        "Beam-SVD pseudoinverse (scipy.linalg.pinv2) failure: m = %d, fi = %d" % (mi, fi)
+                                        "Beam-SVD pseudoinverse (scipy.linalg.pinv2) failure: m = %d, fi = %d"
+                                        % (mi, fi)
                                     )
 
                             dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(

@@ -1054,7 +1054,7 @@ class BeamTransfer(object):
                                 # more likely to succeed. If successful, add file attribute
                                 # indicating pinv2 was used for this frequency.
                                 print(
-                                    "***pinv failure: m = %d, fi = %d. Trying pinv2..."
+                                    "***Beam-SVD pesudoinverse (scipy.linalg.pinv) failure: m = %d, fi = %d. Trying pinv2..."
                                     % (mi, fi)
                                 )
                                 try:
@@ -1069,7 +1069,7 @@ class BeamTransfer(object):
                                 except:
                                     # If pinv2 fails, print error message
                                     raise Exception(
-                                        "pinv2 failure: m = %d, fi = %d" % (mi, fi)
+                                        "Beam-SVD pseudoinverse (scipy.linalg.pinv2) failure: m = %d, fi = %d" % (mi, fi)
                                     )
 
                             dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(

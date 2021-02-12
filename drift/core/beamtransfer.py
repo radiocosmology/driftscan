@@ -801,7 +801,7 @@ class BeamTransfer(object):
                             % (mi, (self._svdfile(mi)))
                         )
                         m_list[mi] = -1
-                    except:
+                    except Exception:
                         print(
                             "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
                             % (mi, (self._svdfile(mi)))

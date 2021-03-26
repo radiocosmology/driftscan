@@ -698,7 +698,8 @@ class KLTransform(config.Reader):
 
     @util.cache_last
     def skymodes_m(self, mi, threshold=None):
-        """Find the representation of the KL-modes on the sky.
+        """
+        Find the representation of the KL-modes on the sky.
 
         Use the beamtransfers to rotate the SN-modes onto the sky. This routine
         is based on `modes_m`, as such the same caching and caveats apply.
@@ -715,12 +716,12 @@ class KLTransform(config.Reader):
         Returns
         -------
         skymodes : np.ndarray
-            The modes as found in a_{lm}(\nu) space. Note this routine does not
+            The modes as found in :math:`a_{lm}(\\nu)` space. Note this routine does not
             return the evals.
 
         See Also
         --------
-        `modes_m`
+        :py:func:`modes_m`
         """
 
         # Fetch the modes in the telescope basis.

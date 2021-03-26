@@ -1,1 +1,0 @@
-.. automodule:: drift.core.beamtransfer

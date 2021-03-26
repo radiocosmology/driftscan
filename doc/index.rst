@@ -13,31 +13,10 @@ Contents
 --------
 
 .. toctree::
-  	:maxdepth: 1
+   :maxdepth: 1
 
-   	overview
-   	usage
-
-Programming References
-----------------------
-
-.. toctree::
-	:maxdepth: 1
-
-	beamtransfer
-
-Examples
---------
-
-.. toctree::
-	:maxdepth: 1
-
-	disharray
-
-
-
-
-
+   overview
+   reference
 
 Indices and tables
 ==================

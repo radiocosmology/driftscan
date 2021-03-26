@@ -1,5 +1,4 @@
-"""Estimate powerspectra and forecast constraints from real data.
-"""
+"""Estimate powerspectra and forecast constraints from real data."""
 
 import os
 import abc

@@ -154,6 +154,9 @@ class KLTransform(config.Reader):
         If True, throw away modes below a S/N `threshold`.
     threshold : scalar
         S/N threshold to cut modes at.
+    diagonalisation_order : string, optional
+        Options are 'sf' for eigen value decomposition with S/F eigen values and
+        'fs' for F/S eigen values.
     inverse : boolean
         If True construct and cache inverse transformation.
     use_thermal, use_foregrounds : boolean
@@ -405,6 +408,7 @@ class KLTransform(config.Reader):
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
             i_ev = np.searchsorted(evals, self.threshold)
+            # The second step in the double KL will be eigen values of S/N regardless of first step KL step. We save the double KL values in S/N order.
             if self.diagonalisation_order == "sf" or self._dkl:
                 evals = evals[i_ev:]
                 evecs = evecs[i_ev:]
@@ -652,7 +656,7 @@ class KLTransform(config.Reader):
                     if self.diagonalisation_order == "sf" or self._dkl:
                         modes = evals[startind:]
                     else:
-                        mode = evals[:startind]
+                        modes = evals[:startind]
 
             f.close()
 

@@ -100,7 +100,7 @@ class DoubleKL(kltransform.KLTransform):
         if self.diagonalisation_order == "sf":
             f_evals = evextra["f_evals"]
         else:
-            f_evals = evextra["f_evals"][::-1]
+            f_evals = evextra["f_evals"]
 
         f.create_dataset("f_evals", data=f_evals)
 

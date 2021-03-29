@@ -97,12 +97,7 @@ class DoubleKL(kltransform.KLTransform):
         kltransform.KLTransform._ev_save_hook(self, f, evextra)
 
         # Save out S/F ratios
-        if self.diagonalisation_order == "sf":
-            f_evals = evextra["f_evals"]
-        else:
-            f_evals = evextra["f_evals"]
-
-        f.create_dataset("f_evals", data=f_evals)
+        f.create_dataset("f_evals", data=evextra["f_evals"])
 
     def _collect(self):
         def evfunc(mi):

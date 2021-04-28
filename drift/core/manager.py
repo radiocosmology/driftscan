@@ -221,21 +221,8 @@ class ProductManager(object):
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)
 
-        # Set the singular value cut for the beamtransfers
-        if "svcut" in yconf["config"]:
-            self.beamtransfer.svcut = float(yconf["config"]["svcut"])
-
-        # Set the singular value cut for the *polarisation* beamtransfers
-        if "polsvcut" in yconf["config"]:
-            self.beamtransfer.polsvcut = float(yconf["config"]["polsvcut"])
-
-        # Set the truncation parameters
-        if "truncate" in yconf["config"]:
-            self.beamtransfer.truncate = bool(yconf["config"]["truncate"])
-        if "truncate_rel" in yconf["config"]:
-            self.beamtransfer.truncate_rel = bool(yconf["config"]["truncate_rel"])
-        if "truncate_maxl" in yconf["config"]:
-            self.beamtransfer.truncate_maxl = bool(yconf["config"]["truncate_maxl"])
+        # Read any configuration options for the beam transfer generation
+        self.beamtransfer.read_config(yconf["config"])
 
         if yconf["config"].get("beamtransfers"):
             self.gen_beams = True

@@ -9,9 +9,18 @@ import scipy.linalg as la
 import h5py
 
 from caput import mpiutil, misc
+from caput.truncate import bit_truncate_max_complex
 
 from drift.util import util, blockla
 from drift.core import kltransform
+
+try:
+    import bitshuffle.h5
+    BITSHUFFLE_IMPORTED = True
+except ImportError:
+    print("Error importing bitshuffle")
+    BITSHUFFLE_IMPORTED = False
+
 
 
 def svd_gen(A, errmsg=None, *args, **kwargs):
@@ -140,12 +149,36 @@ class BeamTransfer(object):
     telescope : drift.core.telescope.TransitTelescope, optional
         Telescope object to use for calculation. If `None` (default), try to
         load a cached version from the given directory.
+
+    Attributes
+    ----------
+    svcut : float
+        The relative precision below the maximum singular value to exclude low
+        sensitivity SVD modes. This can be dynamically changed as it is evaluated
+        when performing projections.
+    polsvcut : float
+        The relative precision below the maximum value to assume the polarisation
+        sensitivity is zero. This is used to find the polarisation null space. This
+        is used to generate the cached SVD modes and so cannot be changed after they
+        are generated.
+    truncate : bool
+        Whether precision truncation of the beam transfer matrices should be done.
+    truncate_rel : float
+        The relative per element precision to use for the truncation.
+    truncate_maxl : float
+        The truncation precision to use relative the maximum value for all l's of
+        that mode.
     """
 
     _mem_switch = 2.0  # Rough chunks (in GB) to divide calculation into.
 
     svcut = 1e-6
     polsvcut = 1e-4
+
+    # ====== Truncation options ======
+    truncate = (False and BITSHUFFLE_IMPORTED)
+    truncate_rel = 1e-7
+    truncate_maxl = 1e-8
 
     # ====== Properties giving internal filenames =======
 
@@ -651,6 +684,14 @@ class BeamTransfer(object):
         # The local m sections
         lm, sm, em = mpiutil.split_local(self.telescope.mmax + 1)
 
+        if self.truncate:
+            compression_kwargs = {
+                "compression": bitshuffle.h5.H5FILTER,
+                "compression_opts": (0, bitshuffle.h5.H5_COMPRESS_LZ4),
+            }
+        else:
+            compression_kwargs = {"compression": "lzf"}
+
         # Iterate over all m's and create the hdf5 files we will write into.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
@@ -677,7 +718,7 @@ class BeamTransfer(object):
                 self.telescope.lmax + 1,
             )
             f.create_dataset(
-                "beam_m", dsize, chunks=csize, compression="lzf", dtype=np.complex128
+                "beam_m", dsize, chunks=csize, dtype=np.complex128, **compression_kwargs
             )
 
             # Write a few useful attributes.
@@ -749,6 +790,18 @@ class BeamTransfer(object):
 
             del fb_array
 
+            # Transpose to get l as the last axis, this is needed for the (optional)
+            # precision truncation
+            m_array = m_array.transpose((4, 0, 1, 2, 3)).copy()
+
+            # Truncate the precision of the beam transfers
+            if self.truncate:
+                bit_truncate_max_complex(
+                    m_array.reshape(-1, m_array.shape[-1]),
+                    self.truncate_rel,
+                    self.truncate_maxl
+                )
+
             # Write out the current set of chunks into the m-files.
             for lmi, mi in enumerate(range(sm, em)):
 
@@ -759,7 +812,7 @@ class BeamTransfer(object):
                     for fbl, fbi in enumerate(range(fbstart, fbend)):
                         fi = fbmap[0, fbi]
                         bi = fbmap[1, fbi]
-                        mfile["beam_m"][fi, :, bi] = m_array[fbl, ..., lmi]
+                        mfile["beam_m"][fi, :, bi] = m_array[lmi, fbl]
 
             del m_array
 
@@ -1462,11 +1515,6 @@ class BeamTransfer(object):
             SVD vector to return.
         """
         npol = 1 if temponly else self.telescope.num_pol_sky
-        print("temponly", temponly)
-        print("npol", npol)
-
-        # if not conj:
-        #     raise Exception("Not implemented non conj yet.")
 
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)

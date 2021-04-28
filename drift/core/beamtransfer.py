@@ -8,7 +8,9 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
-from caput import mpiutil, misc
+from caput import misc
+from caput import mpiutil
+from caput import config
 from caput.truncate import bit_truncate_max_complex
 
 from drift.util import util, blockla
@@ -16,11 +18,11 @@ from drift.core import kltransform
 
 try:
     import bitshuffle.h5
+
     BITSHUFFLE_IMPORTED = True
 except ImportError:
     print("Error importing bitshuffle")
     BITSHUFFLE_IMPORTED = False
-
 
 
 def svd_gen(A, errmsg=None, *args, **kwargs):
@@ -136,7 +138,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
     return nullspace, spectrum
 
 
-class BeamTransfer(object):
+class BeamTransfer(config.Reader):
     """A class for reading and writing Beam Transfer matrices from disk.
 
     In addition this provides methods for projecting vectors and matrices
@@ -170,15 +172,17 @@ class BeamTransfer(object):
         that mode.
     """
 
-    _mem_switch = 2.0  # Rough chunks (in GB) to divide calculation into.
+    _mem_switch = config.Property(
+        proptype=float, default=2.0
+    )  # Rough chunks (in GB) to divide calculation into.
 
-    svcut = 1e-6
-    polsvcut = 1e-4
+    svcut = config.Property(proptype=float, default=1e-6)
+    polsvcut = config.Property(proptype=float, default=1e-4)
 
     # ====== Truncation options ======
-    truncate = (False and BITSHUFFLE_IMPORTED)
-    truncate_rel = 1e-7
-    truncate_maxl = 1e-8
+    truncate = config.Property(proptype=bool, default=BITSHUFFLE_IMPORTED)
+    truncate_rel = config.Property(proptype=float, default=1e-7)
+    truncate_maxl = config.Property(proptype=float, default=1e-8)
 
     # ====== Properties giving internal filenames =======
 
@@ -799,7 +803,7 @@ class BeamTransfer(object):
                 bit_truncate_max_complex(
                     m_array.reshape(-1, m_array.shape[-1]),
                     self.truncate_rel,
-                    self.truncate_maxl
+                    self.truncate_maxl,
                 )
 
             # Write out the current set of chunks into the m-files.

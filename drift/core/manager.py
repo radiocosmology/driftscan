@@ -229,6 +229,14 @@ class ProductManager(object):
         if "polsvcut" in yconf["config"]:
             self.beamtransfer.polsvcut = float(yconf["config"]["polsvcut"])
 
+        # Set the truncation parameters
+        if "truncate" in yconf["config"]:
+            self.beamtransfer.truncate = bool(yconf["config"]["truncate"])
+        if "truncate_rel" in yconf["config"]:
+            self.beamtransfer.truncate_rel = bool(yconf["config"]["truncate_rel"])
+        if "truncate_maxl" in yconf["config"]:
+            self.beamtransfer.truncate_maxl = bool(yconf["config"]["truncate_maxl"])
+
         if yconf["config"].get("beamtransfers"):
             self.gen_beams = True
 

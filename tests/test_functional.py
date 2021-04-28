@@ -42,7 +42,8 @@ def products_run(tmpdir_factory):
     else:
         _base = str(tmpdir_factory.mktemp("testdrift"))
 
-    # allow parallel tests with different python versions without them writing to the same files
+    # allow parallel tests with different python versions without them writing to the
+    # same files
     testdir = Path(f"{_base}/tmptestdir/python_{python_version()}")
 
     # If the data already exists then we don't need to re-run the tests

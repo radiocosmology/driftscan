@@ -21,12 +21,53 @@ def cli():
     "configfile",
     type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True),
 )
-def run(configfile):
+@click.option(
+    "--profile",
+    is_flag=True,
+    default=False,
+    help=(
+        "Run the job in a profiler. This will output a `profile_<rank>.prof` file per "
+        "MPI rank if using cProfile or `profile_<rank>.txt` file for pyinstrument."
+    ),
+)
+@click.option(
+    "--profiler",
+    type=click.Choice(["cProfile", "pyinstrument"], case_sensitive=False),
+    default="cProfile",
+    help="Set the profiler to use. Default is cProfile.",
+)
+def run(configfile, profile, profiler):
     """Immediately run the yaml formatted CONFIGFILE to generate products."""
     from drift.core import manager
 
+    if profile:
+        if profiler == "cProfile":
+            import cProfile
+
+            pr = cProfile.Profile()
+            pr.enable()
+        elif profiler == "pyinstrument":
+            from pyinstrument import Profiler
+
+            pr = Profiler()
+            pr.start()
+
     m = manager.ProductManager.from_config(configfile)
     m.generate()
+
+    if profile:
+
+        from caput import mpiutil
+
+        rank = mpiutil.rank
+
+        if profiler == "cProfile":
+            pr.disable()
+            pr.dump_stats("profile_%i.prof" % mpiutil.rank)
+        elif profiler == "pyinstrument":
+            pr.stop()
+            with open("profile_%i.txt" % rank, "w") as fh:
+                fh.write(pr.output_text(unicode=True))
 
 
 @cli.command()

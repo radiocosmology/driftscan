@@ -33,7 +33,7 @@ def polpattern(angpos, dipole):
     polvec[..., 1] = np.dot(phatp, dipole)
 
     # Normalise length to unity.
-    polvec = polvec * (np.sum(polvec ** 2, axis=-1) ** -0.5)[..., np.newaxis]
+    coord.norm_vec2(polvec)
 
     return polvec
 

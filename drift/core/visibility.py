@@ -3,6 +3,7 @@
 import numpy as np
 
 from cora.util import coord
+from ..util._fast_tools import fringe
 
 
 def uv_plane_cart(zenith):
@@ -122,34 +123,3 @@ def pol_IQU(sph_arr, zenith, feed1, feed2):
     pU = 0.5 * (f1_t * f2_p + f1_p * f2_t)  # U
 
     return pI, pQ, pU
-
-
-def fringe(sph_arr, zenith, baseline):
-    r"""The fringe for a specified baseline at each angular position.
-
-    Parameters
-    ----------
-    sph_arr : np.ndarray
-        Angular positions (in spherical polar co-ordinates).
-    zenith : np.ndarray
-        The zenith vector in spherical polar-coordinates.
-    baseline : array_like
-        The baseline to calculate, given in (u,v) coordinates.
-
-    Returns
-    -------
-    fringe : np.ndarray
-        The fringe.
-
-    Notes
-    -----
-    For each position :math:`\hat{n}` in `sph_arr` calculate:
-
-    .. math:: \exp{\left(2\pi i * \hat{n}\cdot u_{12}\right)}
-
-    """
-    uhatc, vhatc = uv_plane_cart(zenith)
-
-    uv = baseline[0] * uhatc + baseline[1] * vhatc
-
-    return np.exp(2j * np.pi * np.inner(coord.sph_to_cart(sph_arr), uv))

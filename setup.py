@@ -1,4 +1,9 @@
-from setuptools import setup, find_packages
+import sys
+
+from setuptools import setup, find_packages, Extension
+from Cython.Build import cythonize
+
+import numpy as np
 
 import versioneer
 
@@ -8,11 +13,29 @@ drift_data = {"drift.telescope": ["gmrtpositions.dat"]}
 with open("requirements.txt", "r") as fh:
     requires = fh.readlines()
 
+# Enable OpenMP support if available
+if sys.platform == "darwin":
+    compile_args = []
+    link_args = []
+else:
+    compile_args = ["-fopenmp"]
+    link_args = ["-fopenmp"]
+
+# Cython module for fast operations
+fast_ext = Extension(
+    "drift.util._fast_tools",
+    ["drift/util/_fast_tools.pyx"],
+    include_dirs=[np.get_include()],
+    extra_compile_args=compile_args,
+    extra_link_args=link_args,
+)
+
 setup(
     name="driftscan",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
+    ext_modules=cythonize([fast_ext]),
     install_requires=requires,
     package_data=drift_data,
     entry_points="""

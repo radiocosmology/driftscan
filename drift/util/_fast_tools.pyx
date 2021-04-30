@@ -5,12 +5,14 @@ import numpy as np
 cimport numpy
 
 from libc.stdlib cimport abort, malloc, free
-from libc.math cimport sin, cos, M_PI_2
 from libc.math cimport sin, cos, hypot, M_PI, M_PI_2
 
 from cora.util.coord import thetaphi_plane_cart
 
 ctypedef double complex complex128
+
+cdef extern from "complex.h" nogil:
+    complex128 conj(complex128)
 
 
 def fringe(sph_coords, zenith, baseline):
@@ -87,3 +89,154 @@ cdef inline void _s2c(double theta, double phi, double cart[3]) nogil:
     cart[0] = sintheta * cos(phi)
     cart[1] = sintheta * sin(phi)
     cart[2] = cos(theta)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _construct_pol_real(
+    double[:,  ::1] beami,
+    double[:, ::1] beamj,
+    complex128[::1] fringe,
+    double[::1] horizon
+):
+    # Fast function for constructing the beam transfer matrices if the beams are *real*
+
+    cdef Py_ssize_t i, n
+    cdef double om_i = 0
+    cdef double om_j = 0
+    cdef double t, prefactor
+    cdef complex128 tc
+
+    cdef complex128[:, ::1] bt_view
+
+    n = beami.shape[0]
+
+    assert beamj.shape[0] == n
+    assert fringe.shape[0] == n
+    assert horizon.shape[0] == n
+    assert beami.shape[1] == 2
+    assert beamj.shape[1] == 2
+
+    bt = np.empty((4, n), dtype=np.complex128)
+
+    bt_view = bt
+
+    for i in prange(n, nogil=True):
+        # Accumulate power in beam_i
+        t  = beami[i, 0] * beami[i, 0]
+        t += beami[i, 1] * beami[i, 1]
+        om_i += horizon[i] * t
+
+        # Accumulate power in beam_j
+        t  = beamj[i, 0] * beamj[i, 0]
+        t += beamj[i, 1] * beamj[i, 1]
+        om_j += horizon[i] * t
+
+    # Scale by pixel areas to get beam area integrals
+    om_i *= 4 * M_PI / n
+    om_j *= 4 * M_PI / n
+
+    prefactor = 1.0 / (om_i * om_j) ** 0.5
+
+    for i in prange(n, nogil=True):
+
+        tc = prefactor * fringe[i] * horizon[i]
+
+        # Stokes I response
+        bt_view[0, i] = tc * (
+            beami[i, 0] * beamj[i, 0] + beami[i, 1] * beamj[i, 1]
+        )
+
+        # Stokes Q response
+        bt_view[1, i] = tc * (
+            beami[i, 0] * beamj[i, 0] - beami[i, 1] * beamj[i, 1]
+        )
+
+        # Stokes U response
+        bt_view[2, i] = tc * (
+            beami[i, 0] * beamj[i, 1] + beami[i, 1] * beamj[i, 0]
+        )
+        # Stokes V response
+        bt_view[3, i] = 1j * tc * (
+            beami[i, 0] * beamj[i, 1] - beami[i, 1] * beamj[i, 0]
+        )
+
+    return bt
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _construct_pol_complex(
+    complex128[:,  ::1] beami,
+    complex128[:, ::1] beamj,
+    complex128[::1] fringe,
+    double[::1] horizon
+):
+    # Fast function for constructing the beam transfer matrices if the beams are
+    # *complex*
+
+    cdef Py_ssize_t i, n
+    cdef double om_i = 0
+    cdef double om_j = 0
+    cdef double t, prefactor
+    cdef complex128 tc
+
+    cdef complex128[:, ::1] bt_view
+
+    n = beami.shape[0]
+
+    assert beamj.shape[0] == n
+    assert fringe.shape[0] == n
+    assert horizon.shape[0] == n
+    assert beami.shape[1] == 2
+    assert beamj.shape[1] == 2
+
+    bt = np.empty((4, n), dtype=np.complex128)
+
+    bt_view = bt
+
+    for i in prange(n, nogil=True):
+        # Accumulate power in beam_i
+        t  = beami[i, 0].real * beami[i, 0].real
+        t += beami[i, 0].imag * beami[i, 0].imag
+        t += beami[i, 1].real * beami[i, 1].real
+        t += beami[i, 1].imag * beami[i, 1].imag
+        om_i += horizon[i] * t
+
+        # Accumulate power in beam_j
+        t  = beamj[i, 0].real * beamj[i, 0].real
+        t += beamj[i, 0].imag * beamj[i, 0].imag
+        t += beamj[i, 1].real * beamj[i, 1].real
+        t += beamj[i, 1].imag * beamj[i, 1].imag
+        om_j += horizon[i] * t
+
+    # Scale by pixel areas to get beam area integrals
+    om_i *= 4 * M_PI / n
+    om_j *= 4 * M_PI / n
+
+    prefactor = 1.0 / (om_i * om_j) ** 0.5
+
+    for i in prange(n, nogil=True):
+
+        tc = prefactor * fringe[i] * horizon[i]
+
+        # Stokes I response
+        bt_view[0, i] = tc * (
+            beami[i, 0] * conj(beamj[i, 0]) + beami[i, 1] * conj(beamj[i, 1])
+        )
+
+        # Stokes Q response
+        bt_view[1, i] = tc * (
+            beami[i, 0] * conj(beamj[i, 0]) - beami[i, 1] * conj(beamj[i, 1])
+        )
+
+        # Stokes U response
+        bt_view[2, i] = tc * (
+            beami[i, 0] * conj(beamj[i, 1]) + beami[i, 1] * conj(beamj[i, 0])
+        )
+        # Stokes V response
+        bt_view[3, i] = 1j * tc * (
+            beami[i, 0] * conj(beamj[i, 1]) - beami[i, 1] * conj(beamj[i, 0])
+        )
+
+    return bt

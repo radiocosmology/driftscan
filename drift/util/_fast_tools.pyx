@@ -5,7 +5,7 @@ import numpy as np
 cimport numpy
 
 from libc.stdlib cimport abort, malloc, free
-from libc.math cimport sin, cos, hypot, M_PI, M_PI_2
+from libc.math cimport sin, cos, tan, exp, hypot, M_PI, M_PI_2, M_LN2
 
 from cora.util.coord import thetaphi_plane_cart
 
@@ -240,3 +240,39 @@ def _construct_pol_complex(
         )
 
     return bt
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def beam_exptan(double[::1] sintheta, double fwhm):
+    """ExpTan beam.
+
+    Parameters
+    ----------
+    sintheta : array_like
+        Array of sin(angles) to return beam at.
+    fwhm : scalar
+        Beam width at half power (note that the beam returned is amplitude) as an
+        angle (not sin(angle)).
+
+    Returns
+    -------
+    beam : array_like
+        The amplitude beam at each requested angle.
+    """
+    cdef double tan2, alpha
+    cdef double[::1] et_view
+    cdef Py_ssize_t i, n
+
+    et = np.empty_like(sintheta)
+    et_view = et
+
+    alpha = M_LN2 / (2 * tan(fwhm / 2.0) ** 2)
+
+    n = sintheta.shape[0]
+    for i in prange(n, nogil=True):
+        tan2 = sintheta[i]**2 / (1 - sintheta[i]**2 + 1e-100)
+        et_view[i] = exp(-alpha * tan2)
+
+    return et

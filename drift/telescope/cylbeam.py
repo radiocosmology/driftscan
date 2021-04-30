@@ -81,15 +81,16 @@ def beam_dipole(theta, phi, squint):
     )
 
 
-def beam_exptan(theta, fwhm):
+def beam_exptan(sintheta, fwhm):
     """ExpTan beam.
 
     Parameters
     ----------
-    theta : array_like
-        Array of angles to return beam at.
+    sintheta : array_like
+        Array of sin(angles) to return beam at.
     fwhm : scalar
-        Beam width at half power (note that the beam returned is amplitude).
+        Beam width at half power (note that the beam returned is amplitude) as an
+        angle (not sin(angle)).
 
     Returns
     -------
@@ -98,7 +99,9 @@ def beam_exptan(theta, fwhm):
     """
     alpha = np.log(2.0) / (2 * np.tan(fwhm / 2.0) ** 2)
 
-    return np.exp(-alpha * np.tan(theta) ** 2)
+    tan2 = sintheta**2 / (1 - sintheta**2 + 1e-100)
+
+    return np.exp(-alpha * tan2)
 
 
 def fraunhofer_cylinder(antenna_func, width, res=1.0):
@@ -107,8 +110,8 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
 
     Parameters
     ----------
-    antenna_func : function(theta) -> amplitude
-        Function describing the antenna amplitude pattern as a function of angle.
+    antenna_func : function(sintheta) -> amplitude
+        Function describing the antenna amplitude pattern as a function of sin(angle).
     width : scalar
         Cylinder width in wavelengths.
     res : scalar, optional
@@ -125,7 +128,7 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
 
     ua = -1.0 * np.linspace(-1.0, 1.0, num, endpoint=False)[::-1]
 
-    ax = antenna_func(2 * np.arctan(ua))
+    ax = antenna_func(2 * ua / (1 + ua**2))
 
     axe = np.zeros(res * num)
 
@@ -177,7 +180,7 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     horizon = (np.dot(cvec, coord.sph_to_cart(zenith)) > 0.0).astype(np.float64)
 
     ew_amp = beampat(np.dot(cvec, xhat))
-    ns_amp = yplane(np.arcsin(np.dot(cvec, yhat)))
+    ns_amp = yplane(np.dot(cvec, yhat))
 
     return ew_amp * ns_amp * horizon
 

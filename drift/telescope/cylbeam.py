@@ -107,7 +107,7 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
 
     ua = -1.0 * np.linspace(-1.0, 1.0, num, endpoint=False)[::-1]
 
-    ax = antenna_func(2 * ua / (1 + ua**2))
+    ax = antenna_func(2 * ua / (1 + ua ** 2))
 
     axe = np.zeros(res * num)
 

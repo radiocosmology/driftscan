@@ -751,10 +751,10 @@ class BeamTransfer(config.Reader):
 
             # Rotate indices to get a better distribution of work between ranks
             fb_ind_chunk = np.concatenate(
-                [fb_ind_chunk[i::mpiutil.size] for i in range(mpiutil.size)]
+                [fb_ind_chunk[i :: mpiutil.size] for i in range(mpiutil.size)]
             )
 
-            #fb_ind = list(range(fbstart + loc_start, fbstart + loc_end))
+            # fb_ind = list(range(fbstart + loc_start, fbstart + loc_end))
             fb_ind = fb_ind_chunk[loc_start:loc_end]
 
             # Extract the local frequency and baselines indices
@@ -820,7 +820,7 @@ class BeamTransfer(config.Reader):
             for lmi, mi in enumerate(range(sm, em)):
 
                 # Open up correct m-file
-                with h5py.File(self._mfile(mi), "r+") as mfile:
+                with h5py.File(self._mfile(mi), "r+", rcc_nbytes=(1 << 27)) as mfile:
 
                     # Lookup where to write Beam Transfers and write into file.
                     for fbl, fbi in enumerate(fb_ind_chunk):

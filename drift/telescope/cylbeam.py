@@ -2,6 +2,8 @@ import numpy as np
 
 from cora.util import coord, cubicspline
 
+from ..util._fast_tools import beam_exptan
+
 
 def polpattern(angpos, dipole):
     """Calculate the unit polarisation vectors at each position on the sphere
@@ -79,29 +81,6 @@ def beam_dipole(theta, phi, squint):
     return (1 - np.sin(theta) ** 2 * np.sin(phi) ** 2) ** (squint / 2) * np.sin(
         0.5 * np.pi * np.cos(theta)
     )
-
-
-def beam_exptan(sintheta, fwhm):
-    """ExpTan beam.
-
-    Parameters
-    ----------
-    sintheta : array_like
-        Array of sin(angles) to return beam at.
-    fwhm : scalar
-        Beam width at half power (note that the beam returned is amplitude) as an
-        angle (not sin(angle)).
-
-    Returns
-    -------
-    beam : array_like
-        The amplitude beam at each requested angle.
-    """
-    alpha = np.log(2.0) / (2 * np.tan(fwhm / 2.0) ** 2)
-
-    tan2 = sintheta**2 / (1 - sintheta**2 + 1e-100)
-
-    return np.exp(-alpha * tan2)
 
 
 def fraunhofer_cylinder(antenna_func, width, res=1.0):

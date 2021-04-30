@@ -142,6 +142,11 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
     fx = np.fft.fftshift(fx) / fx.max()
     kx = np.fft.fftshift(kx)
 
+    # Trim to the value within the valid range of sin(theta) =< 1, plus a little bit so
+    # the edges are well defined
+    fx = fx[np.abs(kx) < 1.1]
+    kx = kx[np.abs(kx) < 1.1]
+
     return cubicspline.Interpolater(kx, fx)
 
 

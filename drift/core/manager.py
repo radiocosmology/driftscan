@@ -1,5 +1,6 @@
 """Manage access to and generation of driftscan analysis products."""
 
+import logging
 import os.path
 import warnings
 
@@ -19,6 +20,9 @@ from drift.core import beamtransfer
 from drift.core import kltransform, doublekl
 from drift.core import psestimation, psmc, crosspower
 from drift.core import skymodel
+
+
+logger = logging.getLogger(__name__)
 
 
 teltype_dict = {
@@ -71,7 +75,7 @@ def _resolve_class(clstype, clsdict, objtype=""):
     elif clstype in clsdict:
         cls_ref = clsdict[clstype]
     else:
-        raise Exception("Unsupported %s" % objtype)
+        raise Exception(f"Unsupported {objtype}")
 
     return cls_ref
 
@@ -199,7 +203,7 @@ class ProductManager(object):
         self.directory = os.path.expandvars(self.directory)
 
         if mpiutil.rank0:
-            print("Product directory:", self.directory)
+            logger.info(f"Product directory: {self.directory}")
 
         ## Telescope configuration
         teltype = yconf["telescope"]["type"]
@@ -266,9 +270,7 @@ class ProductManager(object):
                 psclass = _resolve_class(pstype, pstype_dict, "PS estimator")
 
                 if klname not in self.kltransforms:
-                    warnings.warn(
-                        "Desired KL object (name: %s) does not exist." % klname
-                    )
+                    warnings.warn(f"Desired KL object (name: {klname}) does not exist.")
                     self.psestimators[psname] = None
                 else:
                     self.psestimators[psname] = psclass.from_config(
@@ -302,8 +304,4 @@ class ProductManager(object):
                 psobj.delbands()
 
         if mpiutil.rank0:
-            print("========================================")
-            print("=                                      =")
-            print("=           DONE AT LAST!!             =")
-            print("=                                      =")
-            print("========================================")
+            logger.info("DONE GENERATING PRODUCTS")

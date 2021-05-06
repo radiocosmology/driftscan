@@ -1,4 +1,5 @@
 import abc
+import logging
 
 import numpy as np
 
@@ -9,6 +10,10 @@ from cora.util import hputil, units
 
 from . import visibility
 from ..util._fast_tools import _construct_pol_real, _construct_pol_complex
+
+
+# Create logger object
+logger = logging.getLogger(__name__)
 
 
 def in_range(arr, min, max):
@@ -691,7 +696,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         # Generate the array for the Transfer functions
 
         tshape = bl_indices.shape + (self.num_pol_sky, lside + 1, 2 * lside + 1)
-        print(
+        logger.info(
             "Size: %i elements. Memory %f GB."
             % (np.prod(tshape), 2 * np.prod(tshape) * 8.0 / 2 ** 30)
         )

@@ -1,6 +1,7 @@
 """Estimate powerspectra and forecast constraints from real data."""
 
 import os
+import logging
 import abc
 import time
 
@@ -16,6 +17,10 @@ from drift.core import skymodel
 from drift.util import util
 
 from mpi4py import MPI
+
+
+# Get logger for the module
+logger = logging.getLogger(__name__)
 
 
 def uniform_band(k, kstart, kend):
@@ -256,7 +261,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         and the angular powerspectrum.
         """
 
-        print("Generating bands...")
+        logger.info("Generating bands...")
 
         cr = corr21cm.Corr21cm()
         cr.ps_2d = False
@@ -328,7 +333,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             self.band_func = [bandfunc_2d_cart(*bound) for bound in bounds]
 
         else:
-            raise Exception("Bandtype %s is not supported." % self.bandtype)
+            raise Exception(f"Bandtype {self.bandtype} is not supported.")
 
         # Create a list of functions of the band power functions
         if self.unit_bands:
@@ -347,7 +352,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
             self.make_clzz_array()
 
-        print("Done.")
+        logger.info("Done.")
 
     def make_clzz(self, pk):
         """Make an angular powerspectrum from the input matter powerspectrum.
@@ -375,7 +380,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             temponly=True,
         )
 
-        print("Rank: %i - Finished making band." % mpiutil.rank)
+        logger.info(f"Rank: {mpiutil.rank} - Finished making band.")
         return clzz
 
     def make_clzz_array(self):
@@ -426,12 +431,12 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         """
 
         if self.num_evals(mi) > 0:
-            print("Making fisher (for m=%i)." % mi)
+            logger.info(f"Making fisher (for m={mi}).")
 
             fisher, bias = self._work_fisher_bias_m(mi)
 
         else:
-            print("No evals (for m=%i), skipping." % mi)
+            logger.info(f"No evals (for m={mi}), skipping.")
 
             fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
             bias = np.zeros((self.nbands,), dtype=np.complex128)
@@ -473,12 +478,12 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
         if mpiutil.rank0:
             st = time.time()
-            print("======== Starting PS calculation ========")
+            logger.info("======== Starting PS calculation ========")
 
         ffile = self.psdir + "/fisher.hdf5"
 
         if os.path.exists(ffile) and not regen:
-            print("Fisher matrix file: %s exists. Skipping..." % ffile)
+            logger.info(f"Fisher matrix file: {ffile} exists. Skipping...")
             return
 
         mpiutil.barrier()
@@ -511,7 +516,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         # Write out all the PS estimation products
         if mpiutil.rank0:
             et = time.time()
-            print("======== Ending PS calculation (time=%f) ========" % (et - st))
+            logger.info(f"======== Ending PS calculation (time={et - st:f}) ========")
 
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
@@ -720,7 +725,7 @@ class PSExact(PSEstimation):
             self._bp_cache = []
 
         for i in range(len(self.clarray)):
-            print("Generating cache for m=%i band=%i" % (mi, i))
+            logger.info(f"Generating cache for m={mi} band={i}")
             projm = self.makeproj(mi, i)
 
             ## Don't generate cache for small enough matrices
@@ -728,7 +733,7 @@ class PSExact(PSEstimation):
                 self._bp_cache.append(projm)
 
             else:
-                print("Creating cache file:" + self._cfile % (mi, i))
+                logger.info(f"Creating cache file: {self._cfile % (mi, i)}")
                 f = h5py.File(self._cfile % (mi, i), "w")
                 f.create_dataset("proj", data=projm)
                 f.close()
@@ -749,7 +754,7 @@ class PSExact(PSEstimation):
 
             fn = self._cfile % (mi, i)
             if os.path.exists(fn):
-                print("Deleting cache file:" + fn)
+                logger.info("Deleting cache file:" + fn)
                 os.remove(self._cfile % (mi, i))
 
     def getproj(self, mi, bi):

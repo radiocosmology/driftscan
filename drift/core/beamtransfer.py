@@ -170,6 +170,8 @@ class BeamTransfer(config.Reader):
     truncate_maxl : float
         The truncation precision to use relative the maximum value for all l's of
         that mode.
+    chunk_cache_size : int
+        The size of the per m-file HDF5 chunk cache. Default is 128 MB.
     """
 
     _mem_switch = config.Property(
@@ -179,10 +181,11 @@ class BeamTransfer(config.Reader):
     svcut = config.Property(proptype=float, default=1e-6)
     polsvcut = config.Property(proptype=float, default=1e-4)
 
-    # ====== Truncation options ======
+    # ====== Beam transfer file options ======
     truncate = config.Property(proptype=bool, default=BITSHUFFLE_IMPORTED)
     truncate_rel = config.Property(proptype=float, default=1e-7)
     truncate_maxl = config.Property(proptype=float, default=1e-8)
+    chunk_cache_size = config.Property(proptype=int, default=128)
 
     # ====== Properties giving internal filenames =======
 
@@ -820,7 +823,9 @@ class BeamTransfer(config.Reader):
             for lmi, mi in enumerate(range(sm, em)):
 
                 # Open up correct m-file
-                with h5py.File(self._mfile(mi), "r+", rcc_nbytes=(1 << 27)) as mfile:
+                with h5py.File(
+                    self._mfile(mi), "r+", rdcc_nbytes=(self.chunk_cache_size << 20)
+                ) as mfile:
 
                     # Lookup where to write Beam Transfers and write into file.
                     for fbl, fbi in enumerate(fb_ind_chunk):

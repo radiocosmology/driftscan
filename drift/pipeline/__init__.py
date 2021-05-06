@@ -11,3 +11,10 @@ and sophisticated.
     pipeline
     timestream
 """
+
+import warnings
+
+warnings.warn(
+    "This pipeline code is deprecated and will be removed. Use draco instead.",
+    DeprecationWarning,
+)

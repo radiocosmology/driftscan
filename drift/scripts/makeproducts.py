@@ -271,7 +271,7 @@ cd %(workdir)s
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s run %(configpath)s &> %(logpath)s
+srun python %(scriptpath)s run %(configpath)s &> %(logpath)s
 """
 
 script_templates = {}

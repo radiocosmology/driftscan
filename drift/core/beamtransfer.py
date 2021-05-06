@@ -1,5 +1,6 @@
 """Calculation and management of Beam Transfer matrices"""
 
+import logging
 import pickle
 import os
 import time
@@ -16,12 +17,17 @@ from caput.truncate import bit_truncate_max_complex
 from drift.util import util, blockla
 from drift.core import kltransform
 
+
+# Get the logger object
+logger = logging.getLogger(__name__)
+
+
 try:
     import bitshuffle.h5
 
     BITSHUFFLE_IMPORTED = True
 except ImportError:
-    print("Error importing bitshuffle")
+    logger.warn("Error importing bitshuffle")
     BITSHUFFLE_IMPORTED = False
 
 
@@ -47,13 +53,13 @@ def svd_gen(A, errmsg=None, *args, **kwargs):
         try:
             res = la.svd(At, *args, **kwargs)
         except la.LinAlgError as e:
-            print("Failed completely. %s" % errmsg)
+            logger.error("Failed completely.", exc_info=e)
             raise e
 
         if errmsg is None:
-            print("Matrix SVD did not converge. Regularised.")
+            logger.info("Matrix SVD did not converge. Regularised.")
         else:
-            print("Matrix SVD did not converge (%s)." % errmsg)
+            logger.warn(f"Matrix SVD did not converge ({errmsg}).")
 
     return res
 
@@ -71,7 +77,7 @@ def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
 
     except la.LinAlgError as e:
         # Try QR with pivoting
-        print("SVD1 not converged. %s" % errmsg)
+        logger.info(f"SVD1 not converged. {errmsg}")
 
         q, r, p = la.qr(A, pivoting=True, mode="economic")
 
@@ -83,7 +89,7 @@ def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
             spectrum = s
 
         except la.LinAlgError as e:
-            print("SVD2 not converged. %s" % errmsg)
+            logger.warn("SVD2 not converged." % errmsg, exc_info=e)
 
             image = q
             spectrum = np.abs(r.diagonal())
@@ -111,7 +117,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
 
     except la.LinAlgError as e:
         # Try QR with pivoting
-        print("SVD1 not converged. %s" % errmsg)
+        logger.info(f"SVD1 not converged. {errmsg}")
 
         q, r, p = la.qr(A, pivoting=True, mode="full")
 
@@ -123,7 +129,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
             spectrum = s
 
         except la.LinAlgError as e:
-            print("SVD2 not converged. %s" % errmsg)
+            logger.warn(f"SVD2 not converged. {errmsg}", exc_info=e)
 
             nullspace = q
             spectrum = np.abs(r.diagonal())
@@ -244,13 +250,13 @@ class BeamTransfer(config.Reader):
         mpiutil.barrier()
 
         if self.telescope is None:
-            print("Attempting to read telescope from disk...")
+            logger.info("Attempting to read telescope from disk...")
 
             try:
                 with open(self._picklefile, "rb") as f:
                     self.telescope = pickle.load(f)
-            except (IOError, pickle.UnpicklingError):
-                raise Exception("Could not load Telescope object from disk.")
+            except (IOError, pickle.UnpicklingError) as e:
+                raise RuntimeError("Could not load Telescope object from disk.") from e
 
     # ===================================================
 
@@ -542,7 +548,7 @@ class BeamTransfer(config.Reader):
         # Save pickled telescope object
         if mpiutil.rank0:
             with open(self._picklefile, "wb") as f:
-                print("=== Saving Telescope object. ===")
+                logger.info("Saving Telescope object.")
                 pickle.dump(self.telescope, f)
 
         self._generate_mfiles(regen)
@@ -556,7 +562,7 @@ class BeamTransfer(config.Reader):
         et = time.time()
 
         if mpiutil.rank0:
-            print("***** Beam generation time: %f" % (et - st))
+            logger.info(f"Beam generation time: {et - st:f}")
 
     generate_cache = generate  # For compatibility with old code
 
@@ -587,12 +593,12 @@ class BeamTransfer(config.Reader):
         for fi in mpiutil.mpirange(self.nfreq):
 
             if os.path.exists(self._ffile(fi)) and not regen:
-                print(
-                    "f index %i. File: %s exists. Skipping..." % (fi, (self._ffile(fi)))
+                logger.info(
+                    f"f index {fi}. File: {self._ffile(fi)} exists. Skipping..."
                 )
                 continue
             else:
-                print("f index %i. Creating file: %s" % (fi, (self._ffile(fi))))
+                logger.info(f"f index {fi}. Creating file: {self._ffile(fi)}")
 
             f = h5py.File(self._ffile(fi), "w")
 
@@ -626,7 +632,7 @@ class BeamTransfer(config.Reader):
                 np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self._mem_switch)
             )
 
-            print(
+            logger.info(
                 "Dividing calculation of %f GB array into %i sections."
                 % (np.prod(dsize) * 16.0 / 2 ** 30.0, nsections)
             )
@@ -640,7 +646,7 @@ class BeamTransfer(config.Reader):
 
             # Iterate over each section, generating transfers and save them.
             for si in range(nsections):
-                print("Calculating section %i of %i...." % (si, nsections))
+                logger.info(f"Calculating section {int(si)} of {int(nsections)}....")
                 b_ind, f_ind = b_sec[si], f_sec[si]
                 tarray = self.telescope.transfer_matrices(b_ind, f_ind)
                 dset[
@@ -660,7 +666,7 @@ class BeamTransfer(config.Reader):
 
         if os.path.exists(self.directory + "/beam_m/COMPLETED") and not regen:
             if mpiutil.rank0:
-                print("******* m-files already generated ********")
+                logger.info("m-files already generated")
             return
 
         st = time.time()
@@ -686,7 +692,7 @@ class BeamTransfer(config.Reader):
         )  # Number of chunks to break the calculation into
 
         if mpiutil.rank0:
-            print("Splitting into %i chunks...." % num_chunks)
+            logger.info(f"Splitting into {int(num_chunks)} chunks....")
 
         # The local m sections
         lm, sm, em = mpiutil.split_local(self.telescope.mmax + 1)
@@ -703,8 +709,8 @@ class BeamTransfer(config.Reader):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._mfile(mi)) and not regen:
-                print(
-                    "m index %i. File: %s exists. Skipping..." % (mi, (self._mfile(mi)))
+                logger.info(
+                    f"m index {mi}. File: {self._mfile(mi)} exists. Skipping..."
                 )
                 continue
 
@@ -741,7 +747,7 @@ class BeamTransfer(config.Reader):
         for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
 
             if mpiutil.rank0:
-                print("Starting chunk %i of %i" % (ci + 1, num_chunks))
+                logger.info(f"Starting chunk {int(ci + 1)} of {int(num_chunks)}")
 
             # Unpack freq-baselines range into num, start and end
             fbnum, fbstart, fbend = fbrange
@@ -791,7 +797,7 @@ class BeamTransfer(config.Reader):
                 del tarray
 
             if mpiutil.rank0:
-                print("Transposing and writing chunk.")
+                logger.info("Transposing and writing chunk.")
 
             # Perform an in memory MPI transpose to get the m-ordered array
             m_array = mpiutil.transpose_blocks(
@@ -845,7 +851,7 @@ class BeamTransfer(config.Reader):
             open(self.directory + "/beam_m/COMPLETED", "a").close()
 
             # Print out timing
-            print("=== MPI transpose took %f s ===" % (et - st))
+            logger.info(f"=== MPI transpose took {et - st:f} s ===")
 
     def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
 
@@ -868,15 +874,15 @@ class BeamTransfer(config.Reader):
                         fs = h5py.File(self._svdfile(mi), "r")
                         fs.close()
 
-                        print(
-                            "m index %i. Complete file: %s exists. Skipping..."
-                            % (mi, (self._svdfile(mi)))
+                        logger.info(
+                            f"m index {mi}. Complete file: {self._svdfile(mi)} exists."
+                            "Skipping..."
                         )
                         m_list[mi] = -1
                     except Exception:
-                        print(
-                            "m index %i. ***INCOMPLETE file: %s exists. Will regenerate..."
-                            % (mi, (self._svdfile(mi)))
+                        logger.info(
+                            f"m index {mi}. ***INCOMPLETE file: {self._svdfile(mi)} "
+                            "exists. Will regenerate..."
                         )
 
             # Reduce m_list to the m's that we need to compute
@@ -887,15 +893,12 @@ class BeamTransfer(config.Reader):
 
         # Print m list
         if mpiutil.rank0:
-            print("****************")
-            print("m's remaining in beam SVD computation:")
-            print(m_list)
-            print("****************")
+            logger.info(f"m's remaining in beam SVD computation: {m_list}")
         mpiutil.barrier()
 
         # Distribute m list over tasks, and do computations
         for mi in mpiutil.partition_list_mpi(m_list):
-            print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+            logger.info(f"m index {mi}. Creating SVD file: {self._svdfile(mi)}")
             self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
@@ -1073,11 +1076,12 @@ class BeamTransfer(config.Reader):
                                 ibeam = la.pinv(beam)
                             except la.LinAlgError as e:
                                 # If la.pinv fails, try la.pinv2, which is SVD-based and
-                                # more likely to succeed. If successful, add file attribute
+                                # more likely to succeed. If successful, add file
+                                # attribute
                                 # indicating pinv2 was used for this frequency.
-                                print(
-                                    "***Beam-SVD pesudoinverse (scipy.linalg.pinv) failure: m = %d, fi = %d. Trying pinv2..."
-                                    % (mi, fi)
+                                logger.info(
+                                    "***Beam-SVD pesudoinverse (scipy.linalg.pinv) "
+                                    f"failure: m = {mi}, fi = {fi}. Trying pinv2..."
                                 )
                                 try:
                                     ibeam = la.pinv2(beam)
@@ -1616,13 +1620,12 @@ class BeamTransferTempSVD(BeamTransfer):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
-                    "m index %i. File: %s exists. Skipping..."
-                    % (mi, (self._svdfile(mi)))
+                logger.info(
+                    f"m index {mi}. File: {self._svdfile(mi)} exists. Skipping..."
                 )
                 continue
             else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                logger.info(f"m index {mi}. Creating SVD file: {self._svdfile(mi)}")
 
             # Open file to write SVD results into.
             with h5py.File(self._svdfile(mi), "w") as fs:
@@ -1758,13 +1761,12 @@ class BeamTransferFullSVD(BeamTransfer):
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
 
             if os.path.exists(self._svdfile(mi)) and not regen:
-                print(
-                    "m index %i. File: %s exists. Skipping..."
-                    % (mi, (self._svdfile(mi)))
+                logger.info(
+                    f"m index {mi}. File: {self._svdfile(mi)} exists. Skipping..."
                 )
                 continue
             else:
-                print("m index %i. Creating SVD file: %s" % (mi, self._svdfile(mi)))
+                logger.info(f"m index {mi}. Creating SVD file: {self._svdfile(mi)}")
 
             # Open file to write SVD results into
             with h5py.File(self._svdfile(mi), "w") as fs:

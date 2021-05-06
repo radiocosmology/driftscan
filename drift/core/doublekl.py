@@ -1,3 +1,4 @@
+import logging
 import os
 
 import numpy as np
@@ -6,6 +7,10 @@ import h5py
 from caput import mpiutil, config
 
 from drift.core import kltransform
+
+
+# Get logger for module
+logger = logging.getLogger(__name__)
 
 
 class DoubleKL(kltransform.KLTransform):
@@ -107,7 +112,7 @@ class DoubleKL(kltransform.KLTransform):
             return ta
 
         if mpiutil.rank0:
-            print("Creating eigenvalues file (process 0 only).")
+            logger.info("Creating eigenvalues file (process 0 only).")
 
         mlist = list(range(self.telescope.mmax + 1))
         shape = (2, self.beamtransfer.ndofmax)
@@ -115,11 +120,12 @@ class DoubleKL(kltransform.KLTransform):
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
-            if os.path.exists(self.evdir + "/evals.hdf5"):
-                print("File: %s exists. Skipping..." % (self.evdir + "/evals.hdf5"))
+            fname = self.evdir + "/evals.hdf5"
+            if os.path.exists(fname):
+                logger.info("File: {fname} exists. Skipping...")
                 return
 
-            f = h5py.File(self.evdir + "/evals.hdf5", "w")
+            f = h5py.File(fname, "w")
             f.create_dataset("evals", data=evarray[:, 0])
             f.create_dataset("f_evals", data=evarray[:, 1])
             f.close()

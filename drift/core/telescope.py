@@ -490,7 +490,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         )
 
     def _make_ew(self):
-        # Reorder baselines pairs, such that the baseline vector always points E (or pure N)
+        # Reorder baselines pairs, such that the baseline vector always points E (or
+        # pure N)
 
         tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
         uniq = _get_indices(self._feedmap, mask=tmask)
@@ -519,10 +520,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         # Construct array of baseline separations in complex representation
         bl1 = self.feedpositions[f_ind[0]] - self.feedpositions[f_ind[1]]
         bl2 = np.around(bl1[..., 0] + 1.0j * bl1[..., 1], self._bl_tol)
-
-        # Flip sign if required to get common direction to correctly find redundant baselines
-        # flip_sign = np.logical_or(bl2.real < 0.0, np.logical_and(bl2.real == 0, bl2.imag < 0))
-        # bl2 = np.where(flip_sign, -bl2, bl2)
 
         # Construct array of baseline lengths
         blen = np.sum(bl1 ** 2, axis=-1) ** 0.5
@@ -1010,11 +1007,28 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     are the `feedpositions`, `_get_unique` and the `beam` function, as well
     as the polarization property.
 
+    Attributes
+    ----------
+    skip_V : bool, optional
+        Omit calculation of Stokes V transfer function to a mild computational
+        saving.  As there is almost no Stokes V emission on the sky this is a
+        reasonable trade off.  The entries are left in the transfer matrices, but
+        they will be filled with zeros.
+    skip_pol
+        Omit calculation of Stokes Q, U and V for a large computational saving.  This
+        means that the effect of the (large) polarized signal from the sky will not
+        be correctly calculated.  Only do this if you are *really* sure it's what you
+        want.  The entries are left in the transfer matrices, but they will be filled
+        with zeros.
+
     Methods
     -------
     beam : methods
         (abstract method) Routines giving the field pattern for the x and y feeds.
     """
+
+    skip_V = config.Property(proptype=bool, default=False)
+    skip_pol = config.Property(proptype=bool, default=False)
 
     _npol_sky_ = 4
 
@@ -1055,14 +1069,30 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))
 
-        bmap = self._beam_map_single(bl_index, f_index)
+        # Fetch and conjugate the beam maps
+        bmap = self._beam_map_single(bl_index, f_index).conj()
 
-        btrans = [
-            pb.conj()
-            for pb in hputil.sphtrans_complex_pol(
-                [bm.conj() for bm in bmap], centered=False, lmax=int(lmax), lside=lside
+        btrans = np.zeros(
+            (self._npol_sky_, lside + 1, 2 * lside + 1), dtype=np.complex128
+        )
+
+        if self.skip_pol:
+            # Perform the SHTs of the beam maps, only process Stokes I
+            btrans[0] = hputil.sphtrans_complex(
+                bmap[0], lmax=lmax, lside=lside, centered=False
+            ).conj()
+        else:
+            # Perform the SHTs of the beam maps, potentially skipping Stokes V
+            npol = 3 if self.skip_V else 4
+
+            # Copy over output, this works around the fact that older versions of cora
+            # return a list of maps
+            # TODO: switch to simple array assignment when cora has been fixed up
+            t = hputil.sphtrans_complex_pol(
+                bmap[:npol], centered=False, lmax=lmax, lside=lside
             )
-        ]
+            for pi in range(npol):
+                btrans[pi] = t[pi].conj()
 
         return btrans
 

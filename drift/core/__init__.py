@@ -9,7 +9,6 @@ Core functionality for driftscan modelling.
     doublekl
     kltransform
     manager
-    projection
     psestimation
     psmc
     skymodel

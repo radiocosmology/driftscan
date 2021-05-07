@@ -47,6 +47,26 @@ def run(configfile, profile, profiler):
     """Immediately run the yaml formatted CONFIGFILE to generate products."""
     from drift.core import manager
 
+    # Add a useful filter for the logging
+    # TODO: patch the levels into the config file, or command line options
+    filt = mpiutil.MPILogFilter(level_all=logging.INFO, level_rank0=logging.INFO)
+
+    # Set a useful logging format
+    size = mpiutil.size
+    rank_length = int(math.log10(size)) + 1
+    mpi_fmt = f"[MPI %(mpi_rank){rank_length}d/%(mpi_size){rank_length}d]"
+    formatter = logging.Formatter(
+        "%(elapsedTime)8.1fs " + mpi_fmt + " - %(levelname)-8s %(name)s: %(message)s"
+    )
+
+    # Connect the logging together
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level=logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.addFilter(filt)
+    ch.setFormatter(formatter)
+    root_logger.addHandler(ch)
+
     # Generate all the products, potentially while profiling
     with Profiler(profile, profiler=profiler):
         m = manager.ProductManager.from_config(configfile)

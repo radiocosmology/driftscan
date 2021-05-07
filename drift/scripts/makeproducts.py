@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
+import logging
+import math
+
 import click
+
+from caput import mpiutil
+from caput.profile import Profiler
+
 
 products = None
 
@@ -9,8 +16,8 @@ products = None
 def cli():
     """Generate data to allow modelling and analysis of driftscan interferometers.
 
-    This command can take a configuration file (in yaml format) describing the telescope to
-    simulate and generate products such as beam transfer matrices, KL
+    This command can take a configuration file (in yaml format) describing the
+    telescope to simulate and generate products such as beam transfer matrices, KL
     foreground filters and power spectrum estimators.
     """
     pass
@@ -40,34 +47,10 @@ def run(configfile, profile, profiler):
     """Immediately run the yaml formatted CONFIGFILE to generate products."""
     from drift.core import manager
 
-    if profile:
-        if profiler == "cProfile":
-            import cProfile
-
-            pr = cProfile.Profile()
-            pr.enable()
-        elif profiler == "pyinstrument":
-            from pyinstrument import Profiler
-
-            pr = Profiler()
-            pr.start()
-
-    m = manager.ProductManager.from_config(configfile)
-    m.generate()
-
-    if profile:
-
-        from caput import mpiutil
-
-        rank = mpiutil.rank
-
-        if profiler == "cProfile":
-            pr.disable()
-            pr.dump_stats("profile_%i.prof" % mpiutil.rank)
-        elif profiler == "pyinstrument":
-            pr.stop()
-            with open("profile_%i.txt" % rank, "w") as fh:
-                fh.write(pr.output_text(unicode=True))
+    # Generate all the products, potentially while profiling
+    with Profiler(profile, profiler=profiler):
+        m = manager.ProductManager.from_config(configfile)
+        m.generate()
 
 
 @cli.command()

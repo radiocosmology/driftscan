@@ -57,7 +57,7 @@ def products_run(tmpdir_factory):
         # If we're not on macOS try running under MPI
         # On macOS this has recently been giving problems when running the MPI
         # job from within pytest
-        if sys.platform != "darwin":
+        if "DRIFT_NO_MPI" not in os.environ:
             nproc = 2  # Use a fixed number to check that the MPI code works
             cmd = ("mpirun -np %i " % nproc) + cmd
 

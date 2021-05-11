@@ -9,9 +9,10 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
+from caput import config
 from caput import misc
 from caput import mpiutil
-from caput import config
+from caput import profile
 from caput.truncate import bit_truncate_max_complex
 
 from drift.util import util, blockla
@@ -551,7 +552,8 @@ class BeamTransfer(config.Reader):
                 logger.info("Saving Telescope object.")
                 pickle.dump(self.telescope, f)
 
-        self._generate_mfiles(regen)
+        with profile.IOUsage(logger=logger):
+            self._generate_mfiles(regen)
 
         if not skip_svd:
             self._generate_svdfiles(regen, skip_svd_inv)

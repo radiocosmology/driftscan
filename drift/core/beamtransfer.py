@@ -836,10 +836,13 @@ class BeamTransfer(config.Reader):
                 ) as mfile:
 
                     # Lookup where to write Beam Transfers and write into file.
-                    for fbl, fbi in enumerate(fb_ind_chunk):
+                    # Do this in sorted order to try and improve the performance writing
+                    # into chunked HDF5 files
+                    for fbs in np.argsort(fb_ind_chunk):
+                        fbi = fb_ind_chunk[fbs]
                         fi = fbmap[0, fbi]
                         bi = fbmap[1, fbi]
-                        mfile["beam_m"][fi, :, bi] = m_array[lmi, fbl]
+                        mfile["beam_m"][fi, :, bi] = m_array[lmi, fbs]
 
             del m_array
 

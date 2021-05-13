@@ -674,8 +674,21 @@ class BeamTransfer(config.Reader):
 
         st = time.time()
 
-        nfb = self.telescope.nfreq * self.telescope.nbase
-        fbmap = np.mgrid[: self.telescope.nfreq, : self.telescope.nbase].reshape(2, nfb)
+        # Get the frequencies and baselines that we are going to calculate and create a
+        # lookup table for the order in which we are going to calculate them
+        freq_to_include = [
+            fi for fi in range(self.telescope.nfreq)
+            if not self.telescope._skip_freq(fi)
+        ]
+        baselines_to_include = [
+            bi for bi in range(self.telescope.nbase)
+            if not self.telescope._skip_baseline(bi)
+        ]
+        nfb = len(freq_to_include) * len(baselines_to_include)
+
+        fbmap = np.array(
+            np.meshgrid(freq_to_include, baselines_to_include, indexing="ij")
+        ).reshape(2, nfb)
 
         # Calculate the number of baselines to deal with at any one time. Aim
         # to have a maximum of "mem_chunk" GB in memory at any one time

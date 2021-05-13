@@ -181,6 +181,15 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         (Local Stellar Angle in `caput.time`). If not the origin is Greenwich,
         so the rotation angle is what is overhead at Greenwich (Earth Rotation
         Angle).
+    skip_freq : list
+        Frequency indices (with the set of frequencies defined by the other parameters)
+        to skip. Skipped frequencies are considered to be present, *but* their beam
+        transfer matrices are implicitly zero and thus are skipped in the beam transfer
+        matrix calculation. This is useful for RFI channels that we know will be masked.
+    skip_baselines : list
+        Baseline indices to skip. Like skipped frequencies, skipped baselines are
+        considered to be present, *but* their beam transfer matrices are implicitly zero
+        and thus are skipped in the beam transfer matrix calculation.
     """
 
     freq_lower = config.Property(proptype=float, default=None)
@@ -208,6 +217,10 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     auto_correlations = config.Property(proptype=bool, default=False)
 
     local_origin = config.Property(proptype=bool, default=True)
+
+    # Skipping frequency/baseline parameters
+    skip_freq = config.list_type(type_=int, default=[])
+    skip_baselines = config.list_type(type_=int, default=[])
 
     def __init__(self, latitude=45, longitude=0, **kwargs):
         """Initialise a telescope object.
@@ -636,6 +649,42 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         fm_copy[wmask] = sort_ind[self._feedmap[wmask]]
 
         self._feedmap = fm_copy
+
+    def _skip_freq(self, freq_ind):
+        """Override to control omission of specific frequencies in the beam transfers.
+
+        The skipped frequencies will have entries in the beam transfers, but they
+        will be zeros.
+
+        Parameters
+        ----------
+        freq_ind
+            The frequency index to determine if it is being skipped.
+
+        Returns
+        -------
+        skip
+            True if the frequency should be omitted, False if not.
+        """
+        return (freq_ind in self.skip_freq)
+
+    def _skip_baseline(self, bl_ind):
+        """Override to control omission of specific baselines in the beam transfers.
+
+        The skipped baselines will have entries in the beam transfers, but they
+        will be zeros.
+
+        Parameters
+        ----------
+        bl_ind
+            The baseline index to check if it is being skipped.
+
+        Returns
+        -------
+        skip
+            True if the baseline should be omitted, False if not.
+        """
+        return (bl_ind in self.skip_baselines)
 
     # ===================================================
 

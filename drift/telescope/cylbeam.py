@@ -137,7 +137,7 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     angpos : np.ndarray[npoints]
         Angular position on the sky.
     zenith : np.ndarray[2]
-        Position of zenin on spherical polars.
+        Position of zenith on spherical polars.
     width : scalar
         Cylinder width in wavelengths.
     fwhm_x, fwhm_y : scalar

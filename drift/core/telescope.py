@@ -669,12 +669,12 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         # Broadcast arrays against each other
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
-        ## Check indices are all in range
+        # Check indices are all in range
         if out_of_range(bl_indices, 0, self.npairs):
-            raise Exception("Baseline indices aren't valid")
+            raise ValueError("Baseline indices aren't valid")
 
         if out_of_range(f_indices, 0, self.nfreq):
-            raise Exception("Frequency indices aren't valid")
+            raise ValueError("Frequency indices aren't valid")
 
         # Fetch the set of lmax's for the baselines (in order to reduce time
         # regenerating Healpix maps)

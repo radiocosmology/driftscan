@@ -161,6 +161,9 @@ class BeamTransfer(config.Reader):
 
     Attributes
     ----------
+    mem_chunk : float
+        A target for the amount of memory to use per process in this calculation. This
+        will change the number of chunks the calculation is split into.
     svcut : float
         The relative precision below the maximum singular value to exclude low
         sensitivity SVD modes. This can be dynamically changed as it is evaluated
@@ -181,9 +184,7 @@ class BeamTransfer(config.Reader):
         The size of the per m-file HDF5 chunk cache. Default is 128 MB.
     """
 
-    _mem_switch = config.Property(
-        proptype=float, default=2.0
-    )  # Rough chunks (in GB) to divide calculation into.
+    mem_chunk = config.Property(proptype=float, default=3.0)
 
     svcut = config.Property(proptype=float, default=1e-6)
     polsvcut = config.Property(proptype=float, default=1e-4)
@@ -631,7 +632,7 @@ class BeamTransfer(config.Reader):
 
             # Divide into roughly 5 GB chunks
             nsections = int(
-                np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self._mem_switch)
+                np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self.mem_chunk)
             )
 
             logger.info(
@@ -677,15 +678,14 @@ class BeamTransfer(config.Reader):
         fbmap = np.mgrid[: self.telescope.nfreq, : self.telescope.nbase].reshape(2, nfb)
 
         # Calculate the number of baselines to deal with at any one time. Aim
-        # to have a maximum of 4 GB in memory at any one time
+        # to have a maximum of "mem_chunk" GB in memory at any one time
         fbsize = (
             self.telescope.num_pol_sky
             * (self.telescope.lmax + 1)
             * (2 * self.telescope.mmax + 1)
             * 16.0
         )
-
-        nodemem = 3.0 * 2 ** 30.0
+        nodemem = self.mem_chunk * 2 ** 30.0
 
         num_fb_per_node = int(nodemem / fbsize)
         num_fb_per_chunk = num_fb_per_node * mpiutil.size

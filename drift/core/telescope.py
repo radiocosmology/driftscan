@@ -3,6 +3,7 @@ import logging
 
 import numpy as np
 
+from caput import cache
 from caput import config
 from caput import time as ctime
 
@@ -190,6 +191,9 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         Baseline indices to skip. Like skipped frequencies, skipped baselines are
         considered to be present, *but* their beam transfer matrices are implicitly zero
         and thus are skipped in the beam transfer matrix calculation.
+    beam_cache_size : float
+        Size of the beam cache in MB. Setting this minimises the amount of recalculation
+        of the primary beams while generating beam transfer matrices.
     """
 
     freq_lower = config.Property(proptype=float, default=None)
@@ -221,6 +225,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     # Skipping frequency/baseline parameters
     skip_freq = config.list_type(type_=int, default=[])
     skip_baselines = config.list_type(type_=int, default=[])
+
+    beam_cache_size = config.Property(proptype=int, default=200)
 
     def __init__(self, latitude=45, longitude=0, **kwargs):
         """Initialise a telescope object.
@@ -890,6 +896,28 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         # The horizon function
         self._horizon = visibility.horizon(self._angpos, self.zenith)
 
+    _beam_cache = None
+
+    def _beam(self, feed_ind, freq_ind):
+        # Cache the beam maps by (nside, freq, beamclass/pol) to minimise recomputation
+
+        if self._beam_cache is None:
+            self._beam_cache = cache.NumpyCache(self.beam_cache_size << 20)
+
+        # Key by the beam class, and not the feed_index to allow for many beams being
+        # identical
+        beamclass = self.beamclass[feed_ind]
+
+        beam_key = (self._nside, freq_ind, beamclass)
+
+        if beam_key not in self._beam_cache:
+            beam = self.beam(feed_ind, freq_ind)
+            self._beam_cache[beam_key] = beam
+        else:
+            beam = self._beam_cache[beam_key]
+
+        return beam
+
     # ===================================================
     # ================ ABSTRACT METHODS =================
     # ===================================================
@@ -988,7 +1016,7 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
 
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
-        beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
+        beami, beamj = self._beam(feedi, f_index), self._beam(feedj, f_index)
 
         # Get baseline separation and fringe map.
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
@@ -1102,7 +1130,7 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
 
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
-        beami, beamj = self.beam(feedi, f_index), self.beam(feedj, f_index)
+        beami, beamj = self._beam(feedi, f_index), self._beam(feedj, f_index)
 
         # Get baseline separation and fringe map.
         uv = self.baselines[bl_index] / self.wavelengths[f_index]

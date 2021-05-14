@@ -1,3 +1,4 @@
+import cachetools
 import numpy as np
 
 from cora.util import coord, cubicspline
@@ -129,6 +130,8 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
     return cubicspline.Interpolater(kx, fx)
 
 
+_beam_pat_cache = None
+
 def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     """Beam amplitude across the sky.
 
@@ -150,15 +153,24 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     beam : np.ndarray[npoints]
         Amplitude of beam at each point.
     """
+    global _beam_pat_cache
+
+    if _beam_pat_cache is None:
+        _beam_pat_cache = cachetools.LRUCache(maxsize=100)
 
     that, phat = coord.thetaphi_plane_cart(zenith)
 
     xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
 
-    xplane = lambda t: beam_exptan(t, fwhm_x)
     yplane = lambda t: beam_exptan(t, fwhm_y)
 
-    beampat = fraunhofer_cylinder(xplane, width)
+    # Get the diffracted beam pattern from the cache, or calculate it if it's not
+    # present
+    bpkey = (fwhm_x, width)
+    if bpkey not in _beam_pat_cache:
+        xplane = lambda t: beam_exptan(t, fwhm_x)
+        _beam_pat_cache[bpkey] = fraunhofer_cylinder(xplane, width)
+    beampat = _beam_pat_cache[bpkey]
 
     cvec = coord.sph_to_cart(angpos)
     horizon = (np.dot(cvec, coord.sph_to_cart(zenith)) > 0.0).astype(np.float64)

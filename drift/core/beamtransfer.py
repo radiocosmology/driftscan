@@ -162,8 +162,9 @@ class BeamTransfer(config.Reader):
     Attributes
     ----------
     mem_chunk : float
-        A target for the amount of memory to use per process in this calculation. This
-        will change the number of chunks the calculation is split into.
+        The amount of memory to use per process in this calculation in GB. This is a
+        target and not a strict upper limit.  This will change the number of chunks the
+        calculation is split into. Default is 3 GB.
     svcut : float
         The relative precision below the maximum singular value to exclude low
         sensitivity SVD modes. This can be dynamically changed as it is evaluated

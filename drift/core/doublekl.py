@@ -21,6 +21,7 @@ class DoubleKL(kltransform.KLTransform):
     """
 
     foreground_threshold = config.Property(proptype=float, default=100.0)
+    _dkl = True
 
     def _transform_m(self, mi):
 
@@ -42,13 +43,22 @@ class DoubleKL(kltransform.KLTransform):
         cs, cn = [cv.reshape(nside, nside) for cv in self.sn_covariance(mi)]
 
         # Find joint eigenbasis and transformation matrix
-        evals, evecs2, ac = kltransform.eigh_gen(
-            cs, cn, message="m = %d; KL step 1" % mi
-        )
+        if self.diagonalisation_order == "sf":
+            evals, evecs2, ac = kltransform.eigh_gen(
+                cs, cn, message="m = %d; KL step 1" % mi
+            )
+        else:
+            evals, evecs2, ac = kltransform.eigh_gen(
+                cn, cs, message="m = %d; KL step 1" % mi
+            )
+
         evecs = evecs2.T.conj()
 
         # Get the indices that extract the high S/F ratio modes
-        ind = np.where(evals > self.foreground_threshold)
+        if self.diagonalisation_order == "sf":
+            ind = np.where(evals > self.foreground_threshold)
+        else:
+            ind = np.where(evals < self.foreground_threshold)
 
         # Construct evextra dictionary (holding foreground ratio)
         evextra = {"ac": ac, "f_evals": evals.copy()}

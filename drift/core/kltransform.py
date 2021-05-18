@@ -154,6 +154,9 @@ class KLTransform(config.Reader):
         If True, throw away modes below a S/N `threshold`.
     threshold : scalar
         S/N threshold to cut modes at.
+    diagonalisation_order : string, optional
+        Options are 'sf' for eigen value decomposition with S/F eigen values and
+        'fs' for F/S eigen values.
     inverse : boolean
         If True construct and cache inverse transformation.
     use_thermal, use_foregrounds : boolean
@@ -167,6 +170,8 @@ class KLTransform(config.Reader):
     inverse = config.Property(proptype=bool, default=False, key="inverse")
 
     threshold = config.Property(proptype=float, default=0.1, key="threshold")
+
+    diagonalisation_order = config.enum(["sf", "fs"], default="sf")
 
     _foreground_regulariser = config.Property(
         proptype=float, default=1e-14, key="regulariser"
@@ -182,6 +187,7 @@ class KLTransform(config.Reader):
 
     _cvfg = None
     _cvsg = None
+    _dkl = None
 
     @property
     def _evfile(self):
@@ -341,7 +347,12 @@ class KLTransform(config.Reader):
 
         # Perform the generalised eigenvalue problem to get the KL-modes.
         st = time.time()
-        evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr, message="m = %d" % mi)
+
+        if self.diagonalisation_order == "sf":
+            evals, evecs, ac = eigh_gen(cvb_sr, cvb_nr, message="m = %d" % mi)
+        else:
+            evals, evecs, ac = eigh_gen(cvb_nr, cvb_sr, message="m = %d" % mi)
+
         et = time.time()
         print("Time =", (et - st))
 
@@ -391,18 +402,27 @@ class KLTransform(config.Reader):
         evalsf = np.zeros(nside, dtype=np.float64)
         if evals.size != 0:
             evalsf[(-evals.size) :] = evals
+
         f.create_dataset("evals_full", data=evalsf)
 
         # Discard eigenmodes with S/N below threshold if requested.
         if self.subset:
             i_ev = np.searchsorted(evals, self.threshold)
-
-            evals = evals[i_ev:]
-            evecs = evecs[i_ev:]
-            print(
-                "Modes with S/N > %f: %i of %i"
-                % (self.threshold, evals.size, evalsf.size)
-            )
+            # The second step in the double KL will be eigen values of S/N regardless of first step KL step. We save the double KL values in S/N order.
+            if self.diagonalisation_order == "sf" or self._dkl:
+                evals = evals[i_ev:]
+                evecs = evecs[i_ev:]
+                print(
+                    "Modes with S/N > %f: %i of %i"
+                    % (self.threshold, evals.size, evalsf.size)
+                )
+            else:
+                evals = evals[:i_ev]
+                evecs = evecs[:i_ev]
+                print(
+                    "Modes with N/S < %f: %i of %i"
+                    % (self.threshold, evals.size, evalsf.size)
+                )
 
         # Write out potentially reduced eigen spectrum.
         f.create_dataset("evals", data=evals)
@@ -411,7 +431,10 @@ class KLTransform(config.Reader):
 
         if self.inverse:
             if self.subset:
-                inv = inv[i_ev:]
+                if self.diagonalisation_order == "sf" or self._dkl:
+                    inv = inv[i_ev:]
+                else:
+                    inv = inv[:i_ev]
 
             f.create_dataset("evinv", data=inv)
 
@@ -461,6 +484,7 @@ class KLTransform(config.Reader):
             if f["evals_full"].shape[0] > 0:
                 ev = f["evals_full"][:]
                 evf[-ev.size :] = ev
+
             f.close()
 
             return evf
@@ -495,6 +519,9 @@ class KLTransform(config.Reader):
         if mpiutil.rank0:
             st = time.time()
             print("======== Starting KL calculation ========")
+            print(
+                "======= Diagonalisation order: %s =======" % self.diagonalisation_order
+            )
 
         # Iterate list over MPI processes.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
@@ -566,7 +593,10 @@ class KLTransform(config.Reader):
                 if startind == evals.size:
                     modes = None, None
                 else:
-                    modes = (evals[startind:], f["evecs"][startind:])
+                    if self.diagonalisation_order == "sf" or self._dkl:
+                        modes = (evals[startind:], f["evecs"][startind:])
+                    else:
+                        modes = (evals[:startind], f["evecs"][:startind])
 
                     # If old data file perform complex conjugate
                     modes = (
@@ -623,7 +653,10 @@ class KLTransform(config.Reader):
                 if startind == evals.size:
                     modes = None
                 else:
-                    modes = evals[startind:]
+                    if self.diagonalisation_order == "sf" or self._dkl:
+                        modes = evals[startind:]
+                    else:
+                        modes = evals[:startind]
 
             f.close()
 
@@ -656,7 +689,10 @@ class KLTransform(config.Reader):
 
                 if threshold != None:
                     nevals = evals.size
-                    inv = inv[(-nevals):]
+                    if self.diagonalisation_order == "sf" or self._dkl:
+                        inv = inv[(-nevals):]
+                    else:
+                        inv = inv[:nevals]
 
                 return inv.T
 
@@ -892,7 +928,11 @@ class KLTransform(config.Reader):
         def _proj(mi):
             p1 = self.project_sky_vector_forward(mi, alm[:, :, mi], threshold)
             p2 = np.zeros(nmodes, dtype=np.complex128)
-            p2[-p1.size :] = p1
+            if self.diagonalisation_order == "sf" or self._dkl:
+                p2[-p1.size :] = p1
+            else:
+                p2[: p1.size] = p1
+
             return p2
 
         # Map over list of m's and project sky onto eigenbasis

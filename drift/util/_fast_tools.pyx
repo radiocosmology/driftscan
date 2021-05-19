@@ -248,6 +248,10 @@ def _construct_pol_complex(
 def beam_exptan(double[::1] sintheta, double fwhm):
     """ExpTan beam.
 
+    Note that this model was used in arXiv:1401.2095, however Eq 35 in that work
+    contains a typo and is missing a factor of two in the tan factor on the denominator.
+    The expression here is correct and is what was actually used in that paper.
+
     Parameters
     ----------
     sintheta : array_like

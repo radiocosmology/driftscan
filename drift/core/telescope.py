@@ -672,7 +672,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         skip
             True if the frequency should be omitted, False if not.
         """
-        return (freq_ind in self.skip_freq)
+        return freq_ind in self.skip_freq
 
     def _skip_baseline(self, bl_ind):
         """Override to control omission of specific baselines in the beam transfers.
@@ -690,7 +690,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         skip
             True if the baseline should be omitted, False if not.
         """
-        return (bl_ind in self.skip_baselines)
+        return bl_ind in self.skip_baselines
 
     # ===================================================
 

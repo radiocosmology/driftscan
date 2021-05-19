@@ -632,9 +632,7 @@ class BeamTransfer(config.Reader):
             )
 
             # Divide into roughly 5 GB chunks
-            nsections = int(
-                np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self.mem_chunk)
-            )
+            nsections = int(np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self.mem_chunk))
 
             logger.info(
                 "Dividing calculation of %f GB array into %i sections."
@@ -678,11 +676,13 @@ class BeamTransfer(config.Reader):
         # Get the frequencies and baselines that we are going to calculate and create a
         # lookup table for the order in which we are going to calculate them
         freq_to_include = [
-            fi for fi in range(self.telescope.nfreq)
+            fi
+            for fi in range(self.telescope.nfreq)
             if not self.telescope._skip_freq(fi)
         ]
         baselines_to_include = [
-            bi for bi in range(self.telescope.nbase)
+            bi
+            for bi in range(self.telescope.nbase)
             if not self.telescope._skip_baseline(bi)
         ]
         nfb = len(freq_to_include) * len(baselines_to_include)

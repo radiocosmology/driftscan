@@ -132,6 +132,7 @@ def fraunhofer_cylinder(antenna_func, width, res=1.0):
 
 _beam_pat_cache = None
 
+
 def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     """Beam amplitude across the sky.
 

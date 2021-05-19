@@ -193,7 +193,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         and thus are skipped in the beam transfer matrix calculation.
     beam_cache_size : float
         Size of the beam cache in MB. Setting this minimises the amount of recalculation
-        of the primary beams while generating beam transfer matrices.
+        of the primary beams while generating beam transfer matrices. Default is 200 MB.
     """
 
     freq_lower = config.Property(proptype=float, default=None)

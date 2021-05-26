@@ -763,6 +763,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         for iflat in np.argsort(lmax.flat):
             ind = np.unravel_index(iflat, lmax.shape)
+
             trans = self._transfer_single(
                 bl_indices[ind], f_indices[ind], lmax[ind], lside
             )
@@ -917,6 +918,91 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
             beam = self._beam_cache[beam_key]
 
         return beam
+
+    # ===================================================
+
+    # ====== Properties to help with draco pipeline =====
+
+    @cache.cached_property
+    def prodstack(self):
+        """Generate the results of a prodstack.
+
+        This is similar to the output of `uniquepairs`, but has the same typing as used
+        within draco.
+
+        Returns
+        -------
+        prodstack : np.ndarray
+            A structured array with (input_a, input_b) pairs.
+        """
+        upairs = self.uniquepairs
+
+        # Construct the return type using the same dtype length as used in the telescope
+        dtype = [("input_a", upairs.dtype), ("input_b", upairs.dtype)]
+
+        return upairs.ravel().view(dtype)
+
+    @cache.cached_property
+    def index_map_prod(self):
+        """Generate a *full triangle* `index_map/prod` like object.
+
+        Returns
+        -------
+        prodmap : np.ndarray
+            A structured array of (input_a, input_b) pairs for the upper triangle.
+        """
+        tpairs = np.array(np.triu_indices(self.nfeed))
+        dtype = [("input_a", tpairs.dtype), ("input_b", tpairs.dtype)]
+
+        return tpairs.T.flatten().view(dtype)
+
+    @cache.cached_property
+    def index_map_stack(self):
+        """Generate an `index_map/stack` like object.
+
+        Returns
+        -------
+        stack : np.ndarray
+            A structured array with (prod_ind, conj) pairs the same length as
+            `unique_pairs`.
+        """
+        # Taken from draco.util.tools.cmap, but we can't depend on it in driftscan
+        # NOTE: garbage if i > j
+        def ind2tri(i, j, n):
+            return (n * (n + 1) // 2) - ((n - i) * (n - i + 1) // 2) + (j - i)
+
+        upairs = self.uniquepairs
+
+        stack_map = np.empty(len(upairs), dtype=[("prod", "<u4"), ("conjugate", "u1")])
+
+        stack_map["conjugate"] = upairs[:, 0] > upairs[:, 1]
+        input_a, input_b = np.where(stack_map["conjugate"], upairs[:, ::-1].T, upairs.T)
+
+        stack_map["prod"] = ind2tri(input_a, input_b, self.nfeed)
+
+        return stack_map
+
+    @cache.cached_property
+    def reverse_map_stack(self):
+        """Generate a `reverse_map/stack` like object.
+
+        Returns
+        -------
+        stack : np.ndarray
+            A structured array of (stack_ind, conj) pairs the same length as `prod`.
+        """
+
+        stack_revmap = np.empty(
+            self.nfeed * (self.nfeed + 1) // 2,
+            dtype=[("stack", "<i4"), ("conjugate", "u1")],
+        )
+
+        stack_revmap["stack"] = self.feedmap[np.triu_indices(self.nfeed)]
+        stack_revmap["conjugate"] = self.feedconj[np.triu_indices(self.nfeed)]
+
+        return stack_revmap
+
+    # ===================================================
 
     # ===================================================
     # ================ ABSTRACT METHODS =================

@@ -1192,7 +1192,7 @@ class BeamTransfer(config.Reader):
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
         if np.any(vec != 0):
-        
+
             with h5py.File(self._mfile(mi), "r") as mfile:
 
                 for fi in range(self.nfreq):
@@ -1224,9 +1224,9 @@ class BeamTransfer(config.Reader):
         vec = vec.reshape((self.nfreq, self.ntel))
 
         if np.any(vec != 0):
-        
+
             ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
-        
+
             for fi in range(self.nfreq):
                 vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(self.ntel))
 
@@ -1242,10 +1242,10 @@ class BeamTransfer(config.Reader):
         vec = vec.reshape((self.nfreq, self.ntel))
 
         if np.any(vec != 0):
-        
+
             dbeam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
             dbeam = dbeam.transpose((0, 2, 1)).conj()
-        
+
             for fi in range(self.nfreq):
                 norm = np.dot(dbeam[fi].T.conj(), dbeam[fi]).diagonal()
                 norm = np.where(norm < 1e-6, 0.0, 1.0 / norm)
@@ -1441,14 +1441,16 @@ class BeamTransfer(config.Reader):
         vecf = np.zeros((svbounds[-1],) + vec.shape[2:], dtype=np.complex128)
 
         if np.any(vec != 0):
-        
+
             # Get the SVD beam matrix
             beam = self.beam_ut(mi)
-        
+
             # Should it be a +=?
             for fi in self._svd_freq_iter(mi):
 
-                fbeam = beam[fi, : svnum[fi], :]  # Beam matrix for this frequency and cut
+                fbeam = beam[
+                    fi, : svnum[fi], :
+                ]  # Beam matrix for this frequency and cut
                 lvec = vec[fi, :]  # Matrix section for this frequency
 
             vecf[svbounds[fi] : svbounds[fi + 1]] = np.dot(fbeam, lvec)
@@ -1474,7 +1476,7 @@ class BeamTransfer(config.Reader):
         vec : np.ndarray[freq, sign, baseline]
             Data vector to return.
         """
-        
+
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)
 
@@ -1482,10 +1484,10 @@ class BeamTransfer(config.Reader):
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
         if np.any(svec != 0):
-        
+
             # Get the SVD beam matrix
             beam = self.beam_ut(mi)
-        
+
             # Should it be a +=?
             for fi in self._svd_freq_iter(mi):
 
@@ -1494,7 +1496,9 @@ class BeamTransfer(config.Reader):
                 ).flatten()
                 noise = np.concatenate([noise, noise])
 
-                fbeam = beam[fi, : svnum[fi], :]  # Beam matrix for this frequency and cut
+                fbeam = beam[
+                    fi, : svnum[fi], :
+                ]  # Beam matrix for this frequency and cut
                 lvec = svec[
                     svbounds[fi] : svbounds[fi + 1]
                 ]  # Matrix section for this frequency
@@ -1532,7 +1536,7 @@ class BeamTransfer(config.Reader):
         vecf = np.zeros((svbounds[-1],) + vec.shape[3:], dtype=np.complex128)
 
         if np.any(vec != 0):
-        
+
             # Get the SVD beam matrix
             beam = self.beam_svd(mi)
 
@@ -1581,7 +1585,7 @@ class BeamTransfer(config.Reader):
         )
 
         if np.any(vec != 0):
-        
+
             # Get the SVD beam matrix
             beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
 

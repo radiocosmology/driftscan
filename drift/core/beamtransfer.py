@@ -1191,6 +1191,9 @@ class BeamTransfer(config.Reader):
 
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
 
+        if np.all(vec == 0):
+            return vecf
+
         with h5py.File(self._mfile(mi), "r") as mfile:
 
             for fi in range(self.nfreq):
@@ -1218,10 +1221,15 @@ class BeamTransfer(config.Reader):
             Sky vector to return.
         """
 
-        ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
-
         vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
         vec = vec.reshape((self.nfreq, self.ntel))
+
+        if np.all(vec == 0):
+            return vecb.reshape(
+                (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+            )
+
+        ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
 
         for fi in range(self.nfreq):
             vecb[fi] = np.dot(ibeam[fi], vec[fi, :].reshape(self.ntel))
@@ -1234,11 +1242,16 @@ class BeamTransfer(config.Reader):
 
     def project_vector_backward_dirty(self, mi, vec):
 
-        dbeam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
-        dbeam = dbeam.transpose((0, 2, 1)).conj()
-
         vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
         vec = vec.reshape((self.nfreq, self.ntel))
+
+        if np.all(vec == 0):
+            return vecb.reshape(
+                (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+            )
+
+        dbeam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
+        dbeam = dbeam.transpose((0, 2, 1)).conj()
 
         for fi in range(self.nfreq):
             norm = np.dot(dbeam[fi].T.conj(), dbeam[fi]).diagonal()
@@ -1431,11 +1444,14 @@ class BeamTransfer(config.Reader):
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)
 
-        # Get the SVD beam matrix
-        beam = self.beam_ut(mi)
-
         # Create the output matrix (shape is calculated from input shape)
         vecf = np.zeros((svbounds[-1],) + vec.shape[2:], dtype=np.complex128)
+
+        if np.all(vec == 0):
+            return vecf
+
+        # Get the SVD beam matrix
+        beam = self.beam_ut(mi)
 
         # Should it be a +=?
         for fi in self._svd_freq_iter(mi):
@@ -1470,11 +1486,14 @@ class BeamTransfer(config.Reader):
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)
 
-        # Get the SVD beam matrix
-        beam = self.beam_ut(mi)
-
         # Create the output matrix (shape is calculated from input shape)
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
+
+        if np.all(svec == 0):
+            return vecf.reshape(self.nfreq, 2, self.telescope.npairs)
+
+        # Get the SVD beam matrix
+        beam = self.beam_ut(mi)
 
         # Should it be a +=?
         for fi in self._svd_freq_iter(mi):
@@ -1518,11 +1537,14 @@ class BeamTransfer(config.Reader):
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)
 
-        # Get the SVD beam matrix
-        beam = self.beam_svd(mi)
-
         # Create the output matrix
         vecf = np.zeros((svbounds[-1],) + vec.shape[3:], dtype=np.complex128)
+
+        if np.all(vec == 0):
+            return vecf
+
+        # Get the SVD beam matrix
+        beam = self.beam_svd(mi)
 
         for pi in range(npol):
             for fi in self._svd_freq_iter(mi):
@@ -1561,15 +1583,18 @@ class BeamTransfer(config.Reader):
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi)
 
-        # Get the SVD beam matrix
-        beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
-
         # Create the output matrix
         vecf = np.zeros(
             (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
             + vec.shape[1:],
             dtype=np.complex128,
         )
+
+        if np.all(vec == 0):
+            return vecf
+
+        # Get the SVD beam matrix
+        beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
 
         for pi in range(npol):
             for fi in self._svd_freq_iter(mi):

@@ -221,6 +221,7 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
     nsamples = config.Property(proptype=int, default=500)
     noise = config.Property(proptype=bool, default=False)
+    crosspower = config.Property(proptype=bool, default=False)
 
     # ==== Calculate the total Fisher matrix/bias =======
 
@@ -312,20 +313,28 @@ class PSMonteCarloLarge(PSMonteCarlo):
             nfreq = self.telescope.nfreq
             lmax = self.telescope.lmax
 
-            if loc_num > 0:
-                if self.num_evals(mi) > 0:
+            if (loc_num > 0) and (self.num_evals(mi) > 0):
                     # Generate random KL data
-                    x = self.gen_sample(mi, n)
-                    vec1 = self.project_vector_kl_to_sky(mi, x)
+                    x1 = self.gen_sample(mi, n)
+                    vec1 = self.project_vector_kl_to_sky(mi, x1)
                     # Make array contiguous
                     vec1 = np.ascontiguousarray(vec1.reshape(nfreq, lmax + 1, n))
 
-                # If I don't have evals - return zero vector. Each MPI process must have some data to pass around. Otherwise send and receive won't work.
-                else:
-                    vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
+                    # if crosspower, generate an independent realisation of KL-modes
+                    if self.crosspower:
+                        x2 = self.gen_sample(mi, n)
+                        vec2 = self.project_vector_kl_to_sky(mi, x2)
+                        vec2 = np.ascontiguousarray(vec2.reshape(nfreq, lmax + 1, n))
 
+            # If no evals and MPI process has no m assigned - return zero vector. Each MPI process must have some data to pass around. Otherwise send and receive won't work.
             else:
                 vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
+
+                if self.crosspower:
+                    vec2 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
+
+            if self.crosspower:
+                vec = np.ascontiguousarray(np.stack((vec1, vec2)))
 
             st_q = time.time()
 
@@ -333,20 +342,25 @@ class PSMonteCarloLarge(PSMonteCarlo):
             for ir in range(size):
                 # Only fill qa if we haven't reached mmax
                 if mi < (self.telescope.mmax + 1):
-                    self.q_estimator(mi, vec1)
 
-                    # TO DO: Calculate q_a for noise power (x0^H N x0 = |x0|^2)
-                    # The issue right now is that the sky vector is passed from rank to rank
-                    # and not the kl-vector, which we need for estimating the noise bias.
-                    # if self.noise and loc_num > 0:
-                    #    self.noise_bias(mi, x)
+                    if self.crosspower:
+                        vec1 = np.ascontiguousarray(vec[0])
+                        vec2 = np.ascontiguousarray(vec[1])
+                        self.q_estimator(mi, vec1, vec2)
+                    else:
+                        self.q_estimator(mi, vec1)
 
                 # We do the MPI communications between ranks only (size - 1) times
                 if ir == (size - 1):
                     break
 
-                recv_buffer = self.recv_send_data(vec1, axis=-1)
-                vec1 = recv_buffer
+                if self.crosspower:
+                    vec = np.ascontiguousarray(np.stack((vec1, vec2)))
+                    recv_buffer = self.recv_send_data(vec, axis=-1)
+                    vec = recv_buffer
+                else:
+                    recv_buffer1 = self.recv_send_data(vec1, axis=-1)
+                    vec1 = recv_buffer1
 
                 # Send data to (rank + 1) % size, hence local mi must be updated to (mi -1) % size
                 mi = low_bound[ci] + (mi - 1) % size
@@ -357,11 +371,13 @@ class PSMonteCarloLarge(PSMonteCarlo):
                 et_q - st_q,
             )
 
-        et_allm = time.time()
-        print(
-            "Time needed for quadratic estimation on all ranks for all m-chunks ",
-            et_allm - st,
-        )
+        if mpiutil.rank0:
+            et_allm = time.time()
+            print(
+                "Time needed for quadratic estimation on all ranks for all m-chunks ",
+                et_allm - st,
+            )
+
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)
 
@@ -375,6 +391,8 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
             if self.noise:
                 bias_m = fisher_m[-1, : self.nbands]
+            elif self.crosspower:
+                bias_m = np.zeros((self.nbands,), dtype=np.float64)
             else:
                 bias_m = np.mean(self.qa[ml], axis=1)
 
@@ -417,7 +435,7 @@ class PSMonteCarloLarge(PSMonteCarlo):
             self.qa[mi, :] = 0.0
 
         # If one of the data vectors is empty, return q = 0.0 for this m
-        elif x2.shape[0] == 0:
+        elif (x2.shape[0] == 0) or (y2.shape[0] == 0):
             self.qa[mi, :] = 0.0
 
         else:

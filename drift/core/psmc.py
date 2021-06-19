@@ -26,8 +26,9 @@ class PSMonteCarlo(psestimation.PSEstimation):
     """
 
     nsamples = config.Property(proptype=int, default=500)
+    noiseonly = config.Property(proptype=bool, default=False)
 
-    def gen_sample(self, mi, nsamples=None, noiseonly=False):
+    def gen_sample(self, mi, nsamples=None):
         """Generate a random set of KL-data for this m-mode.
 
         Found by drawing from the eigenvalue distribution.
@@ -49,7 +50,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         evals, evecs = self.kltrans.modes_m(mi)
 
         # Calculate C**(1/2), this is the weight to generate a draw from C
-        w = np.ones_like(evals) if noiseonly else (evals + 1.0) ** 0.5
+        w = np.ones_like(evals) if self.noiseonly else (evals + 1.0) ** 0.5
 
         # Calculate x
         x = nputil.complex_std_normal((evals.shape[0], nsamples)) * w[:, np.newaxis]
@@ -85,11 +86,8 @@ class PSMonteCarlo(psestimation.PSEstimation):
             x = self.gen_sample(mi, n)
             qa[:, s:e] = self.q_estimator(mi, x)
 
-        # ft = np.cov(qa)
-
-        fisher = np.cov(qa)  # ft[:self.nbands, :self.nbands]
-        # bias = ft[-1, :self.nbands]
-        bias = qa.mean(axis=1)  # [:self.nbands]
+        fisher = np.cov(qa)
+        bias = qa.mean(axis=1)
 
         return fisher, bias
 
@@ -214,13 +212,9 @@ class PSMonteCarloLarge(PSMonteCarlo):
     ----------
     nsamples : integer
         The number of samples to draw from each band.
-    noise : bool
-        Default : False. If set to True, project against the noise matrix. Used for
-        estimating the bias by Monte-Carlo.
     """
 
     nsamples = config.Property(proptype=int, default=500)
-    noise = config.Property(proptype=bool, default=False)
 
     # ==== Calculate the total Fisher matrix/bias =======
 
@@ -280,12 +274,9 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
         n = self.nsamples
 
-        # Option to add another dimension for a noise term
-        nbands = self.nbands + 1 if self.noise else self.nbands
-
         # Create an MPI array for the q-estimator distributed over bands
         self.qa = mpiarray.MPIArray(
-            (self.telescope.mmax + 1, nbands, n),
+            (self.telescope.mmax + 1, self.nbands, n),
             axis=1,
             comm=MPI.COMM_WORLD,
             dtype=np.float64,
@@ -327,19 +318,14 @@ class PSMonteCarloLarge(PSMonteCarlo):
             else:
                 vec1 = np.zeros((nfreq, lmax + 1, n), dtype=np.complex128)
 
-            st_q = time.time()
+            if mpiutil.rank0:
+                st_q = time.time()
 
             # Loop over total number of ranks given by `size`.
             for ir in range(size):
                 # Only fill qa if we haven't reached mmax
                 if mi < (self.telescope.mmax + 1):
                     self.q_estimator(mi, vec1)
-
-                    # TO DO: Calculate q_a for noise power (x0^H N x0 = |x0|^2)
-                    # The issue right now is that the sky vector is passed from rank to rank
-                    # and not the kl-vector, which we need for estimating the noise bias.
-                    # if self.noise and loc_num > 0:
-                    #    self.noise_bias(mi, x)
 
                 # We do the MPI communications between ranks only (size - 1) times
                 if ir == (size - 1):
@@ -351,17 +337,20 @@ class PSMonteCarloLarge(PSMonteCarlo):
                 # Send data to (rank + 1) % size, hence local mi must be updated to (mi -1) % size
                 mi = low_bound[ci] + (mi - 1) % size
 
-            et_q = time.time()
-            print(
-                "Time needed for quadratic estimation on all ranks for this m-chunk",
-                et_q - st_q,
-            )
+            if mpiutil.rank0:
+                et_q = time.time()
+                print(
+                    "Time needed for quadratic estimation on all ranks for this m-chunk",
+                    et_q - st_q,
+                    )
 
-        et_allm = time.time()
-        print(
-            "Time needed for quadratic estimation on all ranks for all m-chunks ",
-            et_allm - st,
-        )
+        if mpiutil.rank0:
+            et_allm = time.time()
+            print(
+                "Time needed for quadratic estimation on all ranks for all m-chunks ",
+                et_allm - st,
+                )
+
         # Once done with all the m's, redistribute qa array over m's
         self.qa = self.qa.redistribute(axis=0)
 
@@ -371,12 +360,8 @@ class PSMonteCarloLarge(PSMonteCarlo):
 
         # Calculate fisher for each m
         for ml, mg in self.qa.enumerate(axis=0):
-            fisher_m = np.cov(self.qa[ml])[: self.nbands, : self.nbands]
-
-            if self.noise:
-                bias_m = fisher_m[-1, : self.nbands]
-            else:
-                bias_m = np.mean(self.qa[ml], axis=1)
+            fisher_m = np.cov(self.qa[ml])
+            bias_m = np.mean(self.qa[ml], axis=1)
 
             # Sum over all local m-modes to get the overall fisher and bias per parallel process
             fisher_loc += fisher_m.real  # be careful with the real
@@ -431,36 +416,6 @@ class PSMonteCarloLarge(PSMonteCarlo):
                         * np.matmul(self.clarray[bi][li].astype(np.complex128), lxvec),
                         axis=0,
                     ).astype(np.float64)
-
-    def noise_bias(self, mi, vec1, vec2=None):
-        """A method to estimate the noise bias. If noise=True then the q-estimator MPI-array is one longer, and the last parameter is the projection against the noise.
-
-        Parameters
-        ----------
-        mi : integer
-            The m-mode we are calculating for.
-        vec1, vec2 : np.ndarrays[num_kl, num_realisatons]
-            The vector(s) of data we are estimating from. These are KL-mode coefficients. Passing in `vec2` is optional and for cross power spectrum calculation.
-        """
-        # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
-        evals, evecs = self.kltrans.modes_m(mi)
-
-        if evals is not None:
-
-            # If calculating crosspower don't include instrumental noise
-            noisemodes = 0.0 if self.crosspower else 1.0
-            noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
-
-            x0 = (vec1.T / (evals + 1.0)).T
-
-            if vec2 is not None:
-                y0 = (vec2.T / (evals + 1.0)).T
-            else:
-                y0 = x0
-
-            self.qa.global_slice[mi, -1] = np.sum(
-                (x0 * y0.conj()).T.real * noisemodes, axis=-1
-            )
 
     def recv_send_data(self, data, axis):
         """Send data from one MPI process to the next by using a vector buffer.

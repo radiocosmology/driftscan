@@ -1,11 +1,9 @@
-"""Functional test suite for checking integrity of the analysis product
-generation."""
+"""Functional test suite for checking integrity of the analysis product generation."""
 
 import shutil
 import os
 import subprocess
 import tarfile
-import sys
 
 import numpy as np
 import pytest
@@ -34,23 +32,27 @@ def orth_equal_approx(x, y, abs=1e-8):
 
 
 @pytest.fixture(scope="module")
-def products_run(tmpdir_factory):
-
+def test_dir(tmpdir_factory):
     # If DRIFT_TESTDIR is set then use that
     if "DRIFT_TESTDIR" in os.environ:
         _base = Path(os.environ["DRIFT_TESTDIR"])
     else:
         _base = Path(str(tmpdir_factory.mktemp("testdrift")))
 
-    # allow parallel tests with different python versions without them writing to the
-    # same files
-    testdir = _base / "tmptestdir" / f"python_{python_version()}"
+    return _base
+
+
+# NOTE: we can't run this twice in the same test run. I think this is because
+# MPI refuses to startup if you try to fork and MPI process from within an MPI
+# process. It works once because the MPI env is not initialised until the
+# `ProductManager` call which occurs *after* the product generation.
+def _gen_prod(output_dir: Path, config: Path):
 
     # If the data already exists then we don't need to re-run the tests
-    if not testdir.exists():
-        testdir.mkdir(parents=True)
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
 
-        shutil.copy("testparams.yaml", testdir / "params.yaml")
+        shutil.copy(config, output_dir / "params.yaml")
 
         cmd = "drift-makeproducts run params.yaml"
 
@@ -61,10 +63,11 @@ def products_run(tmpdir_factory):
             nproc = 2  # Use a fixed number to check that the MPI code works
             cmd = ("mpirun -np %i " % nproc) + cmd
 
-        print("Running test in: %s" % testdir)
+        print(f"Running test in: {output_dir}")
         print("Generating products:", cmd)
-        retval = subprocess.call(cmd.split(), cwd=testdir)
+        proc = subprocess.run(cmd.split(), cwd=output_dir)
         print("Done.")
+        retval = proc.returncode
     else:
         retval = 0
 
@@ -72,9 +75,17 @@ def products_run(tmpdir_factory):
     # MPI environments will fail
     from drift.core import manager as pm
 
-    manager = pm.ProductManager.from_config(testdir / "params.yaml")
+    manager = pm.ProductManager.from_config(output_dir / "params.yaml")
 
-    return retval, testdir, manager
+    return retval, output_dir, manager
+
+
+@pytest.fixture(scope="module")
+def products_run(test_dir):
+    # Generate the standard test products
+    return _gen_prod(
+        test_dir / f"prod_python_{python_version()}", _basedir / "testparams.yaml"
+    )
 
 
 @pytest.fixture()
@@ -93,10 +104,13 @@ def manager(products_run):
 
 
 @pytest.fixture(scope="module")
-def saved_products(tmpdir_factory):
+def saved_products(test_dir: Path):
 
-    _base = Path(str(tmpdir_factory.mktemp("saved_products")))
+    _base = test_dir / "saved_products"
+    _base.mkdir(parents=True, exist_ok=True)
 
+    # Download the products into the root directory such that they don't need
+    # to be downloaded on each test run
     prodfile = _basedir / "drift_testproducts.tar.gz"
 
     # Download the test products if they don't exist locally

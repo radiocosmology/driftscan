@@ -212,15 +212,6 @@ class BeamTransfer(config.Reader):
         # Pattern to form the `m` ordered file.
         return self._mdir(mi) + "/beam.hdf5"
 
-    def _fdir(self, fi):
-        # Pattern to form the `freq` ordered file.
-        pat = self.directory + "/beam_f/" + util.natpattern(self.telescope.nfreq)
-        return pat % fi
-
-    def _ffile(self, fi):
-        # Pattern to form the `freq` ordered file.
-        return self._fdir(fi) + "/beam.hdf5"
-
     def _svdfile(self, mi):
         # Pattern to form the `m` ordered file.
 
@@ -296,68 +287,6 @@ class BeamTransfer(config.Reader):
         """
 
         return self._load_beam_m(mi, fi=fi)
-
-    # ===================================================
-
-    # ====== Loading freq-ordered beams =================
-
-    @util.cache_last
-    def _load_beam_freq(self, fi, fullm=False):
-
-        tel = self.telescope
-        mside = 2 * tel.lmax + 1 if fullm else 2 * tel.mmax + 1
-
-        ffile = h5py.File(self._ffile(fi), "r")
-        beamf = ffile["beam_freq"][:]
-        ffile.close()
-
-        if fullm:
-            beamt = np.zeros(
-                beamf.shape[:-1] + (2 * tel.lmax + 1,), dtype=np.complex128
-            )
-
-            for mi in range(-tel.mmax, tel.mmax + 1):
-                beamt[..., mi] = beamf[..., mi]
-
-            beamf = beamt
-
-        return beamf
-
-    @util.cache_last
-    def beam_freq(self, fi, fullm=False, single=False):
-        """Fetch the beam transfer matrix for a given frequency.
-
-        Parameters
-        ----------
-        fi : integer
-            Frequency to fetch.
-        fullm : boolean, optional
-            Pad out m-modes such that we have :math:`mmax = 2*lmax-1`. Useful
-            for projecting around a_lm's. Default is False.
-        single : boolean, optional
-            When set, fetch only the uncombined beam transfers (that is only
-            positive or negative m). Default is False.
-
-        Returns
-        -------
-        beam : np.ndarray
-        """
-        bf = self._load_beam_freq(fi, fullm)
-
-        if single:
-            return bf
-
-        mside = (bf.shape[-1] + 1) // 2
-
-        bfc = np.zeros((mside, 2) + bf.shape[:-1], dtype=bf.dtype)
-
-        bfc[0, 0] = bf[..., 0]
-
-        for mi in range(1, mside):
-            bfc[mi, 0] = bf[..., mi]
-            bfc[mi, 1] = (-1) ** mi * bf[..., -mi].conj()
-
-        return bfc
 
     # ===================================================
 
@@ -587,81 +516,6 @@ class BeamTransfer(config.Reader):
                 if not os.path.exists(dirname):
                     os.makedirs(dirname)
 
-        mpiutil.barrier()
-
-    def _generate_ffiles(self, regen=False):
-        ## Generate the beam transfers ordered by frequency.
-        ## Divide frequencies between MPI processes and calculate the beams
-        ## for the baselines, then write out into separate files.
-
-        for fi in mpiutil.mpirange(self.nfreq):
-
-            if os.path.exists(self._ffile(fi)) and not regen:
-                logger.info(
-                    f"f index {fi}. File: {self._ffile(fi)} exists. Skipping..."
-                )
-                continue
-            else:
-                logger.info(f"f index {fi}. Creating file: {self._ffile(fi)}")
-
-            f = h5py.File(self._ffile(fi), "w")
-
-            # Set a few useful attributes.
-            # f.attrs['baselines'] = self.telescope.baselines
-            # f.attrs['baseline_indices'] = np.arange(self.telescope.npairs)
-            f.attrs["frequency_index"] = fi
-            f.attrs["frequency"] = self.telescope.frequencies[fi]
-            f.attrs["cylobj"] = self._telescope_pickle
-
-            dsize = (
-                self.telescope.nbase,
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-                2 * self.telescope.mmax + 1,
-            )
-
-            csize = (
-                min(10, self.telescope.nbase),
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-                1,
-            )
-
-            dset = f.create_dataset(
-                "beam_freq", dsize, chunks=csize, compression="lzf", dtype=np.complex128
-            )
-
-            # Divide into roughly 5 GB chunks
-            nsections = int(np.ceil(np.prod(dsize) * 16.0 / 2 ** 30.0 / self.mem_chunk))
-
-            logger.info(
-                "Dividing calculation of %f GB array into %i sections."
-                % (np.prod(dsize) * 16.0 / 2 ** 30.0, nsections)
-            )
-
-            b_sec = np.array_split(
-                np.arange(self.telescope.npairs, dtype=np.int), nsections
-            )
-            f_sec = np.array_split(
-                fi * np.ones(self.telescope.npairs, dtype=np.int), nsections
-            )
-
-            # Iterate over each section, generating transfers and save them.
-            for si in range(nsections):
-                logger.info(f"Calculating section {int(si)} of {int(nsections)}....")
-                b_ind, f_ind = b_sec[si], f_sec[si]
-                tarray = self.telescope.transfer_matrices(b_ind, f_ind)
-                dset[
-                    (b_ind[0]) : (b_ind[-1] + 1), ..., : (self.telescope.mmax + 1)
-                ] = tarray[..., : (self.telescope.mmax + 1)]
-                dset[
-                    (b_ind[0]) : (b_ind[-1] + 1), ..., (-self.telescope.mmax) :
-                ] = tarray[..., (-self.telescope.mmax) :]
-                del tarray
-
-            f.close()
-
-        # If we're part of an MPI run, synchronise here.
         mpiutil.barrier()
 
     def _generate_mfiles(self, regen=False):

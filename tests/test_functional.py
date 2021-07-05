@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import h5py
 
-from pathlib import Path, PurePath
+from pathlib import Path
 from platform import python_version
 from urllib.request import urlretrieve
 
@@ -38,17 +38,17 @@ def products_run(tmpdir_factory):
 
     # If DRIFT_TESTDIR is set then use that
     if "DRIFT_TESTDIR" in os.environ:
-        _base = os.environ["DRIFT_TESTDIR"]
+        _base = Path(os.environ["DRIFT_TESTDIR"])
     else:
-        _base = str(tmpdir_factory.mktemp("testdrift"))
+        _base = Path(str(tmpdir_factory.mktemp("testdrift")))
 
     # allow parallel tests with different python versions without them writing to the
     # same files
-    testdir = Path(f"{_base}/tmptestdir/python_{python_version()}")
+    testdir = _base / "tmptestdir" / f"python_{python_version()}"
 
     # If the data already exists then we don't need to re-run the tests
     if not testdir.exists():
-        Path.mkdir(testdir, parents=True)
+        testdir.mkdir(parents=True)
 
         shutil.copy("testparams.yaml", testdir / "params.yaml")
 
@@ -95,12 +95,12 @@ def manager(products_run):
 @pytest.fixture(scope="module")
 def saved_products(tmpdir_factory):
 
-    _base = str(tmpdir_factory.mktemp("saved_products"))
+    _base = Path(str(tmpdir_factory.mktemp("saved_products")))
 
-    prodfile = PurePath.joinpath(_basedir, "drift_testproducts.tar.gz")
+    prodfile = _basedir / "drift_testproducts.tar.gz"
 
     # Download the test products if they don't exist locally
-    if not Path.exists(prodfile):
+    if not prodfile.exists():
         print("Downloading test verification data.")
         url = "http://bao.chimenet.ca/testcache/drift_testproducts.tar.gz"
         urlretrieve(url, prodfile)
@@ -109,9 +109,9 @@ def saved_products(tmpdir_factory):
         tf.extractall(path=_base)
 
     def _load(fname):
-        path = PurePath.joinpath(Path(_base), Path(fname))
+        path = _base / fname
 
-        if not Path.exists(path):
+        if not path.exists():
             raise ValueError("Saved product %s does not exist" % path)
 
         return h5py.File(path, "r")
@@ -139,7 +139,7 @@ def test_manager(manager, testdir):
     mfile = Path(manager.directory)
     tfile = testdir / "testdir"
 
-    assert Path.samefile(mfile, tfile)  # Manager does not see same directory
+    assert mfile.samefile(tfile)  # Manager does not see same directory
 
 
 # This works despite the non-determinism because the elements are small.

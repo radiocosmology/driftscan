@@ -1,0 +1,41 @@
+# A test config for testing the skip_freq/baseline/pol functionality
+
+## The main section for configuring what will be run.
+config:
+    ## Actions to perform
+    beamtransfers:      Yes                     # Calculate beamtransfers?
+    kltransform:        No                     # Find KL-modes of telescope?
+    psfisher:           No                     # Estimate power spectrum errors
+    skip_svd:           Yes
+
+    ## Directory to store output in/
+    output_directory:   "testdir"
+
+
+## Configure telescope object:
+## This is where you define all the parameters of the telescope that
+## you want to generate the analysis products for.
+telescope:
+    # Type of telescope to use (this must be supported in simulate.py)
+    type:               PolarisedCylinder
+
+    # Frequency channels (common to all telescope types)
+    num_freq:           8
+    freq_start:         400.0
+    freq_end:           450.0
+    freq_mode:          edge
+
+    # Setup class specific parameters (in this case defining the cylinder layout)
+    num_cylinders:      2
+    cylinder_width:     5.0
+    num_feeds:          5
+    feed_spacing:       0.5
+
+    tsys:               1.0
+
+    # Set parameters for skipping beamtransfer matrix entries
+    skip_freq: [0, 3, 4]
+    skip_baselines: [17, 18, 25]
+    skip_pol: true
+
+    

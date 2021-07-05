@@ -4,6 +4,7 @@ import logging
 import pickle
 import os
 import time
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import scipy.linalg as la
@@ -256,22 +257,8 @@ class BeamTransfer(config.Reader):
 
     # ====== Loading m-order beams ======================
 
-    def _load_beam_m(self, mi, fi=None):
-        ## Read in beam from disk
-        mfile = h5py.File(self._mfile(mi), "r")
-
-        # If fi is None, return all frequency blocks. Otherwise just the one requested.
-        if fi is None:
-            beam = mfile["beam_m"][:]
-        else:
-            beam = mfile["beam_m"][fi][:]
-
-        mfile.close()
-
-        return beam
-
     @util.cache_last
-    def beam_m(self, mi, fi=None):
+    def beam_m(self, mi: int, fi: Optional[int] = None) -> np.ndarray:
         """Fetch the beam transfer matrix for a given m.
 
         Parameters
@@ -285,8 +272,7 @@ class BeamTransfer(config.Reader):
         -------
         beam : np.ndarray (nfreq, 2, npairs, npol_sky, lmax+1)
         """
-
-        return self._load_beam_m(mi, fi=fi)
+        return _load_beam_f(self._mfile(mi), "beam_m", fi)
 
     # ===================================================
 
@@ -343,7 +329,7 @@ class BeamTransfer(config.Reader):
     # ====== SVD Beam loading ===========================
 
     @util.cache_last
-    def beam_svd(self, mi, fi=None):
+    def beam_svd(self, mi: int, fi: Optional[int] = None) -> np.ndarray:
         """Fetch the SVD beam transfer matrix (S V^H) for a given m. This SVD beam
         transfer projects from the sky into the SVD basis.
 
@@ -362,20 +348,10 @@ class BeamTransfer(config.Reader):
         beam : np.ndarray (nfreq, svd_len, npol_sky, lmax+1)
         """
 
-        svdfile = h5py.File(self._svdfile(mi), "r")
-
-        # Required array shape depends on whether we are returning all frequency blocks or not.
-        if fi is None:
-            bs = svdfile["beam_svd"][:]
-        else:
-            bs = svdfile["beam_svd"][fi][:]
-
-        svdfile.close()
-
-        return bs
+        return _load_beam_f(self._svdfile(mi), "beam_svd", fi)
 
     @util.cache_last
-    def invbeam_svd(self, mi, fi=None):
+    def invbeam_svd(self, mi: int, fi: Optional[int] = None) -> np.ndarray:
         """Fetch the SVD beam transfer matrix (S V^H) for a given m. This SVD beam
         transfer projects from the sky into the SVD basis.
 
@@ -393,21 +369,10 @@ class BeamTransfer(config.Reader):
         -------
         beam : np.ndarray (nfreq, svd_len, npol_sky, lmax+1)
         """
-
-        svdfile = h5py.File(self._svdfile(mi), "r")
-
-        # Required array shape depends on whether we are returning all frequency blocks or not.
-        if fi is None:
-            ibs = svdfile["invbeam_svd"][:]
-        else:
-            ibs = svdfile["invbeam_svd"][fi][:]
-
-        svdfile.close()
-
-        return ibs
+        return _load_beam_f(self._svdfile(mi), "invbeam_svd", fi)
 
     @util.cache_last
-    def beam_ut(self, mi, fi=None):
+    def beam_ut(self, mi: int, fi: Optional[int] = None) -> np.ndarray:
         """Fetch the SVD beam transfer matrix (U^H) for a given m. This SVD beam
         transfer projects from the telescope space into the SVD basis.
 
@@ -425,21 +390,10 @@ class BeamTransfer(config.Reader):
         -------
         beam : np.ndarray (nfreq, svd_len, ntel)
         """
-
-        svdfile = h5py.File(self._svdfile(mi), "r")
-
-        # Required array shape depends on whether we are returning all frequency blocks or not.
-        if fi is None:
-            bs = svdfile["beam_ut"][:]
-        else:
-            bs = svdfile["beam_ut"][fi][:]
-
-        svdfile.close()
-
-        return bs
+        return _load_beam_f(self._svdfile(mi), "beam_ut", fi)
 
     @util.cache_last
-    def beam_singularvalues(self, mi):
+    def beam_singularvalues(self, mi: int) -> np.ndarray:
         """Fetch the vector of beam singular values for a given m.
 
         Parameters
@@ -451,12 +405,7 @@ class BeamTransfer(config.Reader):
         -------
         beam : np.ndarray (nfreq, svd_len)
         """
-
-        svdfile = h5py.File(self._svdfile(mi), "r")
-        sv = svdfile["singularvalues"][:]
-        svdfile.close()
-
-        return sv
+        return _load_beam_f(self._svdfile(mi), "singularvalues")
 
     # ===================================================
 
@@ -1819,3 +1768,31 @@ class BeamTransferNoSVD(BeamTransfer):
     @property
     def ndofmax(self):
         return self.ntel * self.nfreq
+
+
+Index1D = Union[int, slice]
+IndexND = Union[Index1D, Tuple[Index1D, ...]]
+
+
+def _load_beam_f(
+    path: os.PathLike, dset_name: str, ind: Optional[IndexND] = None
+) -> np.ndarray:
+    # Load a beam from a file with the appropriate type checking
+
+    # Use a full slice if ind is None
+    ind = ind or slice(None)
+
+    with h5py.File(path, "r") as fh:
+
+        dset = fh[dset_name]
+
+        if not isinstance(dset, h5py.Dataset):
+            raise RuntimeError(f"Malformed beam file: {path}")
+
+        # If ind is None, return the full entry, to frequency blocks. Otherwise just the one requested.
+        beam = dset[ind]
+
+    # Check that we have got out a valid beam array
+    assert isinstance(beam, np.ndarray)
+
+    return beam

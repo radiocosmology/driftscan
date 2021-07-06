@@ -692,6 +692,44 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         """
         return bl_ind in self.skip_baselines
 
+    @cache.cached_property
+    def included_freq(self) -> np.ndarray:
+        """The frequency indices that *are* being calculated.
+
+        Returns
+        -------
+        freq_ind
+            Indices of included frequencies.
+        """
+        return np.array(
+            [ind for ind in range(self.nfreq) if not self._skip_freq(ind)], dtype=int
+        )
+
+    @cache.cached_property
+    def included_baseline(self) -> np.ndarray:
+        """The baseline indices that *are* being calculated.
+
+        Returns
+        -------
+        bl_ind
+            Indices of included baselines.
+        """
+        return np.array(
+            [ind for ind in range(self.nbase) if not self._skip_baseline(ind)],
+            dtype=int,
+        )
+
+    @cache.cached_property
+    def included_pol(self) -> np.ndarray:
+        """The pol indices that *are* being calculated.
+
+        Returns
+        -------
+        pol_ind
+            Indices of included polarisations.
+        """
+        return np.arange(self.num_pol_sky)
+
     # ===================================================
 
     # ==== Methods for calculating Transfer matrices ====
@@ -1263,6 +1301,25 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
                 btrans[pi] = t[pi].conj()
 
         return btrans
+
+    @cache.cached_property
+    def included_pol(self) -> np.ndarray:
+        """The included polarisation indices.
+
+        Returns
+        -------
+        pol_ind
+            Polarisation indices.
+        """
+
+        if self.skip_pol:
+            npol = 1
+        elif self.skip_V:
+            npol = 3
+        else:
+            npol = 4
+
+        return np.arange(npol)
 
     # ===================================================
 

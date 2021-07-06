@@ -55,7 +55,13 @@ jobs:
     - name: Run tests
       env:
         OMP_NUM_THREADS: 1
-      run: cd tests && pytest -s ./
+      # Because of issues with MPI forking, the two functional tests must be run within
+      # separate processes or the second one won't run
+      run: |
+        cd tests
+        pytest -s test_blockla.py test_simplepolarizationtelescope.py
+        pytest -s test_functional.py
+        pytest -s test_functional_skip.py
 
   build-docs:
 

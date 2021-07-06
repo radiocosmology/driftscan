@@ -61,7 +61,7 @@ def _gen_prod(output_dir: Path, config: Path):
         # job from within pytest
         if "DRIFT_NO_MPI" not in os.environ:
             nproc = 2  # Use a fixed number to check that the MPI code works
-            cmd = ("mpirun -np %i " % nproc) + cmd
+            cmd = ("mpirun -np %i --oversubscribe -bind-to none " % nproc) + cmd
 
         print(f"Running test in: {output_dir}")
         print("Generating products:", cmd)

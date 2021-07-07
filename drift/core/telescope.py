@@ -51,8 +51,8 @@ def map_half_plane(arr):
 
 def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
 
-    tmask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=np.bool)
-    tmask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=np.bool)
+    tmask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=bool)
+    tmask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=bool)
 
     # Merge two groups of feed arrays
     cmask = np.logical_and(tmask1, tmask2)
@@ -68,13 +68,13 @@ def _remap_keyarray(keyarray, mask=None):
     # Look through an array of keys and attach integer labels to each
     # equivalent classes of keys (also take into account masking).
     if mask is None:
-        mask = np.ones(keyarray.shape, np.bool)
+        mask = np.ones(keyarray.shape, bool)
 
     ind = np.where(mask)
 
     un, inv = np.unique(keyarray[ind], return_inverse=True)
 
-    fmap = -1 * np.ones(keyarray.shape, dtype=np.int)
+    fmap = -1 * np.ones(keyarray.shape, dtype=np.int64)
 
     fmap[ind] = np.arange(un.size)[inv]
     return fmap
@@ -83,7 +83,7 @@ def _remap_keyarray(keyarray, mask=None):
 def _get_indices(keyarray, mask=None):
     # Return a pair of indices for each group of equivalent feed pairs
     if mask is None:
-        mask = np.ones(keyarray.shape, np.bool)
+        mask = np.ones(keyarray.shape, bool)
 
     wm = np.where(mask.ravel())[0]
     keysflat = keyarray.ravel()[wm]
@@ -520,7 +520,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
         uniq = _get_indices(self._feedmap, mask=tmask)
 
-        conj_map = np.zeros(uniq.shape[0] + 1, dtype=np.bool)
+        conj_map = np.zeros(uniq.shape[0] + 1, dtype=bool)
 
         for i in range(uniq.shape[0]):
             sep = self.feedpositions[uniq[i, 0]] - self.feedpositions[uniq[i, 1]]
@@ -569,9 +569,9 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         beam_map = _merge_keyarray(bci, bcj)
 
         if self.auto_correlations:
-            beam_mask = np.ones(fshape, dtype=np.bool)
+            beam_mask = np.ones(fshape, dtype=bool)
         else:
-            beam_mask = np.logical_not(np.identity(self.nfeed, dtype=np.bool))
+            beam_mask = np.logical_not(np.identity(self.nfeed, dtype=bool))
 
         return beam_map, beam_mask
 
@@ -1339,7 +1339,7 @@ class SimpleUnpolarisedTelescope(UnpolarisedTelescope, metaclass=abc.ABCMeta):
     @property
     def beamclass(self):
         """Simple beam mode of dual polarisation feeds."""
-        return np.zeros(self._single_feedpositions.shape[0], dtype=np.int)
+        return np.zeros(self._single_feedpositions.shape[0], dtype=np.int64)
 
     @abc.abstractproperty
     def _single_feedpositions(self):
@@ -1381,7 +1381,7 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
     def beamclass(self):
         """Simple beam mode of dual polarisation feeds."""
         nsfeed = self._single_feedpositions.shape[0]
-        return np.concatenate((np.zeros(nsfeed), np.ones(nsfeed))).astype(np.int)
+        return np.concatenate((np.zeros(nsfeed), np.ones(nsfeed))).astype(np.int64)
 
     def beam(self, feed, freq):
         if self.polarisation[feed] == "X":

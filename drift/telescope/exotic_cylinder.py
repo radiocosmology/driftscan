@@ -98,7 +98,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         # Evens are X feed for each pert, Odds are Y feed
         beamclass = [bc * np.ones(nsfeed) for bc in range(2 * self.npert)]
 
-        return np.concatenate(beamclass).astype(np.int)
+        return np.concatenate(beamclass).astype(np.int64)
 
     @property
     def feedpositions(self):

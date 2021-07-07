@@ -139,7 +139,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     def _unique_beams(self):
 
-        beam_mask = np.identity(self.nfeed, dtype=np.bool)
+        beam_mask = np.identity(self.nfeed, dtype=bool)
         beam_map = telescope._remap_keyarray(
             np.diag(np.arange(self.nfeed)), mask=beam_mask
         )

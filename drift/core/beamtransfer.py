@@ -23,7 +23,6 @@ from drift.core import kltransform
 # Get the logger object
 logger = logging.getLogger(__name__)
 
-
 try:
     import bitshuffle.h5
 
@@ -272,7 +271,45 @@ class BeamTransfer(config.Reader):
         -------
         beam : np.ndarray (nfreq, 2, npairs, npol_sky, lmax+1)
         """
-        return _load_beam_f(self._mfile(mi), "beam_m", fi)
+
+        nfreq = self.telescope.nfreq
+        nbase = self.telescope.nbase
+        npol_sky = self.telescope.num_pol_sky
+        lmax = self.telescope.lmax
+
+        # Set the properties as if we were selecting a frequency
+        ind_list = [
+            np.arange(2),
+            self.telescope.included_baseline,
+            self.telescope.included_pol,
+            np.arange(mi, lmax + 1),
+        ]
+        shape = (2, nbase, npol_sky, lmax + 1)
+
+        # ... and add in the extra axis if we are returning all frequencies
+        if fi is None:
+            ind_list = [self.telescope.included_freq] + ind_list
+            shape = (nfreq,) + shape
+
+        # Allocate the output array
+        bf = np.zeros(shape, dtype=np.complex128)
+
+        # Check if we are selecting a single frequency...
+        if fi is not None:
+
+            # ... if we are, look up the index in the file
+            fi = _find_index_sorted(self.telescope.included_freq, fi)
+
+            # ... and if it's not in the file, just return zeros
+            if fi is None:
+                return bf
+
+        # Create the broadcasting indices, and then look up the BTM in the file and
+        # assign into the correct location in the output array
+        ind = np.ix_(*ind_list)
+        bf[ind] = _load_beam_f(self._mfile(mi), "beam_m", fi)
+
+        return bf
 
     # ===================================================
 
@@ -478,30 +515,29 @@ class BeamTransfer(config.Reader):
 
         # Get the frequencies and baselines that we are going to calculate and create a
         # lookup table for the order in which we are going to calculate them
-        freq_to_include = [
-            fi
-            for fi in range(self.telescope.nfreq)
-            if not self.telescope._skip_freq(fi)
-        ]
-        baselines_to_include = [
-            bi
-            for bi in range(self.telescope.nbase)
-            if not self.telescope._skip_baseline(bi)
-        ]
-        nfb = len(freq_to_include) * len(baselines_to_include)
+        freq_to_include = self.telescope.included_freq
+        baselines_to_include = self.telescope.included_baseline
+
+        # Calculate the number of included entries
+        nf_inc = len(self.telescope.included_freq)
+        nb_inc = len(self.telescope.included_baseline)
+        np_inc = len(self.telescope.included_pol)
+        nl = self.telescope.lmax + 1
+        nm = self.telescope.mmax + 1
+
+        nfb = nf_inc * nb_inc
 
         fbmap = np.array(
             np.meshgrid(freq_to_include, baselines_to_include, indexing="ij")
         ).reshape(2, nfb)
 
+        fbcompact = np.array(
+            np.meshgrid(np.arange(nf_inc), np.arange(nb_inc), indexing="ij")
+        ).reshape(2, nfb)
+
         # Calculate the number of baselines to deal with at any one time. Aim
         # to have a maximum of "mem_chunk" GB in memory at any one time
-        fbsize = (
-            self.telescope.num_pol_sky
-            * (self.telescope.lmax + 1)
-            * (2 * self.telescope.mmax + 1)
-            * 16.0
-        )
+        fbsize = self.telescope.num_pol_sky * nl * 2 * nm * 16.0
         nodemem = self.mem_chunk * 2 ** 30.0
 
         num_fb_per_node = int(nodemem / fbsize)
@@ -535,20 +571,9 @@ class BeamTransfer(config.Reader):
 
             f = h5py.File(self._mfile(mi), "w")
 
-            dsize = (
-                self.telescope.nfreq,
-                2,
-                self.telescope.nbase,
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-            )
-            csize = (
-                1,
-                2,
-                min(10, self.telescope.nbase),
-                self.telescope.num_pol_sky,
-                self.telescope.lmax + 1,
-            )
+            dsize = (nf_inc, 2, nb_inc, np_inc, nl - mi)
+            csize = (1, 2, min(10, nb_inc), np_inc, nl - mi)
+
             f.create_dataset(
                 "beam_m", dsize, chunks=csize, dtype=np.complex128, **compression_kwargs
             )
@@ -590,24 +615,18 @@ class BeamTransfer(config.Reader):
             bl_ind = fbmap[1, fb_ind]
 
             # Create array to hold local matrix section
-            fb_array = np.zeros(
-                (
-                    loc_num,
-                    2,
-                    self.telescope.num_pol_sky,
-                    self.telescope.lmax + 1,
-                    self.telescope.mmax + 1,
-                ),
-                dtype=np.complex128,
-            )
+            fb_array = np.zeros((loc_num, 2, np_inc, nl, nm), dtype=np.complex128)
 
             if loc_num > 0:
 
                 # Calculate the local Beam Matrices
                 tarray = self.telescope.transfer_matrices(bl_ind, f_ind)
 
+                # Cut out only the polarisations we are interested in
+                tarray = tarray[:, :np_inc]
+
                 # Expensive memory copy into array section
-                for mi in range(1, self.telescope.mmax + 1):
+                for mi in range(1, nm):
                     fb_array[:, 0, ..., mi] = tarray[..., mi]
                     fb_array[:, 1, ..., mi] = (-1) ** mi * tarray[..., -mi].conj()
 
@@ -619,16 +638,7 @@ class BeamTransfer(config.Reader):
                 logger.info("Transposing and writing chunk.")
 
             # Perform an in memory MPI transpose to get the m-ordered array
-            m_array = mpiutil.transpose_blocks(
-                fb_array,
-                (
-                    fbnum,
-                    2,
-                    self.telescope.num_pol_sky,
-                    self.telescope.lmax + 1,
-                    self.telescope.mmax + 1,
-                ),
-            )
+            m_array = mpiutil.transpose_blocks(fb_array, (fbnum, 2, np_inc, nl, nm))
 
             del fb_array
 
@@ -657,9 +667,11 @@ class BeamTransfer(config.Reader):
                     # into chunked HDF5 files
                     for fbs in np.argsort(fb_ind_chunk):
                         fbi = fb_ind_chunk[fbs]
-                        fi = fbmap[0, fbi]
-                        bi = fbmap[1, fbi]
-                        mfile["beam_m"][fi, :, bi] = m_array[lmi, fbs]
+
+                        # Get the indices to write into the compact layout file
+                        bci = fbcompact[1, fbi]
+                        fci = fbcompact[0, fbi]
+                        mfile["beam_m"][fci, :, bci] = m_array[lmi, fbs, ..., mi:]
 
             del m_array
 
@@ -806,12 +818,11 @@ class BeamTransfer(config.Reader):
                 for fi in np.arange(self.telescope.nfreq):
 
                     # Read the positive and negative m beams, and combine into one.
-                    with h5py.File(self._mfile(mi), "r") as fm:
-                        bf = fm["beam_m"][fi][:].reshape(
-                            self.ntel,
-                            self.telescope.num_pol_sky,
-                            self.telescope.lmax + 1,
-                        )
+                    bf = self.beam_m(mi, fi).reshape(
+                        self.ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )
 
                     noisew = self.telescope.noisepower(
                         np.arange(self.telescope.npairs), fi
@@ -992,18 +1003,33 @@ class BeamTransfer(config.Reader):
             Telescope vector to return.
         """
 
-        vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
+        vecf = np.zeros((self.nfreq, 2, self.telescope.nbase), dtype=np.complex128)
+
+        vec = vec
+        # Trim the input vector down to the known non-zero BTM entries
+        ind = np.ix_(
+            self.telescope.included_freq,
+            self.telescope.included_pol,
+            np.arange(mi, self.telescope.lmax + 1),
+        )
+
+        nfreq_trim = len(self.telescope.included_freq)
+        nsky_trim = len(self.telescope.included_pol) * (self.telescope.lmax + 1 - mi)
+        vec = vec[ind].reshape((nfreq_trim, nsky_trim))
 
         if np.all(vec == 0):
-            return vecf
+            return vecf.reshape(self.nfreq, self.ntel)
 
         with h5py.File(self._mfile(mi), "r") as mfile:
 
-            for fi in range(self.nfreq):
-                beamf = mfile["beam_m"][fi][:].reshape((self.ntel, self.nsky))
-                vecf[fi] = np.dot(beamf, vec[fi].reshape(self.nsky))
+            for file_fi, fi in enumerate(self.telescope.included_freq):
 
-        return vecf
+                beamf = mfile["beam_m"][file_fi][:].reshape(-1, nsky_trim)
+
+                t = np.dot(beamf, vec[file_fi]).reshape(2, -1)
+                vecf[fi][:, self.telescope.included_baseline] = t
+
+        return vecf.reshape(self.nfreq, self.ntel)
 
     project_vector_forward = project_vector_sky_to_telescope
 
@@ -1541,12 +1567,11 @@ class BeamTransferTempSVD(BeamTransfer):
                 for fi in np.arange(self.telescope.nfreq):
 
                     # Read the positive and negative m beams, and combine into one.
-                    with h5py.File(self._mfile(mi), "r") as fm:
-                        bf = fm["beam_m"][fi][:].reshape(
-                            self.ntel,
-                            self.telescope.num_pol_sky,
-                            self.telescope.lmax + 1,
-                        )
+                    bf = self.beam_m(mi, fi).reshape(
+                        self.ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )
 
                     noisew = self.telescope.noisepower(
                         np.arange(self.telescope.npairs), fi
@@ -1682,12 +1707,11 @@ class BeamTransferFullSVD(BeamTransfer):
                 for fi in np.arange(self.telescope.nfreq):
 
                     # Read the positive and negative m beams, and combine into one.
-                    with h5py.File(self._mfile(mi), "r") as fm:
-                        bf = fm["beam_m"][fi][:].reshape(
-                            self.ntel,
-                            self.telescope.num_pol_sky,
-                            self.telescope.lmax + 1,
-                        )
+                    bf = self.beam_m(mi, fi).reshape(
+                        self.ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )
 
                     noisew = self.telescope.noisepower(
                         np.arange(self.telescope.npairs), fi
@@ -1780,7 +1804,7 @@ def _load_beam_f(
     # Load a beam from a file with the appropriate type checking
 
     # Use a full slice if ind is None
-    ind = ind or slice(None)
+    ind = ind if ind is not None else slice(None)
 
     with h5py.File(path, "r") as fh:
 
@@ -1796,3 +1820,10 @@ def _load_beam_f(
     assert isinstance(beam, np.ndarray)
 
     return beam
+
+
+def _find_index_sorted(a: np.ndarray, v: int) -> Optional[int]:
+    """Find the index of the first entry in `a` equal to `v`."""
+    ind = np.searchsorted(a, v)
+
+    return ind if v == a[ind] else None

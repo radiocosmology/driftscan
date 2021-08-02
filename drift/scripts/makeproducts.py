@@ -68,7 +68,7 @@ def run(configfile, profile, profiler):
     root_logger.addHandler(ch)
 
     # Generate all the products, potentially while profiling
-    with Profiler(profile, profiler=profiler):
+    with Profiler(profile, profiler=profiler.lower()):
         m = manager.ProductManager.from_config(configfile)
         m.generate()
 

@@ -11,6 +11,10 @@ config:
     ## Directory to store output in/
     output_directory:   "testdir"
 
+    # Turn off bitshuffle truncation and compression in the CI, this can be turned back
+    # on when bitshuffle installs from a binary wheel on the CI server
+    truncate:           false
+
 
 ## Configure telescope object:
 ## This is where you define all the parameters of the telescope that
@@ -38,4 +42,4 @@ telescope:
     skip_baselines: [17, 18, 25]
     skip_pol: true
 
-    
+

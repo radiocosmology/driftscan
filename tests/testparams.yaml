@@ -15,6 +15,10 @@ config:
 
     polsvcut:           1.0
 
+    # Turn off bitshuffle truncation and compression in the CI, this can be turned back
+    # on when bitshuffle installs from a binary wheel on the CI server
+    truncate:           false
+
     ## Cluster configuration (ignored unless on a cluster)
     ## This section is interpreted by mkjob_simulate.py to work out the job
     ## configuration when run on a cluster.

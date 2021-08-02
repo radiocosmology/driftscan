@@ -165,12 +165,22 @@ def test_manager(manager, testdir):
     assert mfile.samefile(tfile)  # Manager does not see same directory
 
 
+# Add padding to start of the btm dataset to account for the compact storage
+def _pad_btm_m(fh):
+    bm_saved = fh["beam_m"][:]
+    m = int(fh.attrs["m"])
+    final_pad = [(0, 0)] * (bm_saved.ndim - 1) + [(m, 0)]
+    return np.pad(bm_saved, final_pad, mode="constant", constant_values=0)
+
+
 # This works despite the non-determinism because the elements are small.
 def test_beam_m(manager, saved_products):
     """Check the consistency of the m-ordered beams."""
 
+    # Load cached beam transfer and insert the zeros that are missing from the beginning
+    # of the l axis
     with saved_products("beam_m_14.hdf5") as f:
-        bm_saved = f["beam_m"][:]
+        bm_saved = _pad_btm_m(f)
     bm = manager.beamtransfer.beam_m(14)
 
     assert bm_saved.shape == bm.shape  # Beam matrix (m=14) shape has changed

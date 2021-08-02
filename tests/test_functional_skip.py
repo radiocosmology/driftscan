@@ -3,7 +3,14 @@ from platform import python_version
 import numpy as np
 import pytest
 
-from test_functional import approx, test_dir, saved_products, _gen_prod, _basedir
+from test_functional import (
+    approx,
+    test_dir,
+    saved_products,
+    _gen_prod,
+    _basedir,
+    _pad_btm_m,
+)
 
 
 @pytest.fixture(scope="module")
@@ -23,8 +30,10 @@ def manager(products_run):
 def test_skip_beam_m(manager, saved_products):
     """Check the consistency of the m-ordered beams."""
 
+    # Load cached beam transfer and insert the zeros that are missing from the beginning
+    # of the l axis
     with saved_products("beam_m_14.hdf5") as f:
-        bm_saved = f["beam_m"][:]
+        bm_saved = _pad_btm_m(f)
     bm = manager.beamtransfer.beam_m(14)
 
     # Check the shapes are consistent
@@ -49,7 +58,7 @@ def test_skip_beam_m_iter(manager, saved_products):
     """Check the consistency of the m-ordered beams."""
 
     with saved_products("beam_m_14.hdf5") as f:
-        bm_saved = f["beam_m"][:]
+        bm_saved = _pad_btm_m(f)
 
     # Apply the masking from the skipped entries to the saved data
     skipped_freq = manager.config["telescope"]["skip_freq"]
@@ -73,7 +82,7 @@ def test_project_s2t(manager, saved_products):
     """Check the consistency of the m-ordered beams."""
 
     with saved_products("beam_m_14.hdf5") as f:
-        bm_saved = f["beam_m"][:]
+        bm_saved = _pad_btm_m(f)
 
     # Apply the masking from the skipped entries to the saved data
     skipped_freq = manager.config["telescope"]["skip_freq"]

@@ -1,4 +1,13 @@
-"""Functional test suite for checking integrity of the analysis product generation."""
+"""Functional test suite for checking integrity of the analysis product generation.
+
+The tests using the KL spectrum are effected by changes to the default cosmology/power
+spectrum in cora, and there is no easy way to pin this during the tests. Best option is
+to just update the products *if* the defaults change.
+
+Also, due to problems with double forking MPI processes this test suite can only run
+once within a single process. In particular you can't run this test suite followed by
+`test_functional_skip.py`
+"""
 
 import shutil
 import os

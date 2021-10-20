@@ -1734,6 +1734,14 @@ class BeamTransferFullSVD(BeamTransfer):
 
 
 class BeamTransferNoSVD(BeamTransfer):
+    """Subclass of BeamTransfer that skips SVD decomposition.
+
+    To use in a driftscan config file, the `nosvd` flag needs
+    to be set. (In this case, the value of `skip_svd` is ignored,
+    because the SVD step is automatically skipped.)
+    """
+    
+    # No SV cut
     svcut = 0.0
 
     noise_weight = False
@@ -1754,7 +1762,9 @@ class BeamTransferNoSVD(BeamTransfer):
             Indices bounding SV modes after concatenation over frequency.
             Has size nfreq+1.
         """
-        # Number of significant sv modes at each frequency
+        # Number of significant SV modes at each frequency,
+        # which is *all* SV modes in no-SVD case, since SV modes
+        # are just the m-modes.
         svnum = (np.ones(self.nfreq) * self.ntel).astype(int)
 
         # Calculate the block bounds within the full matrix

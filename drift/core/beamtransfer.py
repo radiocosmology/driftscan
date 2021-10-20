@@ -1740,7 +1740,7 @@ class BeamTransferNoSVD(BeamTransfer):
     to be set. (In this case, the value of `skip_svd` is ignored,
     because the SVD step is automatically skipped.)
     """
-    
+
     # No SV cut
     svcut = 0.0
 
@@ -1748,7 +1748,7 @@ class BeamTransferNoSVD(BeamTransfer):
 
     def _svd_num(self, mi):
         """Compute number of SVD modes meeting the cut.
-        
+
         Parameters
         ----------
         mi : integer
@@ -1882,7 +1882,9 @@ class BeamTransferNoSVD(BeamTransfer):
         """
 
         if temponly:
-            raise NotImplementedError("temponly not implemented for no-SVD project_vector_svd_to_sky!")
+            raise NotImplementedError(
+                "temponly not implemented for no-SVD project_vector_svd_to_sky!"
+            )
 
         # Create the output matrix
         svec = np.zeros(
@@ -1897,8 +1899,11 @@ class BeamTransferNoSVD(BeamTransfer):
 
             # Loop through frequencies, doing tel-to-sky projection at each freq
             for fi in range(self.nfreq):
-                svec[fi] = np.dot(beam[fi].T.conj(), vec.reshape(self.nfreq, self.ntel, -1)[fi]).reshape(
-                    (self.telescope.num_pol_sky, self.telescope.lmax + 1) + vec.shape[1:]
+                svec[fi] = np.dot(
+                    beam[fi].T.conj(), vec.reshape(self.nfreq, self.ntel, -1)[fi]
+                ).reshape(
+                    (self.telescope.num_pol_sky, self.telescope.lmax + 1)
+                    + vec.shape[1:]
                 )
 
         else:
@@ -1906,8 +1911,11 @@ class BeamTransferNoSVD(BeamTransfer):
 
             # Loop through frequencies, doing tel-to-sky projection at each freq
             for fi in range(self.nfreq):
-                svec[fi] = np.dot(ibeam[fi], vec.reshape(self.nfreq, self.ntel, -1)[fi]).reshape(
-                    (self.telescope.num_pol_sky, self.telescope.lmax + 1) + vec.shape[1:]
+                svec[fi] = np.dot(
+                    ibeam[fi], vec.reshape(self.nfreq, self.ntel, -1)[fi]
+                ).reshape(
+                    (self.telescope.num_pol_sky, self.telescope.lmax + 1)
+                    + vec.shape[1:]
                 )
 
         return svec

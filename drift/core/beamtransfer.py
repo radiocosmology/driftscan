@@ -626,6 +626,8 @@ class BeamTransfer(config.Reader):
                 tarray = tarray[:, :np_inc]
 
                 # Expensive memory copy into array section
+                if mpiutil.rank0:
+                    logger.info("Copying transfer elements into array section")
                 for mi in range(1, nm):
                     fb_array[:, 0, ..., mi] = tarray[..., mi]
                     fb_array[:, 1, ..., mi] = (-1) ** mi * tarray[..., -mi].conj()

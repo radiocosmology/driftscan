@@ -21,6 +21,7 @@ from drift.core import beamtransfer
 from drift.core import kltransform, doublekl
 from drift.core import psestimation, psmc, crosspower
 from drift.core import skymodel
+from drift.telescope import external_beam
 
 
 logger = logging.getLogger(__name__)
@@ -224,6 +225,8 @@ class ProductManager(object):
             btclass = beamtransfer.BeamTransferNoSVD
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
+        if yconf["config"].get("svd_templates"):
+            btclass = external_beam.BeamTransferTemplates
 
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)

@@ -1,20 +1,22 @@
 """Telescope classes and beam transfer routines related to external beam models."""
 
+import os
 import abc
 import logging
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import healpy
+import h5py
 from scipy.interpolate import RectBivariateSpline
 
-from caput import cache
-from caput import config
+from caput import cache, config, misc, mpiutil
 
 from cora.util import coord, hputil, units
 
-from drift.core import telescope
+from drift.core import beamtransfer, kltransform, telescope
 from drift.telescope import cylinder, cylbeam
-
+from drift.util import util
 from draco.core.containers import ContainerBase, GridBeam, HEALPixBeam
 
 
@@ -580,3 +582,320 @@ class CylinderPerturbedTemplates(PolarisedCylinderTelescopeExternalBeam):
             self.fwhm_e,
             self.fwhm_h,
         )
+
+
+class BeamTransferTemplates(beamtransfer.BeamTransfer):
+    def _svdfile(self, mi: int, t: Optional[int] = None):
+        # Pattern to form the `m` ordered file.
+
+        if t is None:
+            f = "/svd.hdf5"
+        else:
+            f = "/svd_template%d.hdf5" % t
+
+        pat = self.directory + "/beam_m/" + util.natpattern(self.telescope.mmax) + f
+        return pat % mi
+
+    def _generate_svdfile_m_in_basebeam_basis(
+        self,
+        mi,
+        filename,
+        skip_svd_inv=False,
+        bl_mask=None,
+        bl_mask2=None,
+    ):
+
+        if bl_mask is None:
+            bl_mask = [True for i in range(self.telescope.npairs)]
+
+        if bl_mask2 is not None and np.sum(bl_mask2) != np.sum(bl_mask):
+            raise ValueError("bl_mask2 must select same number of elements as bl_mask!")
+
+        npairs = np.sum(bl_mask)
+        ntel = 2 * npairs
+
+        # Open file to write SVD results into, using caput.misc.lock_file()
+        # to guard against crashes while the file is open. With preserve=True,
+        # the temp file will be saved with a period in front of its name
+        # if a crash occurs.
+        with misc.lock_file(filename, preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as fs:
+
+                # Create a chunked dataset for writing the SVD beam matrix into.
+                dsize_bsvd = (
+                    self.telescope.nfreq,
+                    self.svd_len(ntel),
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                csize_bsvd = (
+                    1,
+                    min(10, self.svd_len(ntel)),
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                dset_bsvd = fs.create_dataset(
+                    "beam_svd",
+                    dsize_bsvd,
+                    chunks=csize_bsvd,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                if not skip_svd_inv:
+                    # Create a chunked dataset for writing the inverse SVD beam matrix
+                    # into.
+                    dsize_ibsvd = (
+                        self.telescope.nfreq,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        self.svd_len(ntel),
+                    )
+                    csize_ibsvd = (
+                        1,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        min(10, self.svd_len(ntel)),
+                    )
+                    dset_ibsvd = fs.create_dataset(
+                        "invbeam_svd",
+                        dsize_ibsvd,
+                        chunks=csize_ibsvd,
+                        compression="lzf",
+                        dtype=np.complex128,
+                    )
+
+                # Create a chunked dataset for the stokes T U-matrix (left evecs)
+                dsize_ut = (self.telescope.nfreq, self.svd_len(ntel), ntel)
+                csize_ut = (1, min(10, self.svd_len(ntel)), ntel)
+                dset_ut = fs.create_dataset(
+                    "beam_ut",
+                    dsize_ut,
+                    chunks=csize_ut,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                # Create a dataset for the singular values.
+                dsize_sig = (self.telescope.nfreq, self.svd_len(ntel))
+                dset_sig = fs.create_dataset(
+                    "singularvalues", dsize_sig, dtype=np.float64
+                )
+
+                ## For each frequency in the m-files read in the block, SVD it,
+                ## and construct the new beam matrix, and save.
+                for fi in np.arange(self.telescope.nfreq):
+
+                    # Get U^T for base beam, packed as [svd_len, ntel]
+                    ut = self.beam_ut(mi, fi)
+
+                    # Read the positive and negative m beams, and combine into one.
+                    # No need to prewhiten, because the factor of N^{-1/2} is already
+                    # contained in ut
+                    bf = self.beam_m(mi, fi)[:, bl_mask, :, :].reshape(
+                        ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )
+                    if bl_mask2 is not None:
+                        bf += self.beam_m(mi, fi)[:, bl_mask2, :, :].reshape(
+                            ntel,
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
+                        )
+
+                    # Reshape beam to 2D matrix and apply U^T to template BTM
+                    bf = bf.reshape(ntel, -1)
+                    bf2 = np.dot(ut, bf)
+
+                    # Perform SVD and find U and Sigma for projected template BTM.
+                    # Don't cut any modes here - just want to get the SVD decomposition
+                    u_template, s_template = beamtransfer.matrix_nullspace(
+                        bf2, rtol=10, errmsg=("Template SVD m=%i f=%i" % (mi, fi))
+                    )
+                    u_template_t = u_template.T.conj()
+                    nmodes = u_template_t.shape[0]
+                    sig = s_template[:nmodes]
+                    beam = np.dot(u_template_t, bf)
+
+                    # Save out the evecs (for transforming from the telescope frame
+                    # into the SVD basis)
+                    dset_ut[fi, :nmodes] = ut
+
+                    # Save out the modified beam matrix (for mapping from the sky
+                    # into the SVD basis)
+                    dset_bsvd[fi, :nmodes] = beam.reshape(
+                        nmodes, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                    )
+
+                    if not skip_svd_inv:
+                        raise NotImplementedError(
+                            "Inverse not implemented for template!"
+                        )
+
+                    # Save out the singular values for each block
+                    dset_sig[fi, :nmodes] = sig
+
+                # Write a few useful attributes.
+                # fs.attrs["baselines"] = self.telescope.baselines[]
+                fs.attrs["m"] = mi
+                fs.attrs["frequencies"] = self.telescope.frequencies
+
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+
+        ## Generate all the SVD transfer matrices by simply iterating over all
+        ## m, performing the SVD, combining the beams and then write out the
+        ## results.
+
+        def _file_list(mi):
+            return [self._svdfile(mi)] + [
+                self._svdfile(mi, t) for t in range(1, self.telescope.n_pert + 1)
+            ]
+
+        m_list = np.arange(self.telescope.mmax + 1)
+        if mpiutil.rank0:
+            # For each m, check whether the files exist, if so, whether we
+            # can open them. If these tests all pass, we can skip this m.
+            # Otherwise, we need to generate a SVD files for that m.
+            for mi in m_list:
+
+                file_list = _file_list(mi)
+
+                run_mi = False
+                for fname in file_list:
+                    if run_mi:
+                        continue
+
+                    if os.path.exists(fname) and not regen:
+                        # File may exist but be un-openable, so we catch such an
+                        # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                        # but we catch it just in case.
+                        try:
+                            fs = h5py.File(fname, "r")
+                            fs.close()
+
+                            logger.info(
+                                f"m index {mi}. Complete file: {fname} exists."
+                                "Skipping..."
+                            )
+
+                        except Exception:
+                            logger.info(
+                                f"m index {mi}. ***INCOMPLETE file: {fname} "
+                                "exists. Will regenerate..."
+                            )
+                            run_mi = True
+
+                    else:
+                        run_mi = True
+
+                if not run_mi:
+                    m_list[mi] = -1
+
+            # Reduce m_list to the m's that we need to compute
+            m_list = m_list[m_list != -1]
+
+        # Broadcast reduced list to all tasks
+        m_list = mpiutil.bcast(m_list)
+
+        # Print m list
+        if mpiutil.rank0:
+            logger.info(f"m's remaining in beam SVD computation: {m_list}")
+        mpiutil.barrier()
+
+        # Distribute m list over tasks, and do computations
+        for mi in mpiutil.partition_list_mpi(m_list):
+            file_list = _file_list(mi)
+            for t, fname in enumerate(file_list):
+                logger.info(f"m index {mi}. Creating SVD file: {fname}")
+                if t == 0:
+                    bl_mask = [
+                        (x[0] in [0, 1] and x[1] in [0, 1])
+                        for x in self.telescope.beamclass[self.telescope.uniquepairs]
+                    ]
+                    self._generate_svdfile_m(
+                        mi,
+                        skip_svd_inv=skip_svd_inv,
+                        bl_mask=bl_mask,
+                        filename=fname,
+                    )
+                else:
+                    bl_mask = [
+                        (x[0] in [0, 1] and x[1] in [2 * t, 2 * t + 1])
+                        for x in self.telescope.beamclass[self.telescope.uniquepairs]
+                    ]
+                    bl_mask2 = [
+                        (x[0] in [2 * t, 2 * t + 1] and x[1] in [0, 1])
+                        for x in self.telescope.beamclass[self.telescope.uniquepairs]
+                    ]
+                    self._generate_svdfile_m_in_basebeam_basis(
+                        mi, fname, skip_svd_inv=True, bl_mask=bl_mask, bl_mask2=bl_mask2
+                    )
+
+        # If we're part of an MPI run, synchronise here.self._svdfile(mi)
+        mpiutil.barrier()
+
+        # Collect the spectrum into a single file.
+        self._collect_svd_spectrum()
+
+    @util.cache_last
+    def beam_singularvalues(self, mi: int, t: Optional[int] = None) -> np.ndarray:
+        """Fetch the vector of beam singular values for a given m.
+
+        Parameters
+        ----------
+        mi : integer
+            m-mode to fetch.
+
+        Returns
+        -------
+        beam : np.ndarray (nfreq, svd_len)
+        """
+        if t is None:
+            return beamtransfer._load_beam_f(self._svdfile(mi), "singularvalues")
+        else:
+            return beamtransfer._load_beam_f(self._svdfile(mi, t), "singularvalues")
+
+    def _collect_svd_spectrum(self):
+        """Gather the SVD spectra into a single files for base beam and each template."""
+
+        svd_func = lambda mi: self.beam_singularvalues(mi)
+
+        ntel = 2 * np.sum(
+            [
+                (x[0] in [0, 1] and x[1] in [0, 1])
+                for x in self.telescope.beamclass[self.telescope.uniquepairs]
+            ]
+        )
+
+        svdspectrum = kltransform.collect_m_array(
+            list(range(self.telescope.mmax + 1)),
+            svd_func,
+            (self.nfreq, self.svd_len(ntel)),
+            np.float64,
+        )
+        print("fu", svdspectrum.shape)
+
+        if mpiutil.rank0:
+            with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
+                f.create_dataset("singularvalues", data=svdspectrum)
+
+        for t in range(1, self.telescope.n_pert + 1):
+
+            svd_func = lambda mi: self.beam_singularvalues(mi, t)
+
+            svdspectrum = kltransform.collect_m_array(
+                list(range(self.telescope.mmax + 1)),
+                svd_func,
+                (self.nfreq, self.svd_len(ntel)),
+                np.float64,
+            )
+
+            if mpiutil.rank0:
+                print("making file", self.directory)
+                with h5py.File(
+                    self.directory + "/svdspectrum_template%d.hdf5" % t, "w"
+                ) as f:
+                    f.create_dataset("singularvalues", data=svdspectrum)
+
+        mpiutil.barrier()

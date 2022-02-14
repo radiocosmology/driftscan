@@ -743,13 +743,18 @@ class BeamTransfer(config.Reader):
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
 
-    def _generate_svdfile_m(self, mi, skip_svd_inv=False, bl_mask=None, filename=None):
+    def _generate_svdfile_m(
+        self, mi, skip_svd_inv=False, bl_mask=None, bl_mask2=None, filename=None
+    ):
 
         if filename is None:
             filename = self._svdfile(mi)
 
         if bl_mask is None:
             bl_mask = [True for i in range(self.telescope.npairs)]
+
+        if bl_mask2 is not None and np.sum(bl_mask2) != np.sum(bl_mask):
+            raise ValueError("bl_mask2 must select same number of elements as bl_mask!")
 
         npairs = np.sum(bl_mask)
         ntel = 2 * npairs
@@ -831,6 +836,12 @@ class BeamTransfer(config.Reader):
                         self.telescope.num_pol_sky,
                         self.telescope.lmax + 1,
                     )
+                    if bl_mask2 is not None:
+                        bf += self.beam_m(mi, fi)[:, bl_mask2, :, :].reshape(
+                            ntel,
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
+                        )
 
                     noisew = self.telescope.noisepower(
                         np.arange(npairs), fi

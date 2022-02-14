@@ -874,7 +874,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
             (self.nfreq, self.svd_len(ntel)),
             np.float64,
         )
-        print("fu", svdspectrum.shape)
 
         if mpiutil.rank0:
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:

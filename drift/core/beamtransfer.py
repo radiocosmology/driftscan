@@ -743,7 +743,10 @@ class BeamTransfer(config.Reader):
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
 
-    def _generate_svdfile_m(self, mi, skip_svd_inv=False, bl_mask=None):
+    def _generate_svdfile_m(self, mi, skip_svd_inv=False, bl_mask=None, filename=None):
+
+        if filename is None:
+            filename = self._svdfile(mi)
 
         if bl_mask is None:
             bl_mask = [True for i in range(self.telescope.npairs)]
@@ -755,7 +758,7 @@ class BeamTransfer(config.Reader):
         # to guard against crashes while the file is open. With preserve=True,
         # the temp file will be saved with a period in front of its name
         # if a crash occurs.
-        with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
+        with misc.lock_file(filename, preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
 
                 # Create a chunked dataset for writing the SVD beam matrix into.

@@ -716,11 +716,11 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                     u_template_t = u_template.T.conj()
                     nmodes = u_template_t.shape[0]
                     sig = s_template[:nmodes]
-                    beam = np.dot(u_template_t, bf)
+                    beam = np.dot(u_template_t, bf2)
 
                     # Save out the evecs (for transforming from the telescope frame
                     # into the SVD basis)
-                    dset_ut[fi, :nmodes] = ut
+                    dset_ut[fi, :nmodes] = u_template_t
 
                     # Save out the modified beam matrix (for mapping from the sky
                     # into the SVD basis)

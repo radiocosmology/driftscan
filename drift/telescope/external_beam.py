@@ -720,7 +720,7 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
 
                     # Save out the evecs (for transforming from the telescope frame
                     # into the SVD basis)
-                    dset_ut[fi, :nmodes] = u_template_t
+                    dset_ut[fi, :nmodes, :nmodes] = u_template_t
 
                     # Save out the modified beam matrix (for mapping from the sky
                     # into the SVD basis)

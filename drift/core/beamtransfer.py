@@ -743,10 +743,13 @@ class BeamTransfer(config.Reader):
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
 
-    def _generate_svdfile_m(self, mi, skip_svd_inv=False):
+    def _generate_svdfile_m(self, mi, skip_svd_inv=False, bl_mask=None):
 
-        # For each `m` collect all the `m` sections from each frequency file,
-        # and write them into a new `m` file.
+        if bl_mask is None:
+            bl_mask = [True for i in range(self.telescope.npairs)]
+
+        npairs = np.sum(bl_mask)
+        ntel = 2 * npairs
 
         # Open file to write SVD results into, using caput.misc.lock_file()
         # to guard against crashes while the file is open. With preserve=True,
@@ -758,13 +761,13 @@ class BeamTransfer(config.Reader):
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
                     self.telescope.nfreq,
-                    self.svd_len,
+                    self.svd_len(ntel),
                     self.telescope.num_pol_sky,
                     self.telescope.lmax + 1,
                 )
                 csize_bsvd = (
                     1,
-                    min(10, self.svd_len),
+                    min(10, self.svd_len(ntel)),
                     self.telescope.num_pol_sky,
                     self.telescope.lmax + 1,
                 )
@@ -782,13 +785,13 @@ class BeamTransfer(config.Reader):
                         self.telescope.nfreq,
                         self.telescope.num_pol_sky,
                         self.telescope.lmax + 1,
-                        self.svd_len,
+                        self.svd_len(ntel),
                     )
                     csize_ibsvd = (
                         1,
                         self.telescope.num_pol_sky,
                         self.telescope.lmax + 1,
-                        min(10, self.svd_len),
+                        min(10, self.svd_len(ntel)),
                     )
                     dset_ibsvd = fs.create_dataset(
                         "invbeam_svd",
@@ -799,8 +802,8 @@ class BeamTransfer(config.Reader):
                     )
 
                 # Create a chunked dataset for the stokes T U-matrix (left evecs)
-                dsize_ut = (self.telescope.nfreq, self.svd_len, self.ntel)
-                csize_ut = (1, min(10, self.svd_len), self.ntel)
+                dsize_ut = (self.telescope.nfreq, self.svd_len(ntel), ntel)
+                csize_ut = (1, min(10, self.svd_len(ntel)), ntel)
                 dset_ut = fs.create_dataset(
                     "beam_ut",
                     dsize_ut,
@@ -810,7 +813,7 @@ class BeamTransfer(config.Reader):
                 )
 
                 # Create a dataset for the singular values.
-                dsize_sig = (self.telescope.nfreq, self.svd_len)
+                dsize_sig = (self.telescope.nfreq, self.svd_len(ntel))
                 dset_sig = fs.create_dataset(
                     "singularvalues", dsize_sig, dtype=np.float64
                 )
@@ -820,26 +823,26 @@ class BeamTransfer(config.Reader):
                 for fi in np.arange(self.telescope.nfreq):
 
                     # Read the positive and negative m beams, and combine into one.
-                    bf = self.beam_m(mi, fi).reshape(
-                        self.ntel,
+                    bf = self.beam_m(mi, fi)[:, bl_mask, :, :].reshape(
+                        ntel,
                         self.telescope.num_pol_sky,
                         self.telescope.lmax + 1,
                     )
 
                     noisew = self.telescope.noisepower(
-                        np.arange(self.telescope.npairs), fi
+                        np.arange(npairs), fi
                     ).flatten() ** (-0.5)
                     noisew = np.concatenate([noisew, noisew])
                     bf = bf * noisew[:, np.newaxis, np.newaxis]
 
                     # Reshape total beam to a 2D matrix
-                    bfr = bf.reshape(self.ntel, -1)
+                    bfr = bf.reshape(ntel, -1)
 
                     # If unpolarised skip straight to the final SVD, otherwise
                     # project onto the polarised null space.
                     if self.telescope.num_pol_sky == 1:
                         bf2 = bfr
-                        ut2 = np.identity(self.ntel, dtype=np.complex128)
+                        ut2 = np.identity(ntel, dtype=np.complex128)
                     else:
                         ## SVD 1 - coarse projection onto sky-modes
                         u1, s1 = matrix_image(
@@ -896,17 +899,20 @@ class BeamTransfer(config.Reader):
                         sig = s3[:nmodes]
                         beam = np.dot(ut3, bfr)
 
-                        # Save out the evecs (for transforming from the telescope frame into the SVD basis)
+                        # Save out the evecs (for transforming from the telescope frame
+                        # into the SVD basis)
                         dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]
 
-                        # Save out the modified beam matrix (for mapping from the sky into the SVD basis)
+                        # Save out the modified beam matrix (for mapping from the sky
+                        # into the SVD basis)
                         dset_bsvd[fi, :nmodes] = beam.reshape(
                             nmodes, self.telescope.num_pol_sky, self.telescope.lmax + 1
                         )
 
                         if not skip_svd_inv:
-                            # Find the pseudo-inverse of the beam matrix and save to disk.
-                            # First try la.pinv, which uses a least-squares solver.
+                            # Find the pseudo-inverse of the beam matrix and save to
+                            # disk. First try la.pinv, which uses a least-squares
+                            # solver.
                             try:
                                 ibeam = la.pinv(beam)
                             except la.LinAlgError as e:
@@ -930,8 +936,8 @@ class BeamTransfer(config.Reader):
                                 except:
                                     # If pinv2 fails, print error message
                                     raise Exception(
-                                        "Beam-SVD pseudoinverse (scipy.linalg.pinv2) failure: m = %d, fi = %d"
-                                        % (mi, fi)
+                                        "Beam-SVD pseudoinverse (scipy.linalg.pinv2) "
+                                        "failure: m = %d, fi = %d" % (mi, fi)
                                     )
 
                             dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
@@ -956,7 +962,7 @@ class BeamTransfer(config.Reader):
         svdspectrum = kltransform.collect_m_array(
             list(range(self.telescope.mmax + 1)),
             svd_func,
-            (self.nfreq, self.svd_len),
+            (self.nfreq, self.svd_len(self.ntel)),
             np.float64,
         )
 
@@ -1466,14 +1472,15 @@ class BeamTransfer(config.Reader):
         """Number of frequencies measured."""
         return self.telescope.nfreq
 
-    @property
-    def svd_len(self):
+    def svd_len(self, ntel=None):
         """The size of the SVD output matrices."""
-        return min(self.telescope.lmax + 1, self.ntel)
+        if ntel is None:
+            ntel = self.ntel
+        return min(self.telescope.lmax + 1, ntel)
 
     @property
-    def ndofmax(self):
-        return self.svd_len * self.nfreq
+    def ndofmax(self, ntel=None):
+        return self.svd_len(ntel=ntel) * self.nfreq
 
     def ndof(self, mi):
         """The number of degrees of freedom at a given m."""

@@ -844,7 +844,7 @@ class BeamTransfer(config.Reader):
                         )
 
                     noisew = self.telescope.noisepower(
-                        np.arange(npairs), fi
+                        np.arange(self.telescope.npairs[bl_mask]), fi
                     ).flatten() ** (-0.5)
                     noisew = np.concatenate([noisew, noisew])
                     bf = bf * noisew[:, np.newaxis, np.newaxis]

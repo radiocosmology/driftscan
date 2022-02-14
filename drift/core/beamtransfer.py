@@ -1481,7 +1481,6 @@ class BeamTransfer(config.Reader):
             ntel = self.ntel
         return min(self.telescope.lmax + 1, ntel)
 
-    @property
     def ndofmax(self, ntel=None):
         return self.svd_len(ntel=ntel) * self.nfreq
 

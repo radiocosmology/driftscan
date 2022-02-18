@@ -916,7 +916,7 @@ class BeamTransfer(config.Reader):
 
                         # Save out the evecs (for transforming from the telescope frame
                         # into the SVD basis). We multiply ut by N^{-1/2} because ut
-                        # must acts on N^{-1/2} v, not v alone (where v are the
+                        # must act on N^{-1/2} v, not v alone (where v are the
                         # visibilities), so we include that factor of N^{-1/2} in
                         # dset_ut so that we can apply it directly to v in the future.
                         dset_ut[fi, :nmodes] = ut * noisew[np.newaxis, :]

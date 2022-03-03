@@ -6,6 +6,7 @@ import logging
 from typing import Optional, Tuple, Union
 
 import numpy as np
+import scipy.linalg as la
 import healpy
 import h5py
 from scipy.interpolate import RectBivariateSpline
@@ -896,5 +897,248 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                     self.directory + "/svdspectrum_template%d.hdf5" % t, "w"
                 ) as f:
                     f.create_dataset("singularvalues", data=svdspectrum)
+
+        mpiutil.barrier()
+
+
+class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
+    def __init__(self, directory, **kwargs):
+
+        super(BeamTransferSingleStepFilterTemplate, self).__init__(directory, **kwargs)
+
+        if self.telescope.n_pert != 1:
+            raise NotImplementedError(
+                "Can only use BeamTransferSingleStepFilterTemplate for a single "
+                "template!"
+            )
+
+    def _generate_svdfile_m(self, mi, skip_svd_inv=False):
+
+        bl_mask = [
+            (x[0] in [0, 1] and x[1] in [2, 3])
+            for x in self.telescope.beamclass[self.telescope.uniquepairs]
+        ]
+        bl_mask2 = [
+            (x[0] in [2, 3] and x[1] in [0, 1])
+            for x in self.telescope.beamclass[self.telescope.uniquepairs]
+        ]
+
+        npairs = np.sum(bl_mask)
+        ntel = 2 * npairs
+
+        # Open file to write SVD results into, using caput.misc.lock_file()
+        # to guard against crashes while the file is open. With preserve=True,
+        # the temp file will be saved with a period in front of its name
+        # if a crash occurs.
+        with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
+            with h5py.File(fs_lock, "w") as fs:
+
+                # Create a chunked dataset for writing the SVD beam matrix into.
+                dsize_bsvd = (
+                    self.telescope.nfreq,
+                    self.svd_len(ntel),
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                csize_bsvd = (
+                    1,
+                    min(10, self.svd_len(ntel)),
+                    self.telescope.num_pol_sky,
+                    self.telescope.lmax + 1,
+                )
+                dset_bsvd = fs.create_dataset(
+                    "beam_svd",
+                    dsize_bsvd,
+                    chunks=csize_bsvd,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                if not skip_svd_inv:
+                    # Create a chunked dataset for writing the inverse SVD beam matrix
+                    # into
+                    dsize_ibsvd = (
+                        self.telescope.nfreq,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        self.svd_len(ntel),
+                    )
+                    csize_ibsvd = (
+                        1,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                        min(10, self.svd_len(ntel)),
+                    )
+                    dset_ibsvd = fs.create_dataset(
+                        "invbeam_svd",
+                        dsize_ibsvd,
+                        chunks=csize_ibsvd,
+                        compression="lzf",
+                        dtype=np.complex128,
+                    )
+
+                # Create a chunked dataset for the stokes T U-matrix (left evecs)
+                dsize_ut = (self.telescope.nfreq, self.svd_len(ntel), ntel)
+                csize_ut = (1, min(10, self.svd_len(ntel)), ntel)
+                dset_ut = fs.create_dataset(
+                    "beam_ut",
+                    dsize_ut,
+                    chunks=csize_ut,
+                    compression="lzf",
+                    dtype=np.complex128,
+                )
+
+                # Create a dataset for the singular values.
+                dsize_sig = (self.telescope.nfreq, self.svd_len(ntel))
+                dset_sig = fs.create_dataset(
+                    "singularvalues", dsize_sig, dtype=np.float64
+                )
+
+                ## For each frequency in the m-files read in the block, SVD it,
+                ## and construct the new beam matrix, and save.
+                for fi in np.arange(self.telescope.nfreq):
+
+                    # Read the positive and negative m beams, and combine into one.
+                    bf = self.beam_m(mi, fi)[:, bl_mask, :, :].reshape(
+                        ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )
+                    bf += self.beam_m(mi, fi)[:, bl_mask2, :, :].reshape(
+                        ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
+                    )
+
+                    # Prewhiten beam transfer matrix by multiplying by N^-1/2 matrix
+                    noisew = self.telescope.noisepower(
+                        np.arange(self.telescope.npairs)[bl_mask], fi
+                    ).flatten() ** (-0.5)
+                    noisew = np.concatenate([noisew, noisew])
+                    bf = bf * noisew[:, np.newaxis, np.newaxis]
+
+                    # Reshape total beam to a 2D matrix
+                    bfr = bf.reshape(ntel, -1)
+
+                    # SVD 1 - coarse projection onto sky-modes.
+                    # This is the only SVD we do for the template BTM
+                    u1, s1 = beamtransfer.matrix_image(
+                        bfr, rtol=0.0, errmsg=("SVD1 m=%i f=%i" % (mi, fi))
+                    )
+
+                    ut1 = u1.T.conj()
+                    bf1 = np.dot(ut1, bfr)
+                    nmodes = ut1.shape[0]
+
+                    sig = s1[:nmodes]
+                    beam = np.dot(ut1, bfr)
+
+                    # We flip the order of the SVs to be in ascending instead of
+                    # descending order, so that cutting high SVs corresponds to cutting
+                    # elements from the end of the list.
+                    ut1 = ut1[::-1]
+                    beam = beam[::-1]
+                    sig = sig[::-1]
+
+                    # Save out the evecs (for transforming from the telescope frame
+                    # into the SVD basis). We multiply ut by N^{-1/2} because ut
+                    # must act on N^{-1/2} v, not v alone (where v are the
+                    # visibilities), so we include that factor of N^{-1/2} in
+                    # dset_ut so that we can apply it directly to v in the future.
+                    dset_ut[fi, :nmodes] = ut1 * noisew[np.newaxis, :]
+
+                    # Save out the modified beam matrix (for mapping from the sky
+                    # into the SVD basis)
+                    dset_bsvd[fi, :nmodes] = beam.reshape(
+                        nmodes, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                    )
+
+                    if not skip_svd_inv and beam.shape[0] > 0:
+                        # Find the pseudo-inverse of the beam matrix and save to
+                        # disk. First try la.pinv, which uses a least-squares
+                        # solver.
+                        try:
+                            ibeam = la.pinv(beam)
+                        except la.LinAlgError as e:
+                            # If la.pinv fails, try la.pinv2, which is SVD-based and
+                            # more likely to succeed. If successful, add file
+                            # attribute
+                            # indicating pinv2 was used for this frequency.
+                            logger.info(
+                                "***Beam-SVD pesudoinverse (scipy.linalg.pinv) "
+                                f"failure: m = {mi}, fi = {fi}. Trying pinv2..."
+                            )
+                            try:
+                                ibeam = la.pinv2(beam)
+                                if "inv_bsvd_from_pinv2" not in fs.attrs.keys():
+                                    fs.attrs["inv_bsvd_from_pinv2"] = [fi]
+                                else:
+                                    bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
+                                    fs.attrs["inv_bsvd_from_pinv2"] = bad_freqs.append(
+                                        fi
+                                    )
+                            except:
+                                # If pinv2 fails, print error message
+                                raise Exception(
+                                    "Beam-SVD pseudoinverse (scipy.linalg.pinv2) "
+                                    "failure: m = %d, fi = %d" % (mi, fi)
+                                )
+
+                        dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
+                            nmodes,
+                        )
+
+                    # Save out the singular values for each block
+                    dset_sig[fi, :nmodes] = sig
+
+                # Write a few useful attributes.
+                fs.attrs["baselines1"] = self.telescope.baselines[bl_mask]
+                fs.attrs["baselines2"] = self.telescope.baselines[bl_mask2]
+                fs.attrs["m"] = mi
+                fs.attrs["frequencies"] = self.telescope.frequencies
+
+    def _svd_num(self, mi):
+        ## Calculate the number of SVD modes meeting the cut for each
+        ## frequency, return the number and the array bounds.
+        ## In contrast to the method in the base BeamTransfer class,
+        ## here we cut modes with *high* SVs.
+
+        # Get the array of singular values for each mode
+        sv = self.beam_singularvalues(mi)
+
+        # Number of significant SV modes at each frequency
+        svnum = (sv < sv.max() * self.svcut).sum(axis=1)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+
+        return svnum, svbounds
+
+    def _collect_svd_spectrum(self):
+        """Gather the SVD spectrum into a single file."""
+
+        svd_func = lambda mi: self.beam_singularvalues(mi)
+
+        ntel = 2 * np.sum(
+            [
+                (x[0] in [0, 1] and x[1] in [0, 1])
+                for x in self.telescope.beamclass[self.telescope.uniquepairs]
+            ]
+        )
+
+        svdspectrum = kltransform.collect_m_array(
+            list(range(self.telescope.mmax + 1)),
+            svd_func,
+            (self.nfreq, self.svd_len(ntel)),
+            np.float64,
+        )
+
+        if mpiutil.rank0:
+
+            with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
+
+                f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()

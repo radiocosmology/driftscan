@@ -226,7 +226,10 @@ class ProductManager(object):
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
         if yconf["config"].get("svd_templates"):
-            btclass = external_beam.BeamTransferTemplates
+            if yconf["config"].get("singlestepfilter"):
+                btclass = external_beam.BeamTransferSingleStepFilterTemplate
+            else:
+                btclass = external_beam.BeamTransferTemplates
 
         # Create the beam transfer manager
         self.beamtransfer = btclass(self.directory + "/bt/", telescope=self.telescope)

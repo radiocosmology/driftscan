@@ -1158,26 +1158,29 @@ class BeamTransfer(config.Reader):
 
     project_matrix_forward = project_matrix_sky_to_telescope
 
-    def _svd_num(self, mi):
+    def _svd_num(self, mi, svcut=None):
         ## Calculate the number of SVD modes meeting the cut for each
         ## frequency, return the number and the array bounds
+
+        if svcut is None:
+            svcut = self.svcut
 
         # Get the array of singular values for each mode
         sv = self.beam_singularvalues(mi)
 
         # Number of significant sv modes at each frequency
-        svnum = (sv > sv.max() * self.svcut).sum(axis=1)
+        svnum = (sv > sv.max() * svcut).sum(axis=1)
 
         # Calculate the block bounds within the full matrix
         svbounds = np.cumsum(np.insert(svnum, 0, 0))
 
         return svnum, svbounds
 
-    def _svd_freq_iter(self, mi):
-        num = self._svd_num(mi)[0]
+    def _svd_freq_iter(self, mi, svcut=None):
+        num = self._svd_num(mi, svcut=svcut)[0]
         return [fi for fi in range(self.nfreq) if (num[fi] > 0)]
 
-    def project_matrix_sky_to_svd(self, mi, mat, temponly=False):
+    def project_matrix_sky_to_svd(self, mi, mat, temponly=False, svcut=None):
         """Project a covariance matrix from the sky into the SVD basis.
 
         Parameters
@@ -1187,8 +1190,11 @@ class BeamTransfer(config.Reader):
         mat : np.ndarray
             Sky matrix packed as [pol, pol, l, freq, freq]. Must have pol
             indices even if `temponly=True`.
-        temponly: boolean
+        temponly : boolean, optional
             Force projection of temperature (TT) part only (default: False)
+        svcut : float, optional
+            Only include modes with singular value above this threshold. If None, use
+            value specified in class instance. Default: None.
 
         Returns
         -------
@@ -1204,7 +1210,7 @@ class BeamTransfer(config.Reader):
         beam = self.beam_svd(mi)
 
         # Number of significant sv modes at each frequency, and the array bounds
-        svnum, svbounds = self._svd_num(mi)
+        svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix
         matf = np.zeros((svbounds[-1], svbounds[-1]), dtype=np.complex128)
@@ -1212,13 +1218,13 @@ class BeamTransfer(config.Reader):
         # Should it be a +=?
         for pi in range(npol):
             for pj in range(npol):
-                for fi in self._svd_freq_iter(mi):
+                for fi in self._svd_freq_iter(mi, svcut=svcut):
 
                     fibeam = beam[
                         fi, : svnum[fi], pi, :
                     ]  # Beam for this pol, freq, and svcut (i)
 
-                    for fj in self._svd_freq_iter(mi):
+                    for fj in self._svd_freq_iter(mi, svcut=svcut):
                         fjbeam = beam[
                             fj, : svnum[fj], pj, :
                         ]  # Beam for this pol, freq, and svcut (j)
@@ -1233,7 +1239,7 @@ class BeamTransfer(config.Reader):
 
         return matf
 
-    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat):
+    def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, svcut=None):
         """Project a diagonal matrix from the telescope basis into the SVD basis.
 
         This slightly specialised routine is for projecting the noise
@@ -1243,8 +1249,11 @@ class BeamTransfer(config.Reader):
         ----------
         mi : integer
             Mode index to fetch for.
-        mat : np.ndarray
+        dmat : np.ndarray
             Sky matrix packed as [nfreq, ntel]
+        svcut : float, optional
+            Only include modes with singular value above this threshold. If None, use
+            value specified in class instance. Default: None.
 
         Returns
         -------
@@ -1258,13 +1267,13 @@ class BeamTransfer(config.Reader):
         beam = svdfile["beam_ut"]
 
         # Number of significant sv modes at each frequency, and the array bounds
-        svnum, svbounds = self._svd_num(mi)
+        svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix
         matf = np.zeros((svbounds[-1], svbounds[-1]), dtype=np.complex128)
 
         # Should it be a +=?
-        for fi in self._svd_freq_iter(mi):
+        for fi in self._svd_freq_iter(mi, svcut=svcut):
 
             fbeam = beam[fi, : svnum[fi], :]  # Beam matrix for this frequency and cut
             lmat = dmat[fi, :]  # Matrix section for this frequency
@@ -1277,7 +1286,7 @@ class BeamTransfer(config.Reader):
 
         return matf
 
-    def project_vector_telescope_to_svd(self, mi, vec):
+    def project_vector_telescope_to_svd(self, mi, vec, svcut=None):
         """Map a vector from the telescope space into the SVD basis.
 
         This projection may be lose information about the sky, depending on
@@ -1289,6 +1298,9 @@ class BeamTransfer(config.Reader):
             Mode index to fetch for.
         vec : np.ndarray
             Telescope data vector packed as [freq, baseline, polarisation]
+        svcut : float, optional
+            Only include modes with singular value above this threshold. If None, use
+            value specified in class instance. Default: None.
 
         Returns
         -------
@@ -1297,7 +1309,7 @@ class BeamTransfer(config.Reader):
         """
 
         # Number of significant sv modes at each frequency, and the array bounds
-        svnum, svbounds = self._svd_num(mi)
+        svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix (shape is calculated from input shape)
         vecf = np.zeros((svbounds[-1],) + vec.shape[2:], dtype=np.complex128)
@@ -1309,7 +1321,7 @@ class BeamTransfer(config.Reader):
         beam = self.beam_ut(mi)
 
         # Should it be a +=?
-        for fi in self._svd_freq_iter(mi):
+        for fi in self._svd_freq_iter(mi, svcut=svcut):
 
             fbeam = beam[fi, : svnum[fi], :]  # Beam matrix for this frequency and cut
             lvec = vec[fi, :]  # Matrix section for this frequency
@@ -1318,7 +1330,7 @@ class BeamTransfer(config.Reader):
 
         return vecf
 
-    def project_vector_svd_to_telescope(self, mi, svec):
+    def project_vector_svd_to_telescope(self, mi, svec, svcut=None):
         """Map a vector from the SVD basis into the original data basis.
 
         This projection may be lose information about the sky, depending on the
@@ -1331,6 +1343,10 @@ class BeamTransfer(config.Reader):
             Mode index to fetch for.
         svec : np.ndarray
             SVD data vector.
+        svcut : float, optional
+            SV threshold used to construct SVD data vector. If wrong value is passed,
+            expect an array size error! If None, use value specified in class instance.
+            Default: None.
 
         Returns
         -------
@@ -1339,7 +1355,7 @@ class BeamTransfer(config.Reader):
         """
 
         # Number of significant sv modes at each frequency, and the array bounds
-        svnum, svbounds = self._svd_num(mi)
+        svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix (shape is calculated from input shape)
         vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
@@ -1351,7 +1367,7 @@ class BeamTransfer(config.Reader):
         beam = self.beam_ut(mi)
 
         # Should it be a +=?
-        for fi in self._svd_freq_iter(mi):
+        for fi in self._svd_freq_iter(mi, svcut=svcut):
 
             noise = self.telescope.noisepower(
                 np.arange(self.telescope.npairs), fi
@@ -1370,7 +1386,7 @@ class BeamTransfer(config.Reader):
 
         return vecf.reshape(self.nfreq, 2, self.telescope.npairs)
 
-    def project_vector_sky_to_svd(self, mi, vec, temponly=False):
+    def project_vector_sky_to_svd(self, mi, vec, temponly=False, svcut=None):
         """Project a vector from the the sky into the SVD basis.
 
         Parameters
@@ -1379,8 +1395,11 @@ class BeamTransfer(config.Reader):
             Mode index to fetch for.
         vec : np.ndarray
             Sky data vector packed as [nfreq, lmax+1]
-        temponly: boolean
+        temponly: boolean, optional
             Force projection of temperature part only (default: False)
+        svcut : float, optional
+            Only include modes with singular value above this threshold. If None, use
+            value specified in class instance. Default: None.
 
         Returns
         -------
@@ -1390,7 +1409,7 @@ class BeamTransfer(config.Reader):
         npol = 1 if temponly else self.telescope.num_pol_sky
 
         # Number of significant sv modes at each frequency, and the array bounds
-        svnum, svbounds = self._svd_num(mi)
+        svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix
         vecf = np.zeros((svbounds[-1],) + vec.shape[3:], dtype=np.complex128)
@@ -1402,7 +1421,7 @@ class BeamTransfer(config.Reader):
         beam = self.beam_svd(mi)
 
         for pi in range(npol):
-            for fi in self._svd_freq_iter(mi):
+            for fi in self._svd_freq_iter(mi, svcut=svcut):
 
                 fbeam = beam[
                     fi, : svnum[fi], pi, :
@@ -1413,7 +1432,9 @@ class BeamTransfer(config.Reader):
 
         return vecf
 
-    def project_vector_svd_to_sky(self, mi, vec, temponly=False, conj=False):
+    def project_vector_svd_to_sky(
+        self, mi, vec, temponly=False, conj=False, svcut=None
+    ):
         """Project a vector from the the sky into the SVD basis.
 
         Parameters
@@ -1427,6 +1448,10 @@ class BeamTransfer(config.Reader):
         conj: boolean
             Reverse projection by applying conjugation (as opposed to pseudo-
             inverse). Default is False.
+        svcut : float, optional
+            SV threshold used to construct SVD data vector. If wrong value is passed,
+            expect an array size error! If None, use value specified in class instance.
+            Default: None.
 
         Returns
         -------
@@ -1436,7 +1461,7 @@ class BeamTransfer(config.Reader):
         npol = 1 if temponly else self.telescope.num_pol_sky
 
         # Number of significant sv modes at each frequency, and the array bounds
-        svnum, svbounds = self._svd_num(mi)
+        svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix
         vecf = np.zeros(
@@ -1452,7 +1477,7 @@ class BeamTransfer(config.Reader):
         beam = self.beam_svd(mi) if conj else self.invbeam_svd(mi)
 
         for pi in range(npol):
-            for fi in self._svd_freq_iter(mi):
+            for fi in self._svd_freq_iter(mi, svcut=svcut):
 
                 if conj:
                     fbeam = beam[
@@ -1499,9 +1524,9 @@ class BeamTransfer(config.Reader):
     def ndofmax(self, ntel=None):
         return self.svd_len(ntel=ntel) * self.nfreq
 
-    def ndof(self, mi):
+    def ndof(self, mi, svcut=None):
         """The number of degrees of freedom at a given m."""
-        return self._svd_num(mi)[1][-1]
+        return self._svd_num(mi, svcut=svcut)[1][-1]
 
     # ===================================================
 

@@ -719,6 +719,13 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                     sig = s_template[:nmodes]
                     beam = np.dot(u_template_t, bf2)
 
+                    # We flip the order of the SVs to be in ascending instead of
+                    # descending order, so that cutting high SVs corresponds to cutting
+                    # elements from the end of the list.
+                    u_template_t = u_template_t[::-1]
+                    beam = beam[::-1]
+                    sig = sig[::-1]
+
                     # Save out the evecs (for transforming from the telescope frame
                     # into the SVD basis)
                     dset_ut[fi, :nmodes, :nmodes] = u_template_t
@@ -729,9 +736,41 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                         nmodes, self.telescope.num_pol_sky, self.telescope.lmax + 1
                     )
 
-                    if not skip_svd_inv:
-                        raise NotImplementedError(
-                            "Inverse not implemented for template!"
+                    if not skip_svd_inv and beam.shape[0] > 0:
+                        # Find the pseudo-inverse of the beam matrix and save to
+                        # disk. First try la.pinv, which uses a least-squares
+                        # solver.
+                        try:
+                            ibeam = la.pinv(beam)
+                        except la.LinAlgError as e:
+                            # If la.pinv fails, try la.pinv2, which is SVD-based and
+                            # more likely to succeed. If successful, add file
+                            # attribute
+                            # indicating pinv2 was used for this frequency.
+                            logger.info(
+                                "***Beam-SVD pesudoinverse (scipy.linalg.pinv) "
+                                f"failure: m = {mi}, fi = {fi}. Trying pinv2..."
+                            )
+                            try:
+                                ibeam = la.pinv2(beam)
+                                if "inv_bsvd_from_pinv2" not in fs.attrs.keys():
+                                    fs.attrs["inv_bsvd_from_pinv2"] = [fi]
+                                else:
+                                    bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
+                                    fs.attrs["inv_bsvd_from_pinv2"] = bad_freqs.append(
+                                        fi
+                                    )
+                            except:
+                                # If pinv2 fails, print error message
+                                raise Exception(
+                                    "Beam-SVD pseudoinverse (scipy.linalg.pinv2) "
+                                    "failure: m = %d, fi = %d" % (mi, fi)
+                                )
+
+                        dset_ibsvd[fi, :, :, :nmodes] = ibeam.reshape(
+                            self.telescope.num_pol_sky,
+                            self.telescope.lmax + 1,
+                            nmodes,
                         )
 
                     # Save out the singular values for each block

@@ -1155,6 +1155,12 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
 
         return svnum, svbounds
 
+    def svd_len(self, ntel=None):
+        """The size of the SVD output matrices."""
+        if ntel is None:
+            ntel = self.ntel
+        return min(4 * (self.telescope.lmax + 1), ntel)
+
     def _collect_svd_spectrum(self):
         """Gather the SVD spectrum into a single file."""
 

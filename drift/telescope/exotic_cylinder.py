@@ -105,7 +105,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         beampos = [self._single_feedpositions for bc in range(2 * self.npert)]
         return np.concatenate(beampos)
 
-    def beamx(self, feed, freq):
+    def beamx(self, feed, freq, angpos=None):
         """Beam for the x polarisation feed.
 
         Parameters
@@ -114,6 +114,9 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -126,7 +129,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         if beampert == 0:
 
             return cylbeam.beam_x(
-                self._angpos,
+                self._angpos if angpos is None else angpos,
                 self.zenith,
                 self.cylinder_width / self.wavelengths[freq],
                 self.fwhm_e,
@@ -136,7 +139,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         elif beampert == 1:
 
             beam0 = cylbeam.beam_x(
-                self._angpos,
+                self._angpos if angpos is None else angpos,
                 self.zenith,
                 self.cylinder_width / self.wavelengths[freq],
                 self.fwhm_e,
@@ -144,7 +147,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             )
 
             beam1 = cylbeam.beam_x(
-                self._angpos,
+                self._angpos if angpos is None else angpos,
                 self.zenith,
                 self.cylinder_width / self.wavelengths[freq],
                 self.fwhm_e * 1.01,
@@ -155,7 +158,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
             return dbeam
 
-    def beamy(self, feed, freq):
+    def beamy(self, feed, freq, angpos=None):
         """Beam for the x polarisation feed.
 
         Parameters
@@ -164,6 +167,9 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -177,7 +183,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         if beampert == 0:
 
             return cylbeam.beam_y(
-                self._angpos,
+                self._angpos if angpos is None else angpos,
                 self.zenith,
                 self.cylinder_width / self.wavelengths[freq],
                 self.fwhm_e,
@@ -187,7 +193,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         elif beampert == 1:
 
             beam0 = cylbeam.beam_y(
-                self._angpos,
+                self._angpos if angpos is None else angpos,
                 self.zenith,
                 self.cylinder_width / self.wavelengths[freq],
                 self.fwhm_e,
@@ -195,7 +201,7 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             )
 
             beam1 = cylbeam.beam_y(
-                self._angpos,
+                self._angpos if angpos is None else angpos,
                 self.zenith,
                 self.cylinder_width / self.wavelengths[freq],
                 self.fwhm_e * 1.01,

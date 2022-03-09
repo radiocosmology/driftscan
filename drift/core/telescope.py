@@ -1116,7 +1116,7 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     _npol_sky_ = 1
 
     @abc.abstractmethod
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         """Beam for a particular feed.
 
         Parameters
@@ -1125,6 +1125,9 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -1383,11 +1386,11 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
         nsfeed = self._single_feedpositions.shape[0]
         return np.concatenate((np.zeros(nsfeed), np.ones(nsfeed))).astype(np.int64)
 
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         if self.polarisation[feed] == "X":
-            return self.beamx(feed, freq)
+            return self.beamx(feed, freq, angpos=angpos)
         else:
-            return self.beamy(feed, freq)
+            return self.beamy(feed, freq, angpos=angpos)
 
     @abc.abstractproperty
     def _single_feedpositions(self):
@@ -1399,7 +1402,7 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
         return np.concatenate((self._single_feedpositions, self._single_feedpositions))
 
     @abc.abstractmethod
-    def beamx(self, feed, freq):
+    def beamx(self, feed, freq, angpos=None):
         """Beam for the X polarisation feed.
 
         Parameters
@@ -1408,6 +1411,9 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -1417,7 +1423,7 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    def beamy(self, feed, freq):
+    def beamy(self, feed, freq, angpos=None):
         """Beam for the Y polarisation feed.
 
         Parameters
@@ -1426,6 +1432,9 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------

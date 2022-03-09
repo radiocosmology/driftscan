@@ -79,7 +79,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
     # == Methods for calculating the unique baselines ===
 
     @util.cache_last
-    def beam_gaussian(self, feed, freq):
+    def beam_gaussian(self, feed, freq, angpos=None):
 
         pointing = self.beam_pointings[feed]
         if self.beam_freq_scale:
@@ -87,13 +87,13 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
         else:
             fwhm = self.beam_size
 
-        return gaussian_beam(self._angpos, pointing, fwhm)
+        return gaussian_beam(self._angpos if angpos is None else angpos, pointing, fwhm)
 
     @util.cache_last
-    def beam_square(self, feed, freq):
+    def beam_square(self, feed, freq, angpos=None):
 
         pointing = self.beam_pointings[feed]
-        bdist = self._angpos - pointing[np.newaxis, :]
+        bdist = (self._angpos if angpos is None else angpos) - pointing[np.newaxis, :]
         bdist = (
             np.abs(
                 np.where(
@@ -109,11 +109,11 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
         return beam
 
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         if self.square_beam:
-            return self.beam_square(feed, freq)
+            return self.beam_square(feed, freq, angpos=angpos)
         else:
-            return self.beam_gaussian(feed, freq)
+            return self.beam_gaussian(feed, freq, angpos=angpos)
 
     @property
     def dish_width(self):

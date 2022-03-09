@@ -85,7 +85,7 @@ class GmrtArray(telescope.TransitTelescope):
     def v_width(self):
         return self.dish_width
 
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         """Beam for a particular feed.
 
         Parameters
@@ -94,6 +94,9 @@ class GmrtArray(telescope.TransitTelescope):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -113,7 +116,7 @@ class GmrtArray(telescope.TransitTelescope):
                 [np.pi / 2.0 - np.radians(self.pointing), self.zenith[1]]
             )
 
-            x2 = (1.0 - coord.sph_dot(self._angpos, pointing) ** 2) / (4 * sigma ** 2)
+            x2 = (1.0 - coord.sph_dot(self._angpos if angpos is None else angpos, pointing) ** 2) / (4 * sigma ** 2)
             self._bc_map = np.exp(-x2)
 
             self._bc_freq = freq

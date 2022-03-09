@@ -18,10 +18,10 @@ class RestrictedBeam(cylinder.CylinderTelescope):
     beam_height = config.Property(proptype=float, default=30.0)
     beam_type = config.Property(proptype=str, default="box")
 
-    def bmask_gaussian(self, feed, freq):
+    def bmask_gaussian(self, feed, freq, angpos=None):
 
         pointing = self.zenith
-        bdist = self._angpos - pointing[np.newaxis, :]
+        bdist = (self._angpos if angpos is None else angpos) - pointing[np.newaxis, :]
         bdist = np.abs(
             np.where(
                 (bdist[:, 1] < np.pi)[:, np.newaxis],
@@ -34,10 +34,10 @@ class RestrictedBeam(cylinder.CylinderTelescope):
 
         return bmask
 
-    def bmask_box(self, feed, freq):
+    def bmask_box(self, feed, freq, angpos=None):
 
         pointing = self.zenith
-        bdist = self._angpos - pointing[np.newaxis, :]
+        bdist = (self._angpos if angpos is None else angpos) - pointing[np.newaxis, :]
         bdist = np.abs(
             np.where(
                 (bdist[:, 1] < np.pi)[:, np.newaxis],

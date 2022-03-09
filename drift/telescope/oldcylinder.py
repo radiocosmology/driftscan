@@ -150,7 +150,7 @@ class UnpolarisedCylinderTelescope(
 ):
     """A complete class for an Unpolarised Cylinder telescope."""
 
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         """Beam for a particular feed.
 
         Parameters
@@ -159,6 +159,9 @@ class UnpolarisedCylinderTelescope(
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -168,7 +171,7 @@ class UnpolarisedCylinderTelescope(
         """
 
         return visibility.cylinder_beam(
-            self._angpos, self.zenith, self.cylinder_width / self.wavelengths[freq]
+            self._angpos if angpos is None else angpos, self.zenith, self.cylinder_width / self.wavelengths[freq]
         )
 
 
@@ -182,40 +185,46 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
     ortho_pol = config.Property(proptype=bool, default=True)
 
     # @util.cache_last
-    def beamx(self, feed, freq):
+    def beamx(self, feed, freq, angpos=None):
+
+        if angpos is None:
+            angpos = self._angpos
 
         bpat = visibility.cylinder_beam(
-            self._angpos,
+            angpos,
             self.zenith,
             self.illumination_x * self.cylinder_width / self.wavelengths[freq],
         )
 
-        bm = np.zeros_like(self._angpos)
+        bm = np.zeros_like(angpos)
         if self.ortho_pol:
             bm[:, 1] = bpat
         else:
             thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
-            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            thatp, phatp = coord.thetaphi_plane_cart(angpos)
             bm[:, 0] = np.dot(thatp, phatz) * bpat
             bm[:, 1] = np.dot(phatp, phatz) * bpat
 
         return bm
 
     # @util.cache_last
-    def beamy(self, feed, freq):
+    def beamy(self, feed, freq, angpos=None):
+
+        if angpos is None:
+            angpos = self._angpos
 
         bpat = visibility.cylinder_beam(
-            self._angpos,
+            angpos,
             self.zenith,
             self.illumination_y * self.cylinder_width / self.wavelengths[freq],
         )
 
-        bm = np.zeros_like(self._angpos)
+        bm = np.zeros_like(angpos)
         if self.ortho_pol:
             bm[:, 0] = bpat
         else:
             thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
-            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            thatp, phatp = coord.thetaphi_plane_cart(angpos)
             bm[:, 0] = np.dot(thatp, thatz) * bpat
             bm[:, 1] = np.dot(phatp, thatz) * bpat
 

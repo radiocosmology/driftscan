@@ -64,7 +64,7 @@ class DishArray(telescope.TransitTelescope):
     def v_width(self):
         return self.dish_width
 
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         """Beam for a particular feed.
 
         Parameters
@@ -73,6 +73,9 @@ class DishArray(telescope.TransitTelescope):
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -83,7 +86,9 @@ class DishArray(telescope.TransitTelescope):
 
         if self._bc_freq != freq or self._bc_nside != self._nside:
             self._bc_map = beam_circular(
-                self._angpos, self.zenith, self.dish_width / self.wavelengths[freq]
+                self._angpos if angpos is None else angpos,
+                self.zenith,
+                self.dish_width / self.wavelengths[freq]
             )
 
             self._bc_freq = freq

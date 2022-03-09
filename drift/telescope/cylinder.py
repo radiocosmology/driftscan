@@ -168,7 +168,7 @@ class UnpolarisedCylinderTelescope(
 ):
     """A complete class for an Unpolarised Cylinder telescope."""
 
-    def beam(self, feed, freq):
+    def beam(self, feed, freq, angpos=None):
         """Beam for a particular feed.
 
         Parameters
@@ -177,6 +177,9 @@ class UnpolarisedCylinderTelescope(
             Index for the feed.
         freq : integer
             Index for the frequency.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute.
 
         Returns
         -------
@@ -186,7 +189,7 @@ class UnpolarisedCylinderTelescope(
         """
 
         return cylbeam.beam_amp(
-            self._angpos,
+            self._angpos if angpos is None else angpos,
             self.zenith,
             self.cylinder_width / self.wavelengths[freq],
             self.fwhm_h,
@@ -198,10 +201,10 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
     """A complete class for an Unpolarised Cylinder telescope."""
 
     # @util.cache_last
-    def beamx(self, feed, freq):
+    def beamx(self, feed, freq, angpos=None):
 
         return cylbeam.beam_x(
-            self._angpos,
+            self._angpos if angpos is None else angpos,
             self.zenith,
             self.cylinder_width / self.wavelengths[freq],
             self.fwhm_e,
@@ -209,10 +212,10 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
         )
 
     # @util.cache_last
-    def beamy(self, feed, freq):
+    def beamy(self, feed, freq, angpos=None):
 
         return cylbeam.beam_y(
-            self._angpos,
+            self._angpos if angpos is None else angpos,
             self.zenith,
             self.cylinder_width / self.wavelengths[freq],
             self.fwhm_e,

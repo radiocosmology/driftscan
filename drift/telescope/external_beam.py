@@ -102,7 +102,7 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
 
         return beam, is_grid_beam, beam_freq, beam_nside, beam_pol_map, output_dtype
 
-    def beam(self, feed, freq_id):
+    def beam(self, feed, freq_id, angpos=None):
         """Compute the beam pattern.
 
         Parameters
@@ -111,6 +111,9 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
             Feed index.
         freq_id : int
             Frequency ID.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute. Currently not implemented.
 
         Returns
         -------
@@ -475,7 +478,7 @@ class CylinderPerturbedTemplates(PolarisedCylinderTelescopeExternalBeam):
         beampos = [self._single_feedpositions for bc in range(2 * (self.n_pert + 1))]
         return np.concatenate(beampos)
 
-    def beam(self, feed, freq_id):
+    def beam(self, feed, freq_id, angpos=None):
         """Get the beam pattern.
 
         Examines the beamclass associated with the requested feed to determine whether
@@ -487,6 +490,9 @@ class CylinderPerturbedTemplates(PolarisedCylinderTelescopeExternalBeam):
             Feed index.
         freq_id : int
             Frequency ID.
+        angpos : np.ndarray[nposition, 2], optional
+            Angular position on the sky (in radians). If not provided, default to the
+            _angpos class attribute. Currently not implemented.
 
         Returns
         -------
@@ -1138,17 +1144,20 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
                 fs.attrs["m"] = mi
                 fs.attrs["frequencies"] = self.telescope.frequencies
 
-    def _svd_num(self, mi):
+    def _svd_num(self, mi, svcut=None):
         ## Calculate the number of SVD modes meeting the cut for each
         ## frequency, return the number and the array bounds.
         ## In contrast to the method in the base BeamTransfer class,
         ## here we cut modes with *high* SVs.
 
+        if svcut is None:
+            svcut = self.svcut
+
         # Get the array of singular values for each mode
         sv = self.beam_singularvalues(mi)
 
         # Number of significant SV modes at each frequency
-        svnum = (sv < sv.max() * self.svcut).sum(axis=1)
+        svnum = (sv < sv.max() * svcut).sum(axis=1)
 
         # Calculate the block bounds within the full matrix
         svbounds = np.cumsum(np.insert(svnum, 0, 0))

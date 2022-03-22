@@ -234,6 +234,9 @@ class ProductManager(object):
         if yconf["config"].get("skip_svd"):
             self.skip_svd = True
 
+        if yconf["config"].get("skip_svd_inv"):
+            self.skip_svd_inv = True
+
         ## Configure the KL Transforms
         self.kltransforms = {}
 

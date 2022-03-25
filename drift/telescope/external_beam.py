@@ -1139,7 +1139,7 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
                     dset_sig[fi, :nmodes] = sig
 
                 # Write a few useful attributes.
-                fs.attrs["baselines1"] = self.telescope.baselines[bl_mask]
+                fs.attrs["baselines"] = self.telescope.baselines[bl_mask]
                 fs.attrs["baselines2"] = self.telescope.baselines[bl_mask2]
                 fs.attrs["m"] = mi
                 fs.attrs["frequencies"] = self.telescope.frequencies

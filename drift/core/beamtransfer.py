@@ -1330,6 +1330,16 @@ class BeamTransfer(config.Reader):
 
         return vecf
 
+    def load_svd_baselines(self, mi: int) -> list:
+        # If present, load baselines from SVD file
+        with h5py.File(self._svdfile(mi), "r") as fh:
+            if "baselines" in fh.attrs.keys():
+                baselines = fh.attrs["baselines"]
+            else:
+                baselines = self.telescope.baselines
+
+        return baselines
+
     def project_vector_svd_to_telescope(self, mi, svec, svcut=None):
         """Map a vector from the SVD basis into the original data basis.
 
@@ -1354,14 +1364,18 @@ class BeamTransfer(config.Reader):
             Data vector to return.
         """
 
+        # Determine ntel and npairs from saved SVD file
+        npairs = len(self.load_svd_baselines(mi))
+        ntel = 2 * npairs
+
         # Number of significant sv modes at each frequency, and the array bounds
         svnum, svbounds = self._svd_num(mi, svcut=svcut)
 
         # Create the output matrix (shape is calculated from input shape)
-        vecf = np.zeros((self.nfreq, self.ntel), dtype=np.complex128)
+        vecf = np.zeros((self.nfreq, ntel), dtype=np.complex128)
 
         if np.all(svec == 0):
-            return vecf.reshape(self.nfreq, 2, self.telescope.npairs)
+            return vecf.reshape(self.nfreq, 2, npairs)
 
         # Get the SVD beam matrix
         beam = self.beam_ut(mi)
@@ -1370,7 +1384,7 @@ class BeamTransfer(config.Reader):
         for fi in self._svd_freq_iter(mi, svcut=svcut):
 
             noise = self.telescope.noisepower(
-                np.arange(self.telescope.npairs), fi
+                np.arange(npairs), fi
             ).flatten()
             noise = np.concatenate([noise, noise])
 
@@ -1384,7 +1398,7 @@ class BeamTransfer(config.Reader):
             # related.
             vecf[fi, :] = noise * np.dot(fbeam.T.conj(), lvec)
 
-        return vecf.reshape(self.nfreq, 2, self.telescope.npairs)
+        return vecf.reshape(self.nfreq, 2, npairs)
 
     def project_vector_sky_to_svd(self, mi, vec, temponly=False, svcut=None):
         """Project a vector from the the sky into the SVD basis.

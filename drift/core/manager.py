@@ -228,6 +228,8 @@ class ProductManager(object):
         if yconf["config"].get("svd_templates"):
             if yconf["config"].get("singlestepfilter"):
                 btclass = external_beam.BeamTransferSingleStepFilterTemplate
+            elif yconf["config"].get("singlestepklfilter"):
+                btclass = external_beam.BeamTransferSingleStepKLFilterTemplate
             else:
                 btclass = external_beam.BeamTransferTemplates
 

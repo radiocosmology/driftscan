@@ -1340,7 +1340,7 @@ class BeamTransfer(config.Reader):
 
         return baselines
 
-    def project_vector_svd_to_telescope(self, mi, svec, svcut=None):
+    def project_vector_svd_to_telescope(self, mi, svec, svcut=None, use_pinv=False):
         """Map a vector from the SVD basis into the original data basis.
 
         This projection may be lose information about the sky, depending on the
@@ -1357,6 +1357,9 @@ class BeamTransfer(config.Reader):
             SV threshold used to construct SVD data vector. If wrong value is passed,
             expect an array size error! If None, use value specified in class instance.
             Default: None.
+        use_pinv : bool, optional
+            If True, explicitly compute the pseudo-inverse of the SVD projection.
+            Default: False.
 
         Returns
         -------
@@ -1393,10 +1396,14 @@ class BeamTransfer(config.Reader):
                 svbounds[fi] : svbounds[fi + 1]
             ]  # Matrix section for this frequency
 
-            # As the form of the forward projection is simply a scaling and then
-            # projection onto an orthonormal basis, the pseudo-inverse is simply
-            # related.
-            vecf[fi, :] = noise * np.dot(fbeam.T.conj(), lvec)
+            if use_pinv:
+                fbeam_inv = la.pinv(fbeam)
+                vecf[fi, :] = np.dot(fbeam_inv, lvec)
+            else:
+                # As the form of the forward projection is simply a scaling and then
+                # projection onto an orthonormal basis, the pseudo-inverse is simply
+                # related.
+                vecf[fi, :] = noise * np.dot(fbeam.T.conj(), lvec)
 
         return vecf.reshape(self.nfreq, 2, npairs)
 

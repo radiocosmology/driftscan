@@ -115,7 +115,7 @@ class DoubleKL(kltransform.KLTransform):
             logger.info("Creating eigenvalues file (process 0 only).")
 
         mlist = list(range(self.telescope.mmax + 1))
-        shape = (2, self.beamtransfer.ndofmax)
+        shape = (2, self.beamtransfer.ndofmax())
 
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
 

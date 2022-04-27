@@ -230,6 +230,8 @@ class ProductManager(object):
                 btclass = external_beam.BeamTransferSingleStepFilterTemplate
             elif yconf["config"].get("singlestepklfilter"):
                 btclass = external_beam.BeamTransferSingleStepKLFilterTemplate
+            elif yconf["config"].get("doublestepklpolfilter"):
+                btclass = external_beam.BeamTransferDoubleStepKLPolFilterTemplate
             else:
                 btclass = external_beam.BeamTransferTemplates
 

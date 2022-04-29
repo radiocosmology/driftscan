@@ -225,6 +225,8 @@ class ProductManager(object):
             btclass = beamtransfer.BeamTransferNoSVD
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
+        if yconf["config"].get("separatesvd"): # Use separately-computed telescope SVD
+            btclass = external_beam.BeamTransferSeparateSVD
         if yconf["config"].get("svd_templates"):
             if yconf["config"].get("singlestepfilter"):
                 btclass = external_beam.BeamTransferSingleStepFilterTemplate

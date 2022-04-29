@@ -1762,3 +1762,34 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()
+
+
+class BeamTransferSeparateSVD(beamtransfer.BeamTransfer):
+
+    svd_products_dir = config.Property(proptype=str)
+
+    def _svdfile(self, mi):
+        # Pattern to form the `m` ordered file.
+        pat = (
+            self.svd_products_dir
+            + "/bt/beam_m/"
+            + util.natpattern(self.telescope.mmax)
+            + "/svd.hdf5"
+        )
+
+        return pat % mi
+
+    def generate(self, regen=False, skip_svd=True, skip_svd_inv=True):
+        super(BeamTransferSeparateSVD, self).generate(
+            regen=regen, skip_svd=True, skip_svd_inv=True
+        )
+
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+        return
+
+    def svd_all(self):
+        f = h5py.File(self.svd_products_dir + "/bt/svdspectrum.hdf5", "r")
+        svd = f["singularvalues"][:]
+        f.close()
+
+        return svd

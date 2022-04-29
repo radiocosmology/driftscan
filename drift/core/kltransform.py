@@ -459,7 +459,7 @@ class KLTransform(config.Reader):
 
     def _collect(self):
         def evfunc(mi):
-            evf = np.zeros(self.beamtransfer.ndofmax)
+            evf = np.zeros(self.beamtransfer.ndofmax())
 
             f = h5py.File(self._evfile % mi, "r")
             if f["evals_full"].shape[0] > 0:
@@ -473,7 +473,7 @@ class KLTransform(config.Reader):
             logger.info("Creating eigenvalues file (process 0 only).")
 
         mlist = list(range(self.telescope.mmax + 1))
-        shape = (self.beamtransfer.ndofmax,)
+        shape = (self.beamtransfer.ndofmax(),)
         evarray = collect_m_array(mlist, evfunc, shape, np.float64)
 
         if mpiutil.rank0:
@@ -766,7 +766,7 @@ class KLTransform(config.Reader):
         evals, evecs = self.modes_m(mi, threshold)
 
         if evals is None:
-            return np.zeros(self.beamtransfer.ndofmax, dtype=np.complex128)
+            return np.zeros(self.beamtransfer.ndofmax(), dtype=np.complex128)
 
         if vec.shape[0] != evecs.shape[0]:
             raise Exception("Vectors are incompatible.")

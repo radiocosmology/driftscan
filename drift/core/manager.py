@@ -221,6 +221,9 @@ class ProductManager(object):
 
         # Decide on type of beam transfers
         btclass = beamtransfer.BeamTransfer
+        if yconf["config"].get("full_freq_beam_svd"):
+            # Use the "full-freq" SVD if requested
+            btclass = beamtransfer.BeamTransferFullFreq
         if yconf["config"].get("nosvd"):  # Use no SVD if requested
             btclass = beamtransfer.BeamTransferNoSVD
         if yconf["config"].get("fullsvd"):  # Use the full SVD if requested

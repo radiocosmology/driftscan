@@ -1120,7 +1120,7 @@ class BeamTransfer(config.Reader):
             (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
         )
 
-    def project_matrix_sky_to_telescope(self, mi, mat):
+    def project_matrix_sky_to_telescope(self, mi, mat, bl_mask=None, bl_mask2=None):
         """Project a covariance matrix from the sky into the visibility basis.
 
         Parameters
@@ -1129,19 +1129,40 @@ class BeamTransfer(config.Reader):
             Mode index to fetch for.
         mat : np.ndarray
             Sky matrix packed as [pol, pol, l, freq, freq]
+        bl_mask : array_like, optional
+            Mask for which baselines to select. If None, use all baselines in telescope
+            class. Default: None.
+        bl_mask2 : array_like, optional
+            If specified, add BTM for bl_mask2 to BTM for bl_mask. bl_mask2 must have
+            same length as bl_mask. Default: None.
 
         Returns
         -------
-        tmat : np.ndarray
+        matf : np.ndarray
             Covariance in telescope basis.
         """
         npol = self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
 
-        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, npol, lside))
+        if bl_mask is None:
+            bl_mask = [True for i in range(self.telescope.npairs)]
+
+        if bl_mask2 is not None and np.sum(bl_mask2) != np.sum(bl_mask):
+            raise ValueError("bl_mask2 must select same number of elements as bl_mask!")
+
+        npairs = np.sum(bl_mask)
+        ntel = 2 * npairs
+
+        beam = self.beam_m(mi)[:, :, bl_mask, :, :].reshape(
+            self.nfreq, ntel, npol, lside
+        )
+        if bl_mask2 is not None:
+            beam += self.beam_m(mi)[:, :, bl_mask2, :, :].reshape(
+                self.nfreq, ntel, npol, lside
+            )
 
         matf = np.zeros(
-            (self.nfreq, self.ntel, self.nfreq, self.ntel), dtype=np.complex128
+            (self.nfreq, ntel, self.nfreq, ntel), dtype=np.complex128
         )
 
         # Should it be a +=?

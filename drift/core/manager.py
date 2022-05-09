@@ -221,16 +221,27 @@ class ProductManager(object):
 
         # Decide on type of beam transfers
         btclass = beamtransfer.BeamTransfer
+        # Use the "full-freq" SVD if requested
         if yconf["config"].get("full_freq_beam_svd"):
-            # Use the "full-freq" SVD if requested
-            btclass = beamtransfer.BeamTransferFullFreq
-        if yconf["config"].get("nosvd"):  # Use no SVD if requested
+            if yconf["config"].get("klbeamskypolfilter"):
+                btclass = external_beam.BeamTransferKLBeamSkyPolFilterTemplate
+            elif yconf["config"].get("klbeamskyfilter"):
+                btclass = external_beam.BeamTransferSingleStepKLBeamSkyFilterTemplate
+            else:
+                btclass = beamtransfer.BeamTransferFullFreq
+        elif yconf["config"].get("nosvd"):  # Use no SVD if requested
             btclass = beamtransfer.BeamTransferNoSVD
-        if yconf["config"].get("fullsvd"):  # Use the full SVD if requested
+        elif yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
-        if yconf["config"].get("separatesvd"): # Use separately-computed telescope SVD
-            btclass = external_beam.BeamTransferSeparateSVD
-        if yconf["config"].get("svd_templates"):
+        elif yconf["config"].get("separatesvd"): # Use separately-computed telescope SVD
+            if (
+                yconf["config"].get("klbeamskypolfilter")
+                or yconf["config"].get("klbeamskyfilter")
+            ):
+                btclass = external_beam.BeamTransferFullFreqSeparateSVD
+            else:
+                btclass = external_beam.BeamTransferSeparateSVD
+        elif yconf["config"].get("svd_templates"):
             if yconf["config"].get("singlestepfilter"):
                 btclass = external_beam.BeamTransferSingleStepFilterTemplate
             elif yconf["config"].get("singlestepklfilter"):

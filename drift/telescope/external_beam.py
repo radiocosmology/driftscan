@@ -2022,7 +2022,7 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
                     # Final products
                     ut = ut3
                     sig = sig3[:nmodes]
-                    beam = np.dot(ut3, b_full)
+                    beam = np.dot(ut3, b0_full)
 
                     # Save out the evecs (for transforming from the telescope frame
                     # into the SVD basis). We multiply ut by N^{-1/2} because ut

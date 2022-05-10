@@ -12,6 +12,39 @@ from caput.profile import Profiler
 products = None
 
 
+def _log_level(x):
+    """Interpret the input as a logging level.
+
+    Copied from draco.core.task. TODO: Figure out where to put this (probably caput).
+
+    Parameters
+    ----------
+    x : int or str
+        Explicit integer logging level or one of 'DEBUG', 'INFO', 'WARN',
+        'ERROR' or 'CRITICAL'.
+
+    Returns
+    -------
+    level : int
+    """
+
+    level_dict = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARN": logging.WARN,
+        "WARNING": logging.WARN,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
+
+    if isinstance(x, int):
+        return x
+    elif isinstance(x, str) and x in level_dict:
+        return level_dict[x.upper()]
+    else:
+        raise ValueError("Logging level %s not understood" % repr(x))
+
+
 @click.group()
 def cli():
     """Generate data to allow modelling and analysis of driftscan interferometers.
@@ -43,13 +76,23 @@ def cli():
     default="cProfile",
     help="Set the profiler to use. Default is cProfile.",
 )
-def run(configfile, profile, profiler):
+@click.option(
+    "--log_level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "WARNING", "ERROR", "CRITICAL"],
+        case_sensitive=False,
+    ),
+    default="INFO",
+)
+def run(configfile, profile, profiler, log_level):
     """Immediately run the yaml formatted CONFIGFILE to generate products."""
     from drift.core import manager
 
     # Add a useful filter for the logging
     # TODO: patch the levels into the config file, or command line options
-    filt = mpiutil.MPILogFilter(level_all=logging.INFO, level_rank0=logging.INFO)
+    filt = mpiutil.MPILogFilter(
+        level_all=_log_level(log_level), level_rank0=_log_level(log_level)
+    )
 
     # Set a useful logging format
     size = mpiutil.size
@@ -102,7 +145,15 @@ def interactive(configfile):
 @click.option(
     "--submit/--nosubmit", default=True, help="Submit the job to the queue (or not)"
 )
-def queue(configfile, submit):
+@click.option(
+    "--log_level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "WARNING", "ERROR", "CRITICAL"],
+        case_sensitive=False,
+    ),
+    default="INFO",
+)
+def queue(configfile, submit, log_level):
     """Submit the CONFIGFILE to be processed in a batch queue on a cluster.
 
     This will queue up a job (with parameters from the `cluster` section of
@@ -223,6 +274,9 @@ def queue(configfile, submit):
     clusterconf["logpath"] = submitdir + "/jobout.log"
     clusterconf["configpath"] = submitdir + "/config.yaml"
 
+    # Set logging level
+    clusterconf["log_level"] = log_level
+
     # Set up virtualenv
     if "venv" in conf:
         if not os.path.exists(conf["venv"] + "/bin/activate"):
@@ -257,7 +311,7 @@ pbs_script = """#!/bin/bash
 source %(venv)s
 cd %(workdir)s
 export OMP_NUM_THREADS=%(ompnum)i
-mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s run %(configpath)s &> %(logpath)s
+mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s run %(configpath)s --log_level=%(log_level)s &> %(logpath)s
 """
 
 slurm_script = """#!/bin/bash
@@ -274,7 +328,7 @@ cd %(workdir)s
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-srun python %(scriptpath)s run %(configpath)s &> %(logpath)s
+srun python %(scriptpath)s run %(configpath)s --log_level=%(log_level)s &> %(logpath)s
 """
 
 script_templates = {}

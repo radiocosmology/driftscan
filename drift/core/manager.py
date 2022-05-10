@@ -233,10 +233,11 @@ class ProductManager(object):
             btclass = beamtransfer.BeamTransferNoSVD
         elif yconf["config"].get("fullsvd"):  # Use the full SVD if requested
             btclass = beamtransfer.BeamTransferFullSVD
-        elif yconf["config"].get("separatesvd"): # Use separately-computed telescope SVD
-            if (
-                yconf["config"].get("klbeamskypolfilter")
-                or yconf["config"].get("klbeamskyfilter")
+        elif yconf["config"].get(
+            "separatesvd"
+        ):  # Use separately-computed telescope SVD
+            if yconf["config"].get("klbeamskypolfilter") or yconf["config"].get(
+                "klbeamskyfilter"
             ):
                 btclass = external_beam.BeamTransferFullFreqSeparateSVD
             else:
@@ -262,6 +263,9 @@ class ProductManager(object):
 
         if yconf["config"].get("skip_svd"):
             self.skip_svd = True
+
+        if yconf["config"].get("skip_svd_inv"):
+            self.skip_svd_inv = True
 
         ## Configure the KL Transforms
         self.kltransforms = {}
@@ -319,7 +323,9 @@ class ProductManager(object):
 
         # Generate the transfer matrices
         if self.gen_beams:
-            self.beamtransfer.generate(skip_svd=self.skip_svd)
+            self.beamtransfer.generate(
+                skip_svd=self.skip_svd, skip_svd_inv=self.skip_svd_inv
+            )
 
         # Generate the KLs
         if self.gen_kl:

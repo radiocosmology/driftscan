@@ -1899,11 +1899,13 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
                 # to ensure all eigenvalues are positive (required for generalized
                 # eigenvalue solver)
                 if self.matrix_regularizer is not None:
+                    logger.debug(f"m = {mi}: Regularizing C^1 matrix")
                     c1.reshape(nfreq * ntel, nfreq * ntel)[
                         np.diag_indices_from(c1.reshape(nfreq * ntel, nfreq * ntel))
                     ] += (self.matrix_regularizer * c1.real.max())
 
                 # Prewhiten B^0 and B^1 by multiplying by N^-1/2 matrix
+                logger.debug(f"m = {mi}: Pre-whitening C^0 and C^1")
                 for fi in range(nfreq):
                     noisew_i = self.telescope.noisepower(
                         np.arange(self.telescope.npairs)[bl_mask_00], fi
@@ -1975,6 +1977,7 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
 
                 # Reshape B^0 to [freq*tel,freq*pol*ell], project into
                 # high-B^0/B^1 basis, and reshape to [mode, freq, pol, ell]
+                logger.debug(f"m = {mi}: Projecting B^0 into KL basis")
                 b0_full = b0_full.reshape(nfreq * ntel, nfreq * npol * lside)
                 beam1 = np.dot(ut1, b0_full)
                 beam1 = beam1.reshape(beam1.shape[0], nfreq, npol, lside)
@@ -2029,12 +2032,19 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
                     # must act on N^{-1/2} v, not v alone (where v are the
                     # visibilities), so we include that factor of N^{-1/2} in
                     # dset_ut so that we can apply it directly to v in the future.
+                    logger.debug(
+                        f"m = {mi}: Applying prewhitening to U^dagger and saving to"
+                        " disk"
+                    )
                     dset_ut[:nmodes] = self._apply_prewhitening_to_beam_ut(
                         ut, npairs, ntel
                     )
 
                     # Save out the modified beam matrix (for mapping from the sky
                     # into the SVD basis)
+                    logger.debug(
+                        f"m = {mi}: Saving projected BTM and SV spectrum to disk"
+                    )
                     dset_bsvd[:nmodes] = beam.reshape(nmodes, nfreq, npol, lside)
 
                     # Save the singular values
@@ -2303,7 +2313,7 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
                     b0_diag[fi] *= noisew_i[:, np.newaxis, np.newaxis]
 
                 # Expand B^0 to 2 freq axes, packed as [freq,msign*base,freq,pol,ell]
-                logger.debug(f"m = {mi}. : Expanding B^0 to 2 freq axes")
+                logger.debug(f"m = {mi}: Expanding B^0 to 2 freq axes")
                 b_full_shape = b_diag_shape[:2] + (
                     b_diag_shape[0],
                     b_diag_shape[2],
@@ -2316,6 +2326,7 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
 
                 # Reshape B^0 to [freq*tel,freq*pol*ell], project into
                 # high-B^0/B^1 basis, and reshape to [mode, freq, pol, ell]
+                logger.debug(f"m = {mi}: Projecting B^0 into KL basis")
                 b0_full = b0_full.reshape(nfreq * ntel, nfreq * npol * lside)
                 beam1 = np.dot(ut1, b0_full)
                 beam1 = beam1.reshape(beam1.shape[0], nfreq, npol, lside)
@@ -2325,12 +2336,18 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
                 # must act on N^{-1/2} v, not v alone (where v are the
                 # visibilities), so we include that factor of N^{-1/2} in
                 # dset_ut so that we can apply it directly to v in the future.
+                logger.debug(
+                    f"m = {mi}: Applying prewhitening to U^dagger and saving to disk"
+                )
                 dset_ut[:nmodes] = self._apply_prewhitening_to_beam_ut(
                     ut1, npairs, ntel
                 )
 
                 # Save out the modified beam matrix (for mapping from the sky
                 # into the SVD basis)
+                logger.debug(
+                    f"m = {mi}: Saving projected BTM and KL spectrum to disk"
+                )
                 dset_bsvd[:nmodes] = beam1.reshape(nmodes, nfreq, npol, lside)
 
                 # Save the singular values

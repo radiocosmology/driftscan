@@ -2427,7 +2427,7 @@ class BeamTransferFullFreq(BeamTransfer):
         beam = self.beam_ut(mi)
 
         # Reshape input vector to [nfreq*ntel, ...]
-        vec_in_final_shape = (self.telescope.nfreq * self.ntel,) + vec.shape[2:]
+        vec_in_final_shape = (beam.shape[-1],) + vec.shape[2:]
         vec_in = vec.reshape(vec_in_final_shape)
 
         # Apply SVD projection
@@ -2465,7 +2465,7 @@ class BeamTransferFullFreq(BeamTransfer):
 
         # Reshape input matrix to [nfreq*ntel, nfreq*ntel]
         in_mat = mat.reshape(
-            self.telescope.nfreq * self.ntel, self.telescope.nfreq * self.ntel
+            beam.shape[-1], beam.shape[-1]
         )
 
         # Sandwich matrix between U^T matrices

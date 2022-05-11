@@ -2292,7 +2292,7 @@ class BeamTransferFullFreq(BeamTransfer):
         sv = self.beam_singularvalues(mi)
 
         # Number of significant sv modes at each frequency
-        svnum = (sv > sv.max() * self.svcut).sum()
+        svnum = (sv > sv.max() * svcut).sum()
 
         return svnum
 
@@ -2523,6 +2523,7 @@ class BeamTransferFullFreq(BeamTransfer):
             noise[fi * ntel : (fi + 1) * ntel] = noise_f
 
         if use_pinv:
+            print(beam[:svnum].shape, svec.shape)
             beam_inv = la.pinv(beam[:svnum])
             vec_out = np.dot(beam_inv, svec)
         else:

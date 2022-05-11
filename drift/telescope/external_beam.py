@@ -1782,6 +1782,9 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
                 "template!"
             )
 
+        self.klt = kltransform.KLTransform(self)
+        self.klt.use_polarised = True
+
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
 
         # Define baseline masks for unpert-unpert, unpert-pert, and pert-unpert
@@ -1879,13 +1882,11 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
 
                 # Get foreground and signal covariances in sky basis
                 logger.debug(f"m = {mi}: Computing sky covariance")
-                klt = kltransform.KLTransform(self)
-                klt.use_polarised = True
                 c_sky = 0
                 if self.sky_foreground:
-                    c_sky += klt.foreground()
+                    c_sky += self.klt.foreground()
                 if self.sky_signal:
-                    c_sky += klt.signal()
+                    c_sky += self.klt.signal()
 
                 # Form B^0 C_sky (B^0)^dagger and B^1 C_sky (B^1)^dagger.
                 # These are packed as [freq, tel, freq, tel]
@@ -2137,6 +2138,9 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
                 "template!"
             )
 
+        self.klt = kltransform.KLTransform(self)
+        self.klt.use_polarised = True
+
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
 
         # Define baseline masks for unpert-unpert, unpert-pert, and pert-unpert
@@ -2234,13 +2238,11 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
 
                 # Get foreground and signal covariances in sky basis
                 logger.debug(f"m = {mi}: Computing sky covariance")
-                klt = kltransform.KLTransform(self)
-                klt.use_polarised = True
                 c_sky = 0
                 if self.sky_foreground:
-                    c_sky += klt.foreground()
+                    c_sky += self.klt.foreground()
                 if self.sky_signal:
-                    c_sky += klt.signal()
+                    c_sky += self.klt.signal()
 
                 # Form B^0 C_sky (B^0)^dagger and B^1 C_sky (B^1)^dagger.
                 # These are packed as [freq, tel, freq, tel]

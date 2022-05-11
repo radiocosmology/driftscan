@@ -2523,14 +2523,13 @@ class BeamTransferFullFreq(BeamTransfer):
             noise[fi * ntel : (fi + 1) * ntel] = noise_f
 
         if use_pinv:
-            print(beam[:svnum].shape, svec.shape)
             beam_inv = la.pinv(beam[:svnum])
-            vec_out = np.dot(beam_inv, svec)
+            vec_out = np.dot(beam_inv, svec[:svnum])
         else:
             # As the form of the forward projection is simply a scaling and then
             # projection onto an orthonormal basis, the pseudo-inverse is simply
             # related.
-            vec_out = noise * np.dot(beam[:svnum].T.conj(), svec)
+            vec_out = noise * np.dot(beam[:svnum].T.conj(), svec[:svnum])
 
         # Reshape vec_out to [freq, 2, npairs]
         vec_out = vec_out.reshape(self.nfreq, 2, npairs)

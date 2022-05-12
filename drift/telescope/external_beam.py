@@ -1158,7 +1158,7 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
         sv = self.beam_singularvalues(mi)
 
         # Number of significant SV modes at each frequency
-        svnum = (sv < sv.max() * svcut).sum()
+        svnum = (sv < sv.max() * svcut).sum(axis=1)
 
         # Calculate the block bounds within the full matrix
         svbounds = np.cumsum(np.insert(svnum, 0, 0))
@@ -2438,7 +2438,7 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
         sv = self.beam_singularvalues(mi)
 
         # Number of significant SV modes at each frequency
-        svnum = (sv > svcut).sum(axis=1)
+        svnum = (sv > svcut).sum()
 
         # Calculate the block bounds within the full matrix
         svbounds = np.cumsum(np.insert(svnum, 0, 0))

@@ -2483,4 +2483,34 @@ class BeamTransferSeparateSVD(beamtransfer.BeamTransfer):
 class BeamTransferFullFreqSeparateSVD(
     BeamTransferSeparateSVD, beamtransfer.BeamTransferFullFreq
 ):
-    """Use separate telescope-SVD computed with full-freq SVD."""
+    """Use separate telescope-SVD computed with full-freq SVD.
+
+    Parameters
+    ----------
+    abs_svcut : bool, optional
+        If True, cut SVs based on their absolute magnitude, instead of defining svcut
+        as relative to the largest singular value at each m. Default: False.
+    """
+
+    abs_svcut = config.Property(proptype=bool, default=False)
+
+    def _svd_num(self, mi, svcut=None):
+
+        if self.abs_svcut:
+
+            if svcut is None:
+                svcut = self.svcut
+
+            # Get the array of singular values for each mode
+            sv = self.beam_singularvalues(mi)
+
+            # Number of significant SV modes
+            svnum = (sv > svcut).sum()
+
+        else:
+
+            svnum = super(BeamTransferFullFreqSeparateSVD, self)._svd_num(
+                self, mi, svcut=svcut
+            )
+
+        return svnum

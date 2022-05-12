@@ -2423,6 +2423,34 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
 
         mpiutil.barrier()
 
+    def _svd_num(self, mi, svcut=None):
+        ## Calculate the number of KL modes meeting the cut for each
+        ## frequency, return the number and the array bounds.
+        ## In contrast to the method in the base BeamTransfer class,
+        ## we keep modes with sv > svcut instead of sv > sv.max() * svcut,
+        ## because we care about the absolute (not relative) values of the KL
+        ## eigenvalues
+
+        if svcut is None:
+            svcut = self.svcut
+
+        # Get the array of singular values for each mode
+        sv = self.beam_singularvalues(mi)
+
+        # Number of significant SV modes at each frequency
+        svnum = (sv > svcut).sum(axis=1)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+
+        return svnum, svbounds
+
+    def svd_len(self, ntel=None):
+        """The size of the SVD output matrices."""
+        if ntel is None:
+            ntel = self.ntel
+        return min(4 * (self.telescope.lmax + 1), ntel)
+
 
 class BeamTransferSeparateSVD(beamtransfer.BeamTransfer):
 

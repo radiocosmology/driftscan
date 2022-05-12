@@ -2437,13 +2437,10 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
         # Get the array of singular values for each mode
         sv = self.beam_singularvalues(mi)
 
-        # Number of significant SV modes at each frequency
+        # Number of significant SV modes
         svnum = (sv > svcut).sum()
 
-        # Calculate the block bounds within the full matrix
-        svbounds = np.cumsum(np.insert(svnum, 0, 0))
-
-        return svnum, svbounds
+        return svnum
 
     def svd_len(self, ntel=None):
         """The size of the SVD output matrices."""

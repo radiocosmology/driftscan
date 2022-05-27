@@ -1,6 +1,7 @@
 import numpy as np
 
 from caput import config
+from caput.cache import cached_property
 
 from drift.telescope import cylinder, cylbeam
 
@@ -231,3 +232,72 @@ class CylinderShift(cylinder.UnpolarisedCylinderTelescope):
         pos2[:nextra, 1] = self.extra_feeds
 
         return pos2
+
+
+class PolarisedCylinderFitBeam(cylinder.PolarisedCylinderTelescope):
+    """Polarised cylinder telescope with freq-dependent primary beam widths, fit to
+    more detailed model of CHIME primary beam.
+
+    This code has been adapted from ch_pipeline.core.telescope.CHIMEFitBeam.
+    """
+
+    _exwidth = [0.7]
+    _eywidth = (
+        3.0
+        / (2 * np.pi)
+        * np.array([1.15310483e-07, -2.30462590e-04, 1.50451290e-01, -3.07440520e01])
+    )
+
+    _hywidth = [1.2]
+    _hxwidth = (
+        3.0
+        / (2 * np.pi)
+        * np.array([2.97495306e-07, -6.00582101e-04, 3.99949759e-01, -8.66733249e01])
+    )
+
+    # Tweak the following two properties to change the beam width
+    @cached_property
+    def fwhm_ex(self):
+        """Full width half max of the E-plane antenna beam for X polarization."""
+
+        return np.polyval(np.array(self._exwidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    @cached_property
+    def fwhm_hx(self):
+        """Full width half max of the H-plane antenna beam for X polarization."""
+
+        return np.polyval(np.array(self._hxwidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    @cached_property
+    def fwhm_ey(self):
+        """Full width half max of the E-plane antenna beam for Y polarization."""
+
+        return np.polyval(np.array(self._eywidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    @cached_property
+    def fwhm_hy(self):
+        """Full width half max of the H-plane antenna beam for Y polarization."""
+
+        return np.polyval(np.array(self._hywidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    # @util.cache_last
+    def beamx(self, feed, freq, angpos=None):
+
+        return cylbeam.beam_x(
+            self._angpos if angpos is None else angpos,
+            self.zenith,
+            self.cylinder_width / self.wavelengths[freq],
+            self.fwhm_ex[freq],
+            self.fwhm_hx[freq],
+        )
+
+    # @util.cache_last
+    def beamy(self, feed, freq, angpos=None):
+
+        return cylbeam.beam_y(
+            self._angpos if angpos is None else angpos,
+            self.zenith,
+            self.cylinder_width / self.wavelengths[freq],
+            self.fwhm_ey[freq],
+            self.fwhm_hy[freq],
+        )

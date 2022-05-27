@@ -39,6 +39,7 @@ teltype_dict = {
     "PertCylinder": exotic_cylinder.CylinderPerturbed,
     "PolarisedCylinderExternalBeam": external_beam.PolarisedCylinderTelescopeExternalBeam,
     "PertCylinderTemplates": external_beam.CylinderPerturbedTemplates,
+    "PolarisedCylinderFitBeam": exotic_cylinder.PolarisedCylinderFitBeam,
 }
 
 

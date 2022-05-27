@@ -12,6 +12,7 @@ import h5py
 from scipy.interpolate import RectBivariateSpline
 
 from caput import cache, config, misc, mpiutil
+from caput.cache import cached_property
 
 from cora.util import coord, hputil, units
 
@@ -418,6 +419,51 @@ class CylinderPerturbedTemplates(PolarisedCylinderTelescopeExternalBeam):
     base_beam_filename = config.Property(proptype=str, default=None)
     beam_template_filenames = config.Property(proptype=list)
 
+    use_fitbeam = config.Property(proptype=bool, default=False)
+
+    ### Fitbeam routines
+
+    _exwidth = [0.7]
+    _eywidth = (
+        3.0
+        / (2 * np.pi)
+        * np.array([1.15310483e-07, -2.30462590e-04, 1.50451290e-01, -3.07440520e01])
+    )
+
+    _hywidth = [1.2]
+    _hxwidth = (
+        3.0
+        / (2 * np.pi)
+        * np.array([2.97495306e-07, -6.00582101e-04, 3.99949759e-01, -8.66733249e01])
+    )
+
+    # Tweak the following two properties to change the beam width
+    @cached_property
+    def fwhm_ex(self):
+        """Full width half max of the E-plane antenna beam for X polarization."""
+
+        return np.polyval(np.array(self._exwidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    @cached_property
+    def fwhm_hx(self):
+        """Full width half max of the H-plane antenna beam for X polarization."""
+
+        return np.polyval(np.array(self._hxwidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    @cached_property
+    def fwhm_ey(self):
+        """Full width half max of the E-plane antenna beam for Y polarization."""
+
+        return np.polyval(np.array(self._eywidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    @cached_property
+    def fwhm_hy(self):
+        """Full width half max of the H-plane antenna beam for Y polarization."""
+
+        return np.polyval(np.array(self._hywidth) * 2.0 * np.pi / 3.0, self.frequencies)
+
+    ### End of fitbeam routines
+
     def _finalise_config(self):
         """Load base beam and beam templates from files."""
 
@@ -574,23 +620,41 @@ class CylinderPerturbedTemplates(PolarisedCylinderTelescopeExternalBeam):
 
     def beamx(self, feed, freq):
         """Driftscan beam model for X pol."""
-        return cylbeam.beam_x(
-            self._angpos,
-            self.zenith,
-            self.cylinder_width / self.wavelengths[freq],
-            self.fwhm_e,
-            self.fwhm_h,
-        )
+        if self.use_fitbeam:
+            return cylbeam.beam_x(
+                self._angpos,
+                self.zenith,
+                self.cylinder_width / self.wavelengths[freq],
+                self.fwhm_ex[freq],
+                self.fwhm_hx[freq],
+            )
+        else:
+            return cylbeam.beam_x(
+                self._angpos,
+                self.zenith,
+                self.cylinder_width / self.wavelengths[freq],
+                self.fwhm_e,
+                self.fwhm_h,
+            )
 
     def beamy(self, feed, freq):
         """Driftscan beam model for Y pol."""
-        return cylbeam.beam_y(
-            self._angpos,
-            self.zenith,
-            self.cylinder_width / self.wavelengths[freq],
-            self.fwhm_e,
-            self.fwhm_h,
-        )
+        if self.use_fitbeam:
+            return cylbeam.beam_y(
+                self._angpos,
+                self.zenith,
+                self.cylinder_width / self.wavelengths[freq],
+                self.fwhm_ey[freq],
+                self.fwhm_hy[freq],
+            )
+        else:
+            return cylbeam.beam_y(
+                self._angpos,
+                self.zenith,
+                self.cylinder_width / self.wavelengths[freq],
+                self.fwhm_e,
+                self.fwhm_h,
+            )
 
 
 class BeamTransferTemplates(beamtransfer.BeamTransfer):

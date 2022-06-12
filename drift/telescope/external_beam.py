@@ -1677,7 +1677,7 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
                     sig1 = sig1[::-1]
 
                     # At this point, we cut some KL modes
-                    nmodes = np.sum(sig1 > self.svcut**2)
+                    nmodes = np.sum(sig1 > np.sign(self.svcut) * self.svcut**2)
                     ut1 = ut1[:nmodes]
                     sig1 = sig1[:nmodes]
                     beam1 = np.dot(ut1, bfr0)

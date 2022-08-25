@@ -631,7 +631,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
     fisher, bias = ps.fisher_bias()
 
     # Subtract bias and reshape into new array
-    qtotal = (qtotal - bias).reshape(nstream ** 2, ps.nbands).T
+    qtotal = (qtotal - bias).reshape(nstream**2, ps.nbands).T
 
     powerspectrum = np.dot(la.inv(fisher), qtotal)
     powerspectrum = powerspectrum.T.reshape(nstream, nstream, ps.nbands)

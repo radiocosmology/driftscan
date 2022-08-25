@@ -224,7 +224,7 @@ def sim_skyvec(trans, n):
 
     gaussvars = (
         np.random.standard_normal(matshape) + 1.0j * np.random.standard_normal(matshape)
-    ) / 2.0 ** 0.5
+    ) / 2.0**0.5
 
     for i in range(lside):
         gaussvars[i] = np.dot(trans[i], gaussvars[i])

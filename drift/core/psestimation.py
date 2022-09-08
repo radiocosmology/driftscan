@@ -47,7 +47,7 @@ def bandfunc_2d_cart(kpar_s, kpar_e, kperp_s, kperp_e):
     def band(k, mu):
 
         kpar = k * mu
-        kperp = k * (1.0 - mu ** 2) ** 0.5
+        kperp = k * (1.0 - mu**2) ** 0.5
 
         parb = (kpar >= kpar_s) * (kpar <= kpar_e)
         perpb = (kperp >= kperp_s) * (kperp < kperp_e)
@@ -327,7 +327,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
                 zip(self.kpar_start, self.kpar_end, self.kperp_start, self.kperp_end)
             )
 
-            self.k_center = (self.kpar_center ** 2 + self.kperp_center ** 2) ** 0.5
+            self.k_center = (self.kpar_center**2 + self.kperp_center**2) ** 0.5
 
             # Make a list of functions of the band window functions
             self.band_func = [bandfunc_2d_cart(*bound) for bound in bounds]
@@ -817,11 +817,11 @@ class PSExact(PSEstimation):
 
         for ia in range(self.nbands):
             c_a = self.getproj(mi, ia)
-            fisher[ia, ia] = np.sum(c_a * c_a.T * ci ** 2)
+            fisher[ia, ia] = np.sum(c_a * c_a.T * ci**2)
 
             for ib in range(ia):
                 c_b = self.getproj(mi, ib)
-                fisher[ia, ib] = np.sum(c_a * c_b.T * ci ** 2)
+                fisher[ia, ib] = np.sum(c_a * c_b.T * ci**2)
                 fisher[ib, ia] = np.conj(fisher[ia, ib])
 
         self.delproj(mi)

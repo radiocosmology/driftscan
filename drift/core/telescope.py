@@ -118,7 +118,7 @@ def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     vmax = (np.abs(baselines[:, 1]) + vwidth) / wavelengths
 
     mmax = np.ceil(2 * np.pi * umax).astype(np.int64)
-    lmax = np.ceil((mmax ** 2 + (2 * np.pi * vmax) ** 2) ** 0.5).astype(np.int64)
+    lmax = np.ceil((mmax**2 + (2 * np.pi * vmax) ** 2) ** 0.5).astype(np.int64)
 
     return lmax, mmax
 
@@ -546,7 +546,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         bl2 = np.around(bl1[..., 0] + 1.0j * bl1[..., 1], self._bl_tol)
 
         # Construct array of baseline lengths
-        blen = np.sum(bl1 ** 2, axis=-1) ** 0.5
+        blen = np.sum(bl1**2, axis=-1) ** 0.5
 
         # Create mask of included baselines
         mask = np.logical_and(blen >= self.minlength, blen <= self.maxlength)
@@ -791,7 +791,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         tshape = bl_indices.shape + (self.num_pol_sky, lside + 1, 2 * lside + 1)
         logger.info(
             "Size: %i elements. Memory %f GB."
-            % (np.prod(tshape), 2 * np.prod(tshape) * 8.0 / 2 ** 30)
+            % (np.prod(tshape), 2 * np.prod(tshape) * 8.0 / 2**30)
         )
         tarray = np.zeros(tshape, dtype=np.complex128)
 

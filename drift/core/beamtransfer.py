@@ -538,7 +538,7 @@ class BeamTransfer(config.Reader):
         # Calculate the number of baselines to deal with at any one time. Aim
         # to have a maximum of "mem_chunk" GB in memory at any one time
         fbsize = self.telescope.num_pol_sky * nl * 2 * nm * 16.0
-        nodemem = self.mem_chunk * 2 ** 30.0
+        nodemem = self.mem_chunk * 2**30.0
 
         num_fb_per_node = int(nodemem / fbsize)
         num_fb_per_chunk = num_fb_per_node * mpiutil.size

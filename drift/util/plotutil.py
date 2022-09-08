@@ -27,7 +27,7 @@ def regrid_polar(polar_img, r_bins, theta_bins, res=1024):
     rpar = ra[:, np.newaxis]
     rperp = ra[np.newaxis, :]
 
-    r = (rpar ** 2 + rperp ** 2) ** 0.5
+    r = (rpar**2 + rperp**2) ** 0.5
     th = np.arccos(rpar / r)
     th[0, 0] = 0.0
 

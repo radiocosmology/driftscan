@@ -51,7 +51,7 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
         i = np.arange(nf)
 
         pos[:, 0] = cylinder_index * self.cylinder_spacing
-        pos[:, 1] = a * i + 0.5 * b * i ** 2
+        pos[:, 1] = a * i + 0.5 * b * i**2
 
         return pos
 

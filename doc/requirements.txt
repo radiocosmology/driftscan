@@ -1,2 +1,2 @@
-Sphinx==3.4.2
+Sphinx >= 4.0, < 5.0
 sphinx_rtd_theme

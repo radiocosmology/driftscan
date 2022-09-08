@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+title: driftscan
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+doi: 10.5281/zenodo.5949192
+repository-code: 'https://github.com/radiocosmology/driftscan'
+abstract: >-
+  A python project for creating instrument models used when simulating and analysing the
+  data from transit radio telescopes, with a particular focus on 21cm Cosmology.
+license: MIT
+authors:
+- given-names: "J. Richard"
+  family-names: "Shaw"
+  affiliation: "University of British Columbia"
+  orcid: "https://orcid.org/0000-0002-4543-4588"
+
+- given-names: "Simon"
+  family-names: "Foreman"
+  affiliation: "Arizona State University"
+  orcid: "https://orcid.org/0000-0002-0190-2271"
+
+- given-names: "Rick"
+  family-names: "Nitsche"
+  affiliation: "University of British Columbia"
+
+- given-names: "Kiyoshi"
+  family-names: "Masui"
+  affiliation: "MIT"
+  orcid: "https://orcid.org/0000-0002-4279-6946"
+
+- given-names: "Shifan"
+  family-names: "Zuo"
+
+- given-names: "Philippe"
+  family-names: "Berger"
+  affiliation: "University of Toronto"

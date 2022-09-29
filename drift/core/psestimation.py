@@ -649,7 +649,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
                     lyvec.conj()
                     * np.dot(self.clarray[bi][li].astype(np.complex128), lxvec),
                     axis=0,
-                ).astype(
+                ).real.astype(
                     np.float64
                 )  # TT only.
 

@@ -1000,7 +1000,7 @@ class BeamTransfer(config.Reader):
         Returns
         -------
         tvec : np.ndarray
-            Telescope vector to return.
+            Telescope vector to return, packed as [nfreq, ntel]
         """
 
         vecf = np.zeros((self.nfreq, 2, self.telescope.nbase), dtype=np.complex128)
@@ -1042,12 +1042,12 @@ class BeamTransfer(config.Reader):
         mi : integer
             Mode index to fetch for.
         vec : np.ndarray
-            Sky data vector packed as [freq, baseline, polarisation]
+            Telescope data vector, packed as [nfreq, ntel].
 
         Returns
         -------
         tvec : np.ndarray
-            Sky vector to return.
+            Sky vector to return, packed as [nfreq, npol, lmax+1].
         """
 
         vecb = np.zeros((self.nfreq, self.nsky), dtype=np.complex128)
@@ -1094,7 +1094,7 @@ class BeamTransfer(config.Reader):
             (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
         )
 
-    def project_matrix_sky_to_telescope(self, mi, mat):
+    def project_matrix_sky_to_telescope(self, mi, mat, temponly=False):
         """Project a covariance matrix from the sky into the visibility basis.
 
         Parameters
@@ -1103,16 +1103,20 @@ class BeamTransfer(config.Reader):
             Mode index to fetch for.
         mat : np.ndarray
             Sky matrix packed as [pol, pol, l, freq, freq]
+        temponly: boolean
+            Force projection of temperature (TT) part only (default: False)
 
         Returns
         -------
         tmat : np.ndarray
-            Covariance in telescope basis.
+            Covariance in telescope basis, packed as [nfreq, ntel, nfreq, ntel].
         """
-        npol = self.telescope.num_pol_sky
+        npol = 1 if temponly else self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
 
-        beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, npol, lside))
+        beam = self.beam_m(mi).reshape(
+            (self.nfreq, self.ntel, self.telescope.num_pol_sky, lside)
+        )
 
         matf = np.zeros(
             (self.nfreq, self.ntel, self.nfreq, self.ntel), dtype=np.complex128
@@ -1217,7 +1221,7 @@ class BeamTransfer(config.Reader):
         ----------
         mi : integer
             Mode index to fetch for.
-        mat : np.ndarray
+        dmat : np.ndarray
             Sky matrix packed as [nfreq, ntel]
 
         Returns
@@ -1765,32 +1769,237 @@ class BeamTransferFullSVD(BeamTransfer):
 
 
 class BeamTransferNoSVD(BeamTransfer):
+    """Subclass of BeamTransfer that skips SVD decomposition.
 
+    To use in a driftscan config file, the `nosvd` flag needs
+    to be set. (In this case, the value of `skip_svd` is ignored,
+    because the SVD step is automatically skipped.)
+    """
+
+    # No SV cut
     svcut = 0.0
 
-    def project_matrix_sky_to_svd(self, mi, mat, *args, **kwargs):
-        return self.project_matrix_sky_to_telescope(mi, mat).reshape(
+    noise_weight = False
+
+    def _svd_num(self, mi):
+        """Compute number of SVD modes meeting the cut.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        svnum : np.ndarray
+            Number of remaining SV modes at each frequency.
+        svbounds : np.ndarray
+            Indices bounding SV modes after concatenation over frequency.
+            Has size nfreq+1.
+        """
+        # Number of significant SV modes at each frequency,
+        # which is *all* SV modes in no-SVD case, since SV modes
+        # are just the m-modes.
+        svnum = (np.ones(self.nfreq) * self.ntel).astype(int)
+
+        # Calculate the block bounds within the full matrix
+        svbounds = np.cumsum(np.insert(svnum, 0, 0))
+
+        return svnum, svbounds
+
+    def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
+        print("======== Skipping telescope SVD step ========")
+
+    def project_matrix_sky_to_svd(self, mi, mat, temponly=False):
+        """Project a covariance matrix from the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Sky matrix packed as [pol, pol, l, freq, freq].
+        temponly: boolean
+            Force projection of temperature (TT) part only (default: False)
+
+        Returns
+        -------
+        tmat : np.ndarray
+            SVD-basis matrix, packed as [ndof, ndof]. Recall that
+            ndof = ntel * nfreq = 2 * nbase * nfreq.
+        """
+        return self.project_matrix_sky_to_telescope(mi, mat, temponly=temponly).reshape(
             self.ndof(mi), self.ndof(mi)
         )
 
     def project_vector_sky_to_svd(self, mi, vec, *args, **kwargs):
-        return self.project_vector_sky_to_telescope(mi, vec)
+        """Project a vector from the sky into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Sky data vector packed as [nfreq, npol, lmax+1]
+
+        Returns
+        -------
+        tvec : np.ndarray
+            Telescope vector to return, packed as [ndof].
+        """
+        return self.project_vector_sky_to_telescope(mi, vec).flatten()
+
+    def project_matrix_telescope_to_svd(self, mi, mat):
+        """Map a matrix from the telescope space into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        mat : np.ndarray
+            Telescope-basis matrix, packed as [freq, baseline, freq, baseline].
+
+        Returns
+        -------
+        out_mat : np.ndarray
+            SVD-basis matrix, packed as [ndof, ndof].
+        """
+        return mat.reshape(self.ndof(mi), self.ndof(mi))
 
     def project_matrix_diagonal_telescope_to_svd(self, mi, dmat, *args, **kwargs):
+        """Project a diagonal matrix from the telescope basis to the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        dmat : np.ndarray
+            Diagonal telescope-basis matrix packed as [nfreq, ntel].
+
+        Returns
+        -------
+        tvec : np.ndarray
+            SVD-basis matrix to return, packed as [ndof, ndof].
+        """
         return np.diag(dmat.flatten())
 
     def project_vector_telescope_to_svd(self, mi, vec, *args, **kwargs):
-        return vec
+        """Project a vector from the telescope basis into the SVD basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            Telescope data vector packed as [nfreq, ntel].
+
+        Returns
+        -------
+        tvec : np.ndarray
+            SVD vector to return, packed as [ndof].
+        """
+        return vec.flatten()
+
+    def project_vector_svd_to_sky(self, mi, vec, temponly=False, conj=False):
+        """Project a vector from the the SVD basis into the sky basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+        vec : np.ndarray
+            SVD vector, packed as [ndof, ...]
+
+        Returns
+        -------
+        svec : np.ndarray
+            Sky vector to return, packed as [nfreq, npol, lmax+1, ...]
+        """
+
+        if temponly:
+            raise NotImplementedError(
+                "temponly not implemented for no-SVD project_vector_svd_to_sky!"
+            )
+
+        # Create the output matrix
+        svec = np.zeros(
+            (self.nfreq, self.telescope.num_pol_sky, self.telescope.lmax + 1)
+            + vec.shape[1:],
+            dtype=np.complex128,
+        )
+
+        # Get inverse or Hermitian conjugate of beam matrix
+        if conj:
+            beam = self.beam_m(mi).reshape((self.nfreq, self.ntel, self.nsky))
+
+            # Loop through frequencies, doing tel-to-sky projection at each freq
+            for fi in range(self.nfreq):
+                svec[fi] = np.dot(
+                    beam[fi].T.conj(), vec.reshape(self.nfreq, self.ntel, -1)[fi]
+                ).reshape(
+                    (self.telescope.num_pol_sky, self.telescope.lmax + 1)
+                    + vec.shape[1:]
+                )
+
+        else:
+            ibeam = self.invbeam_m(mi).reshape((self.nfreq, self.nsky, self.ntel))
+
+            # Loop through frequencies, doing tel-to-sky projection at each freq
+            for fi in range(self.nfreq):
+                svec[fi] = np.dot(
+                    ibeam[fi], vec.reshape(self.nfreq, self.ntel, -1)[fi]
+                ).reshape(
+                    (self.telescope.num_pol_sky, self.telescope.lmax + 1)
+                    + vec.shape[1:]
+                )
+
+        return svec
 
     def beam_svd(self, mi, *args, **kwargs):
+        """Fetch beam SVD matrix.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        mat : np.ndarray
+            Beam-SVD matrix, which in this class is just the beam transfer
+            matrix, packed as [nfreq, 2, nbase, npol, lmax+1].
+        """
         return self.beam_m(mi)
 
     def ndof(self, mi, *args, **kwargs):
+        """Compute number of degrees of freedom in telescope basis.
 
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        n : int
+            N_dof = ntel * nfreq = nbase * 2 * nfreq.
+        """
         return self.ntel * self.nfreq
 
     @property
     def ndofmax(self):
+        """Compute number of degrees of freedom in telescope basis.
+
+        Parameters
+        ----------
+        mi : integer
+            Mode index to fetch for.
+
+        Returns
+        -------
+        n : int
+            N_dof = ntel * nfreq = nbase * 2 * nfreq.
+        """
         return self.ntel * self.nfreq
 
 

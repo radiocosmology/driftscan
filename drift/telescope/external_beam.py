@@ -78,6 +78,7 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
         )
 
         is_grid_beam = isinstance(beam, GridBeam)
+        is_healpix_beam = isinstance(beam, HEALPixBeam)
 
         # cache axes
         beam_freq = beam.freq[:]
@@ -98,7 +99,16 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
         if len(beam.input) > 1:
             raise ValueError("Per-feed beam model not supported for now.")
 
-        complex_beam = np.issubclass_(beam.beam.dtype.type, np.complexfloating)
+        # If a HEALPixBeam, must check types of theta and phi fields
+        if is_healpix_beam:
+            hpb_types = [v[0].type for v in beam.beam.dtype.fields.values()]
+
+            complex_beam = np.all(
+                [np.issubclass_(hpbt, np.complexfloating) for hpbt in hpb_types]
+            )
+        else:
+            complex_beam = np.issubclass_(beam.beam.dtype.type, np.complexfloating)
+
         output_dtype = (
             np.complex128 if complex_beam and not self.force_real_beam else np.float64
         )
@@ -210,7 +220,6 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
 
             # Check resolution and resample to a better resolution if needed
             if nside != beam_nside:
-
                 if nside > beam_nside:
                     logger.warning(
                         f"Requested nside={nside} higher than that of "
@@ -556,7 +565,6 @@ class CylinderPerturbedTemplates(PolarisedCylinderTelescopeExternalBeam):
         if pert_num == 0:
             # Base beam
             if self.ext_base_beam:
-
                 if self._is_grid_beam:
                     # Either we haven't set up interpolation coords yet, or the nside
                     # has changed
@@ -677,7 +685,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
         bl_mask=None,
         bl_mask2=None,
     ):
-
         if bl_mask is None:
             bl_mask = [True for i in range(self.telescope.npairs)]
 
@@ -693,7 +700,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
         # if a crash occurs.
         with misc.lock_file(filename, preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
                     self.telescope.nfreq,
@@ -758,7 +764,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                 ## For each frequency in the m-files read in the block, SVD it,
                 ## and construct the new beam matrix, and save.
                 for fi in np.arange(self.telescope.nfreq):
-
                     # Get U^T for base beam, packed as [svd_len, ntel]
                     ut = self.beam_ut(mi, fi)
 
@@ -854,7 +859,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                 fs.attrs["frequencies"] = self.telescope.frequencies
 
     def _generate_svdfiles(self, regen=False, skip_svd_inv=False):
-
         ## Generate all the SVD transfer matrices by simply iterating over all
         ## m, performing the SVD, combining the beams and then write out the
         ## results.
@@ -870,7 +874,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
             # can open them. If these tests all pass, we can skip this m.
             # Otherwise, we need to generate a SVD files for that m.
             for mi in m_list:
-
                 file_list = _file_list(mi)
 
                 run_mi = False
@@ -992,7 +995,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         for t in range(1, self.telescope.n_pert + 1):
-
             svd_func = lambda mi: self.beam_singularvalues(mi, t)
 
             svdspectrum = kltransform.collect_m_array(
@@ -1013,7 +1015,6 @@ class BeamTransferTemplates(beamtransfer.BeamTransfer):
 
 class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
     def __init__(self, directory, **kwargs):
-
         super(BeamTransferSingleStepFilterTemplate, self).__init__(directory, **kwargs)
 
         if self.telescope.n_pert != 1:
@@ -1023,7 +1024,6 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
             )
 
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
-
         bl_mask = [
             (x[0] in [0, 1] and x[1] in [2, 3])
             for x in self.telescope.beamclass[self.telescope.uniquepairs]
@@ -1042,7 +1042,6 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
         # if a crash occurs.
         with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
                     self.telescope.nfreq,
@@ -1107,7 +1106,6 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
                 ## For each frequency in the m-files read in the block, SVD it,
                 ## and construct the new beam matrix, and save.
                 for fi in np.arange(self.telescope.nfreq):
-
                     # Read the positive and negative m beams, and combine into one.
                     bf = self.beam_m(mi, fi)[:, bl_mask, :, :].reshape(
                         ntel,
@@ -1255,9 +1253,7 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
         )
 
         if mpiutil.rank0:
-
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
-
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()
@@ -1265,7 +1261,6 @@ class BeamTransferSingleStepFilterTemplate(beamtransfer.BeamTransfer):
 
 class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
     def __init__(self, directory, **kwargs):
-
         super(BeamTransferSingleStepKLFilterTemplate, self).__init__(
             directory, **kwargs
         )
@@ -1277,7 +1272,6 @@ class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
             )
 
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
-
         # Define baseline masks for unpert-unpert, unpert-pert, and pert-unpert
         # visibilities
         bl_mask_00 = [
@@ -1302,7 +1296,6 @@ class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
         # if a crash occurs.
         with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
                     self.telescope.nfreq,
@@ -1369,10 +1362,11 @@ class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
                 ## For each frequency in the m file: read in B^0 and B^1 and compute
                 ## KL transform
                 for fi in np.arange(self.telescope.nfreq):
-
                     # Read in B^0 and B^1, combining positive and negative m beams
                     bf_shape = (
-                        ntel, self.telescope.num_pol_sky, self.telescope.lmax + 1
+                        ntel,
+                        self.telescope.num_pol_sky,
+                        self.telescope.lmax + 1,
                     )
                     bf0 = self.beam_m(mi, fi)[:, bl_mask_00, :, :].reshape(bf_shape)
                     bf1 = self.beam_m(mi, fi)[:, bl_mask_01, :, :].reshape(bf_shape)
@@ -1490,7 +1484,7 @@ class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
         sv = self.beam_singularvalues(mi)
 
         # Number of significant SV modes at each frequency
-        svnum = (sv > svcut ** 2).sum(axis=1)
+        svnum = (sv > svcut**2).sum(axis=1)
 
         # Calculate the block bounds within the full matrix
         svbounds = np.cumsum(np.insert(svnum, 0, 0))
@@ -1523,9 +1517,7 @@ class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
         )
 
         if mpiutil.rank0:
-
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
-
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()
@@ -1533,7 +1525,6 @@ class BeamTransferSingleStepKLFilterTemplate(beamtransfer.BeamTransfer):
 
 class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
     def __init__(self, directory, **kwargs):
-
         super(BeamTransferDoubleStepKLPolFilterTemplate, self).__init__(
             directory, **kwargs
         )
@@ -1545,7 +1536,6 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
             )
 
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
-
         # Define baseline masks for unpert-unpert, unpert-pert, and pert-unpert
         # visibilities
         bl_mask_00 = [
@@ -1570,7 +1560,6 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
         # if a crash occurs.
         with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
                     self.telescope.nfreq,
@@ -1635,14 +1624,13 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
                 ac = np.zeros(self.telescope.nfreq, dtype=np.float64)
 
                 for fi in np.arange(self.telescope.nfreq):
-
                     ## Transform 1: KL-based B^1 filtering
 
                     # Read in B^0 and B^1, combining positive and negative m beams
                     bf_shape = (
                         ntel,
                         self.telescope.num_pol_sky,
-                        self.telescope.lmax + 1
+                        self.telescope.lmax + 1,
                     )
                     bf0 = self.beam_m(mi, fi)[:, bl_mask_00, :, :].reshape(bf_shape)
                     bf1 = self.beam_m(mi, fi)[:, bl_mask_01, :, :].reshape(bf_shape)
@@ -1717,7 +1705,6 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
                     if beam2.shape[0] > 0 and (
                         self.telescope.num_pol_sky == 1 or (sig1 > 0.0).any()
                     ):
-
                         ## SVD 3 - decompose polarisation null space
                         beamt = beam2.reshape(
                             -1, self.telescope.num_pol_sky, self.telescope.lmax + 1
@@ -1820,22 +1807,18 @@ class BeamTransferDoubleStepKLPolFilterTemplate(beamtransfer.BeamTransfer):
         )
 
         if mpiutil.rank0:
-
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
-
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()
 
 
 class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
-
     sky_foreground = config.Property(proptype=bool, default=True)
     sky_signal = config.Property(proptype=bool, default=True)
     matrix_regularizer = config.Property(proptype=float, default=None)
 
     def __init__(self, directory, **kwargs):
-
         super(BeamTransferKLBeamSkyPolFilterTemplate, self).__init__(
             directory, **kwargs
         )
@@ -1850,7 +1833,6 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
         self.klt.use_polarised = True
 
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
-
         # Define baseline masks for unpert-unpert, unpert-pert, and pert-unpert
         # visibilities
         bl_mask_00 = [
@@ -1881,7 +1863,6 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
         logger.debug(f"m = {mi}: Creating output file")
         with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-
                 # Create a chunked dataset for the SVD beam matrix
                 dsize_bsvd = (
                     nfreq * self.svd_len(ntel),
@@ -2070,7 +2051,6 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
                 # Check to ensure polcut hasn't thrown away all modes. If it
                 # has, just leave datasets blank.
                 if beam2.shape[0] > 0 and (npol == 1 or (sig1 > 0.0).any()):
-
                     ## SVD 3 - decompose polarisation null space
                     beamt = beam2.reshape(-1, nfreq, npol, lside)[:, :, 0].reshape(
                         -1, nfreq * lside
@@ -2176,22 +2156,18 @@ class BeamTransferKLBeamSkyPolFilterTemplate(beamtransfer.BeamTransferFullFreq):
         )
 
         if mpiutil.rank0:
-
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
-
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()
 
 
 class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFullFreq):
-
     sky_foreground = config.Property(proptype=bool, default=True)
     sky_signal = config.Property(proptype=bool, default=True)
     matrix_regularizer = config.Property(proptype=float, default=None)
 
     def __init__(self, directory, **kwargs):
-
         super(BeamTransferSingleStepKLBeamSkyFilterTemplate, self).__init__(
             directory, **kwargs
         )
@@ -2206,7 +2182,6 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
         self.klt.use_polarised = True
 
     def _generate_svdfile_m(self, mi, skip_svd_inv=False):
-
         # Define baseline masks for unpert-unpert, unpert-pert, and pert-unpert
         # visibilities
         bl_mask_00 = [
@@ -2237,7 +2212,6 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
         logger.debug(f"m = {mi}: Creating output file")
         with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
-
                 # Create a chunked dataset for the SVD beam matrix
                 dsize_bsvd = (
                     nfreq * self.svd_len(ntel),
@@ -2411,9 +2385,7 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
 
                 # Save out the modified beam matrix (for mapping from the sky
                 # into the SVD basis)
-                logger.debug(
-                    f"m = {mi}: Saving projected BTM and KL spectrum to disk"
-                )
+                logger.debug(f"m = {mi}: Saving projected BTM and KL spectrum to disk")
                 dset_bsvd[:nmodes] = beam1.reshape(nmodes, nfreq, npol, lside)
 
                 # Save the singular values
@@ -2480,9 +2452,7 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
         )
 
         if mpiutil.rank0:
-
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
-
                 f.create_dataset("singularvalues", data=svdspectrum)
 
         mpiutil.barrier()
@@ -2514,7 +2484,6 @@ class BeamTransferSingleStepKLBeamSkyFilterTemplate(beamtransfer.BeamTransferFul
 
 
 class BeamTransferSeparateSVD(beamtransfer.BeamTransfer):
-
     svd_products_dir = config.Property(proptype=str)
 
     def _svdfile(self, mi):
@@ -2559,9 +2528,7 @@ class BeamTransferFullFreqSeparateSVD(
     abs_svcut = config.Property(proptype=bool, default=False)
 
     def _svd_num(self, mi, svcut=None):
-
         if self.abs_svcut:
-
             if svcut is None:
                 svcut = self.svcut
 
@@ -2572,7 +2539,6 @@ class BeamTransferFullFreqSeparateSVD(
             svnum = (sv > svcut).sum()
 
         else:
-
             svnum = super(BeamTransferFullFreqSeparateSVD, self)._svd_num(
                 self, mi, svcut=svcut
             )

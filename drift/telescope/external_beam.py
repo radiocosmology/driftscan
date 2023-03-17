@@ -72,6 +72,7 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
         )
 
         is_grid_beam = isinstance(beam, GridBeam)
+        is_healpix_beam = isinstance(beam, HEALPixBeam)
 
         # cache axes
         beam_freq = beam.freq[:]
@@ -92,7 +93,16 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
         if len(beam.input) > 1:
             raise ValueError("Per-feed beam model not supported for now.")
 
-        complex_beam = np.issubclass_(beam.beam.dtype.type, np.complexfloating)
+        # If a HEALPixBeam, must check types of theta and phi fields
+        if is_healpix_beam:
+            hpb_types = [v[0].type for v in beam.beam.dtype.fields.values()]
+
+            complex_beam = np.all(
+                [np.issubclass_(hpbt, np.complexfloating) for hpbt in hpb_types]
+            )
+        else:
+            complex_beam = np.issubclass_(beam.beam.dtype.type, np.complexfloating)
+
         output_dtype = (
             np.complex128 if complex_beam and not self.force_real_beam else np.float64
         )
@@ -201,7 +211,6 @@ class PolarisedTelescopeExternalBeam(telescope.PolarisedTelescope):
 
             # Check resolution and resample to a better resolution if needed
             if nside != beam_nside:
-
                 if nside > beam_nside:
                     logger.warning(
                         f"Requested nside={nside} higher than that of "

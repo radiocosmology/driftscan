@@ -39,7 +39,6 @@ class PSMonteCarlo(psestimation.PSEstimation):
             The random KL-data. The number of samples is set by the objects
             attribute.
         """
-
         nsamples = self.nsamples if nsamples is None else nsamples
 
         evals, evecs = self.kltrans.modes_m(mi)
@@ -70,18 +69,16 @@ class PSMonteCarlo(psestimation.PSEstimation):
         bias : np.ndarray[nbands]
             Bias vector.
         """
-
         qa = np.zeros((self.nbands, self.nsamples))
 
         # Split calculation into subranges to save on memory usage
         num, starts, ends = mpiutil.split_m(self.nsamples, (self.nsamples // 1000) + 1)
 
         for n, s, e in zip(num, starts, ends):
-
             x = self.gen_sample(mi, n)
             qa[:, s:e] = self.q_estimator(mi, x)
 
-        ft = np.cov(qa)
+        np.cov(qa)
 
         fisher = np.cov(qa)  # ft[:self.nbands, :self.nbands]
         # bias = ft[-1, :self.nbands]
@@ -111,7 +108,6 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
 
     def gen_vecs(self, mi):
         """Generate a cache of sample vectors for each bandpower."""
-
         # Delete cache
         self.vec_cache = []
 
@@ -140,7 +136,6 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         )
 
         for bi in range(nbands):
-
             # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)
             for li in range(self.telescope.lmax + 1):
@@ -177,7 +172,6 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         bias : np.ndarray[nbands]
             Bias vector.
         """
-
         fisher = np.zeros((self.nbands, self.nbands), dtype=np.complex128)
         bias = np.zeros(self.nbands, dtype=np.complex128)
 
@@ -216,7 +210,6 @@ def sim_skyvec(trans, n):
     gaussvars : np.ndarray
        Vector of alms.
     """
-
     lside = trans.shape[0]
     nfreq = trans.shape[1]
 
@@ -236,7 +229,6 @@ def block_root(clzz):
     """Calculate the 'square root' of an angular powerspectrum matrix (with
     nulls).
     """
-
     trans = np.zeros_like(clzz)
 
     for i in range(trans.shape[0]):

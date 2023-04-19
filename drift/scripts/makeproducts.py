@@ -172,7 +172,6 @@ def queue(configfile, submit):
     }
 
     if queue_sys in cluster_defaults:
-
         clusterconf["queue_sys"] = queue_sys
         clusterconf["ppn"] = (
             conf["ppn"] if "ppn" in conf else cluster_defaults[queue_sys]["ppn"]

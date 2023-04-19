@@ -10,7 +10,7 @@ _reionisation = False
 
 
 class PointSources(gaussianfg.PointSources):
-    """Scale up point source amplitude to a higher S_{cut} = 0.1 Jy"""
+    """Scale up point source amplitude to a higher S_{cut} = 0.1 Jy."""
 
     A = 3.55e-5
     nu_0 = 408.0
@@ -18,7 +18,6 @@ class PointSources(gaussianfg.PointSources):
 
 
 def foreground_model(lmax, frequencies, npol, pol_frac=1.0, pol_length=None):
-
     fsyn = galaxy.FullSkySynchrotron()
     fps = PointSources()
 
@@ -46,7 +45,6 @@ def foreground_model(lmax, frequencies, npol, pol_frac=1.0, pol_length=None):
 
 
 def im21cm_model(lmax, frequencies, npol, cr=None, temponly=False):
-
     nfreq = frequencies.size
 
     if not cr:

@@ -50,7 +50,6 @@ def map_half_plane(arr):
 
 
 def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
-
     tmask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=bool)
     tmask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=bool)
 
@@ -113,7 +112,6 @@ def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     -------
     lmax, mmax : array_like
     """
-
     umax = (np.abs(baselines[:, 0]) + uwidth) / wavelengths
     vmax = (np.abs(baselines[:, 1]) + vwidth) / wavelengths
 
@@ -236,14 +234,12 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         latitude, longitude : scalar
             Position on the Earths surface of the telescope (in degrees).
         """
-
         # Set the observers position on the Earth
         ctime.Observer.__init__(self, longitude, latitude, **kwargs)
 
     _pickle_keys = []
 
     def __getstate__(self):
-
         state = self.__dict__.copy()
 
         for key in self.__dict__:
@@ -254,8 +250,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
     @property
     def zenith(self):
-        """
-        The zenith vector in spherical polars.
+        """The zenith vector in spherical polars.
 
         The position of the zenith spherical polars (in radians). Read only.
 
@@ -263,7 +258,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         -------
             zenith : [theta, phi]
         """
-
         # Set polar angle
         theta = np.pi / 2.0 - np.radians(self.latitude)
 
@@ -294,7 +288,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def redundancy(self):
         """The redundancy of each baseline (corresponds to entries in
-        cyl.baselines)."""
+        cyl.baselines).
+        """
         if self._redundancy is None:
             self.calculate_feedpairs()
 
@@ -324,8 +319,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def feedmap(self):
         """An (nfeed, nfeed) array giving the mapping between feedpairs and
-        the calculated baselines. Each entry is an index into the arrays of unique pairs."""
-
+        the calculated baselines. Each entry is an index into the arrays of unique pairs.
+        """
         if self._feedmap is None:
             self.calculate_feedpairs()
 
@@ -336,8 +331,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def feedmask(self):
         """An (nfeed, nfeed) array giving the entries that have been
-        calculated. This allows to mask out pairs we want to ignore."""
-
+        calculated. This allows to mask out pairs we want to ignore.
+        """
         if self._feedmask is None:
             self.calculate_feedpairs()
 
@@ -348,8 +343,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def feedconj(self):
         """An (nfeed, nfeed) array giving the feed pairs which must be complex
-        conjugated."""
-
+        conjugated.
+        """
         if self._feedconj is None:
             self.calculate_feedpairs()
 
@@ -370,7 +365,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         return self._frequencies
 
     def calculate_frequencies(self):
-
         if self.freq_lower or self.freq_upper:
             import warnings
 
@@ -397,7 +391,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         # Rebin frequencies if needed
         if self.channel_bin > 1:
-
             if self.num_freq % self.channel_bin != 0:
                 raise ValueError(
                     "Channel binning must exactly divide the total number of channels"
@@ -490,7 +483,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         """Calculate all the unique feedpairs and their redundancies, and set
         the internal state of the object.
         """
-
         # Get unique pairs, and create mapping arrays
         self._feedmap, self._feedmask, self._feedconj = self._get_unique()
 
@@ -597,7 +589,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         redundancy : np.ndarray
             For each unique pair, give the number of equivalent pairs.
         """
-
         # Fetch and merge map of unique feed pairs
         base_map, base_mask = self._unique_baselines()
         beam_map, beam_mask = self._unique_beams()
@@ -618,7 +609,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         By default the order is lexicographic in (baseline u, baselines v,
         beamclass i, beamclass j).
         """
-
         # Create mask of included pairs, that are not conjugated
         tmask = np.logical_and(self._feedmask, np.logical_not(self._feedconj))
         uniq = _get_indices(self._feedmap, mask=tmask)
@@ -758,7 +748,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
             `bl_indices` and `f_indices`, then there may be some polarisation
             indices, then finally the (l,m) indices, range (lside, 2*lside-1).
         """
-
         # Broadcast arrays against each other
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
@@ -797,7 +786,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         # Sort the baselines by ascending lmax and iterate through in that
         # order, calculating the transfer matrices
-        i_arr = np.argsort(lmax.flat)
+        np.argsort(lmax.flat)
 
         for iflat in np.argsort(lmax.flat):
             ind = np.unravel_index(iflat, lmax.shape)
@@ -896,7 +885,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         noise_ps : np.ndarray
             The noise power spectrum.
         """
-
         ndays = self.ndays if not ndays else ndays  # Set to value if not set.
 
         # Broadcast arrays against each other
@@ -1004,6 +992,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
             A structured array with (prod_ind, conj) pairs the same length as
             `unique_pairs`.
         """
+
         # Taken from draco.util.tools.cmap, but we can't depend on it in driftscan
         # NOTE: garbage if i > j
         def ind2tri(i, j, n):
@@ -1029,7 +1018,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         stack : np.ndarray
             A structured array of (stack_ind, conj) pairs the same length as `prod`.
         """
-
         stack_revmap = np.empty(
             self.nfeed * (self.nfeed + 1) // 2,
             dtype=[("stack", "<i4"), ("conjugate", "u1")],
@@ -1049,28 +1037,31 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     # Implement to specify feed positions in the telescope.
     @abc.abstractproperty
     def feedpositions(self):
-        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
+        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)."""
         return
 
     # Implement to specify the beams of the telescope
     @abc.abstractproperty
     def beamclass(self):
         """An nfeed array of the class of each beam (identical labels are
-        considered to have identical beams)."""
+        considered to have identical beams).
+        """
         return
 
     # Implement to specify feed positions in the telescope.
     @abc.abstractproperty
     def u_width(self):
         """The approximate physical width (in the u-direction) of the dish/telescope etc, for
-        calculating the maximum (l,m)."""
+        calculating the maximum (l,m).
+        """
         return
 
     # Implement to specify feed positions in the telescope.
     @abc.abstractproperty
     def v_width(self):
         """The approximate physical length (in the v-direction) of the dish/telescope etc, for
-        calculating the maximum (l,m)."""
+        calculating the maximum (l,m).
+        """
         return
 
     # The work method which does the bulk of calculating all the transfer matrices.
@@ -1137,7 +1128,6 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     # ===== Implementations of abstract functions =======
 
     def _beam_map_single(self, bl_index, f_index):
-
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
         beami, beamj = self._beam(feedi, f_index), self._beam(feedj, f_index)
@@ -1160,7 +1150,6 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         return cvis
 
     def _transfer_single(self, bl_index, f_index, lmax, lside):
-
         if self._nside != hputil.nside_for_lmax(
             lmax, accuracy_boost=self.accuracy_boost
         ):
@@ -1200,7 +1189,6 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         noise_ps : np.ndarray
             The noise power spectrum.
         """
-
         bnoise = TransitTelescope.noisepower(self, bl_indices, f_indices, ndays)
 
         return bnoise[..., np.newaxis] * 0.5  # Correction for unpolarisedness
@@ -1240,8 +1228,7 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
 
     @property
     def polarisation(self):
-        """
-        Polarisation map.
+        """Polarisation map.
 
         Returns
         -------
@@ -1251,7 +1238,6 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         raise NotImplementedError("`polarisation` must be implemented.")
 
     def _beam_map_single(self, bl_index, f_index):
-
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
         beami, beamj = self._beam(feedi, f_index), self._beam(feedj, f_index)
@@ -1271,7 +1257,6 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     # ===== Implementations of abstract functions =======
 
     def _transfer_single(self, bl_index, f_index, lmax, lside):
-
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))
 
@@ -1311,7 +1296,6 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         pol_ind
             Polarisation indices.
         """
-
         if self.skip_pol:
             npol = 1
         elif self.skip_V:
@@ -1343,7 +1327,7 @@ class SimpleUnpolarisedTelescope(UnpolarisedTelescope, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def _single_feedpositions(self):
-        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
+        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)."""
         return
 
     @property
@@ -1365,8 +1349,7 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
 
     @property
     def polarisation(self):
-        """
-        Polarisation map.
+        """Polarisation map.
 
         Returns
         -------
@@ -1391,7 +1374,7 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def _single_feedpositions(self):
-        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)"""
+        """An (nfeed,2) array of the feed positions relative to an arbitary point (in m)."""
         return
 
     @property

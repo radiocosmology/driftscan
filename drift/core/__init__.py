@@ -1,5 +1,4 @@
-"""
-Core functionality for driftscan modelling.
+"""Core functionality for driftscan modelling.
 
 .. autosummary::
     :toctree:

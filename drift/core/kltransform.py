@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):
-
     data = [(mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist)]
 
     mpiutil.barrier()
@@ -37,9 +36,7 @@ def collect_m_arrays(mlist, func, shapes, dtype):
         marrays = [np.zeros((len(mlist),) + shape, dtype=dtype) for shape in shapes]
 
         for p_process in p_all:
-
             for mi, result in p_process:
-
                 for si in range(len(shapes)):
                     if result[si] is not None:
                         marrays[si][mi] = result[si]
@@ -50,7 +47,6 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
 
 def collect_m_array(mlist, func, shape, dtype):
-
     res = collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)
 
     return res[0] if mpiutil.rank0 else None
@@ -58,7 +54,7 @@ def collect_m_array(mlist, func, shape, dtype):
 
 def eigh_gen(A, B, message=""):
     """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
-    \lambda \mathbf{B} \mathbf{v}`
+    \lambda \mathbf{B} \mathbf{v}`.
 
     This routine will attempt to correct for when `B` is not positive definite
     (usually due to numerical precision), by adding a constant diagonal to make
@@ -89,7 +85,6 @@ def eigh_gen(A, B, message=""):
         )
 
     else:
-
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
@@ -104,7 +99,6 @@ def eigh_gen(A, B, message=""):
             errno = mo.group(1)
 
             if int(errno) < (A.shape[0] + 1):
-
                 logger.info(
                     "Matrix probably not positive definite due to numerical issues. "
                     + "Trying to add a constant diagonal...."
@@ -213,9 +207,7 @@ class KLTransform(config.Reader):
         -------
         cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
         """
-
         if self._cvfg is None:
-
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3 and npol != 4:
@@ -246,7 +238,6 @@ class KLTransform(config.Reader):
         -------
         cv_fg : np.ndarray[pol2, pol1, l, freq1, freq2]
         """
-
         if self._cvsg is None:
             npol = self.telescope.num_pol_sky
 
@@ -278,7 +269,6 @@ class KLTransform(config.Reader):
         s, n : np.ndarray[nfreq, ntel, nfreq, ntel]
             Signal and noice covariance matrices.
         """
-
         if not (self.use_foregrounds or self.use_thermal):
             raise Exception(
                 "Either `use_thermal` or `use_foregrounds`, or both must be True."
@@ -328,7 +318,6 @@ class KLTransform(config.Reader):
             The KL-modes. The evals correspond to the diagonal of the
             covariances in the new basis, and the evecs define the basis.
         """
-
         logger.info("Solving for Eigenvalues....")
 
         # Fetch the covariance matrices to diagonalise
@@ -376,7 +365,6 @@ class KLTransform(config.Reader):
         evals, evecs : np.ndarray
             See `transfom_m` for details.
         """
-
         # Perform the KL-transform
         logger.info(f"Constructing signal and noise covariances for m = {mi} ...")
         evals, evecs, inv, evextra = self._transform_m(mi)
@@ -428,7 +416,6 @@ class KLTransform(config.Reader):
         return evals, evecs
 
     def _ev_save_hook(self, f, evextra):
-
         ac = evextra["ac"]
 
         # If we had to regularise because the noise spectrum is numerically ill
@@ -450,7 +437,6 @@ class KLTransform(config.Reader):
         evarray : np.ndarray
             The full set of eigenvalues across all m-modes.
         """
-
         f = h5py.File(self.evdir + "/evals.hdf5", "r")
         ev = f["evals"][:]
         f.close()
@@ -495,7 +481,6 @@ class KLTransform(config.Reader):
         mlist : array_like, optional
             Set of m's to calculate KL-modes for By default do all m-modes.
         """
-
         if mpiutil.rank0:
             st = time.time()
             logger.info("======== Starting KL calculation ========")
@@ -549,7 +534,6 @@ class KLTransform(config.Reader):
             are potentially `None`, if there are no modes either in the file, or
             satisfying S/N > threshold.
         """
-
         # If modes not already saved to disk, create file.
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
@@ -606,7 +590,6 @@ class KLTransform(config.Reader):
             are potentially `None`, if there are no modes either in the file, or
             satisfying S/N > threshold.
         """
-
         # If modes not already saved to disk, create file.
         if not os.path.exists(self._evfile % mi):
             modes = self.transform_save(mi)
@@ -650,14 +633,13 @@ class KLTransform(config.Reader):
         -------
         invmodes : np.ndarray
         """
-
         evals = self.evals_m(mi, threshold)
 
         with h5py.File(self._evfile % mi, "r") as f:
             if "evinv" in f:
                 inv = f["evinv"][:]
 
-                if threshold != None:
+                if threshold is not None:
                     nevals = evals.size
                     inv = inv[(-nevals):]
 
@@ -669,8 +651,7 @@ class KLTransform(config.Reader):
 
     @util.cache_last
     def skymodes_m(self, mi, threshold=None):
-        """
-        Find the representation of the KL-modes on the sky.
+        """Find the representation of the KL-modes on the sky.
 
         Use the beamtransfers to rotate the SN-modes onto the sky. This routine
         is based on `modes_m`, as such the same caching and caveats apply.
@@ -694,7 +675,6 @@ class KLTransform(config.Reader):
         --------
         :py:func:`modes_m`
         """
-
         # Fetch the modes in the telescope basis.
         evals, evecs = self.modes_m(mi, threshold=threshold)
 
@@ -844,25 +824,23 @@ class KLTransform(config.Reader):
         projmatrix : np.ndarray
             The matrix projected into the eigenbasis.
         """
-
         mproj = self.beamtransfer.project_matrix_sky_to_svd(mi, mat)
 
         return self.project_matrix_svd_to_kl(mi, mproj, threshold)
 
     def project_sky_matrix_forward_old(self, mi, mat, threshold=None):
-
         npol = self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
         nfreq = self.telescope.nfreq
 
-        st = time.time()
+        time.time()
 
         evsky = self.skymodes_m(mi, threshold).reshape((-1, nfreq, npol, lside))
-        et = time.time()
+        time.time()
 
         # print "Evsky: %f" % (et-st)
 
-        st = time.time()
+        time.time()
         ev1n = np.transpose(evsky, (2, 3, 0, 1)).copy()
         ev1h = np.transpose(evsky, (2, 3, 1, 0)).conj()
         matf = np.zeros((evsky.shape[0], evsky.shape[0]), dtype=np.complex128)
@@ -872,14 +850,13 @@ class KLTransform(config.Reader):
                 for li in range(lside):
                     matf += np.dot(np.dot(ev1n[pi, li], mat[pi, pj, li]), ev1h[pj, li])
 
-        et = time.time()
+        time.time()
 
         # print "Rest: %f" % (et-st)
 
         return matf
 
     def project_sky(self, sky, mlist=None, threshold=None, harmonic=False):
-
         # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
             mlist = list(range(self.telescope.mmax + 1))

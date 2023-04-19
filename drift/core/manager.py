@@ -113,7 +113,6 @@ class ProductManager(object):
         -------
         m : ProductManager
         """
-
         configfile = os.path.normpath(
             os.path.expandvars(os.path.expanduser(configfile))
         )
@@ -135,14 +134,12 @@ class ProductManager(object):
 
         ## Create output directory and copy over params file.
         if mpiutil.rank0:
-
             # Create directory if required
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
 
             # Rewrite config file to make output path absolute (and put in <outdir>/config.yaml)
             if not os.path.exists(dfile) or not os.path.samefile(configfile, dfile):
-
                 outdir_orig = outdir
                 # Work out absolute path
                 if not os.path.isabs(outdir):
@@ -186,7 +183,6 @@ class ProductManager(object):
         yconf : dict
             Dictionary containing the configuration of the Product Manager.
         """
-
         # Check for required sections in files
         if "config" not in yconf:
             raise ValueError("Configuration file must have an 'config' section.")
@@ -279,7 +275,6 @@ class ProductManager(object):
 
     def generate(self):
         """Calculate the analysis products."""
-
         # Create the directory if it does not exist
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)

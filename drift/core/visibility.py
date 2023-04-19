@@ -3,7 +3,6 @@
 import numpy as np
 
 from cora.util import coord
-from ..util._fast_tools import fringe
 
 
 def uv_plane_cart(zenith):
@@ -40,7 +39,6 @@ def horizon(sph_arr, zenith):
         The horizon function (including an angular projection term at
         each position).
     """
-
     proj = coord.sph_dot(sph_arr, zenith)
 
     return np.signbit(-proj)
@@ -103,7 +101,6 @@ def pol_IQU(sph_arr, zenith, feed1, feed2):
     The co-ordinate system defining the polarisation at each point is
     :math:`(\hat{\theta}, \hat{\phi})`.
     """
-
     # Get theta, phi plane at each point.
     t_hat, p_hat = coord.thetaphi_plane_cart(sph_arr)
 

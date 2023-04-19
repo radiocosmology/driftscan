@@ -1,5 +1,4 @@
-"""
-Modelling for transit radio telescopes.
+"""Modelling for transit radio telescopes.
 
 The existing code is mostly focussed on interferometers but can also be used
 for multi-beam transit telescopes.

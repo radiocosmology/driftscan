@@ -72,14 +72,12 @@ class PipelineManager(config.Reader):
 
     @classmethod
     def from_configfile(cls, configfile):
-
         c = cls()
         c.load_configfile(configfile)
 
         return c
 
     def load_configfile(self, configfile):
-
         with open(configfile, "r") as f:
             yconf = yaml.safe_load(f)
 
@@ -96,7 +94,6 @@ class PipelineManager(config.Reader):
             raise Exception("Configuration file must have an 'timestream' section.")
 
         for tsconf in yconf["timestreams"]:
-
             name = tsconf["name"]
             tsdir = fixpath(tsconf["directory"])
 
@@ -116,13 +113,10 @@ class PipelineManager(config.Reader):
                 self.simulations[name] = tsconf["simulate"]
 
         if "crosspower" in yconf:
-
             self.crosspower = [xp for xp in yconf["crosspower"]]
 
     def simulate(self):
-
         for tsname, simconf in self.simulations.items():
-
             ts = self.timestreams[tsname]
 
             if os.path.exists(ts._ffile(0)):
@@ -135,7 +129,6 @@ class PipelineManager(config.Reader):
         """Generate pipeline outputs."""
 
         if self.generate_modes:
-
             for tsname, tsobj in self.timestreams.items():
                 print("Generating modes (%s)" % tsname)
 
@@ -143,9 +136,7 @@ class PipelineManager(config.Reader):
                 tsobj.generate_mmodes_svd()
 
         if self.generate_klmodes:
-
             for tsname, tsobj in self.timestreams.items():
-
                 for klname in self.klmodes:
                     print("Generating KL filter (%s:%s)" % (tsname, klname))
 
@@ -156,11 +147,8 @@ class PipelineManager(config.Reader):
                         tsobj.collect_mmodes_kl()
 
         if self.generate_powerspectra:
-
             for tsname, tsobj in self.timestreams.items():
-
                 for ps in self.powerspectra:
-
                     psname = ps["psname"]
                     klname = ps["klname"]
 
@@ -172,14 +160,12 @@ class PipelineManager(config.Reader):
                     tsobj.powerspectrum()
 
             for xp in self.crosspower:
-
                 psname = xp["psname"]
                 klname = xp["klname"]
 
                 tslist = []
 
                 for tsname in xp["timestreams"]:
-
                     tsobj = self.timestreams[tsname]
 
                     tsobj.set_kltransform(klname)
@@ -194,9 +180,7 @@ class PipelineManager(config.Reader):
                 timestream.cross_powerspectrum(tslist, psname, psfile)
 
         if self.generate_maps:
-
             for tsname, tsobj in self.timestreams.items():
-
                 for klname in self.klmaps:
                     print("Generating KL map (%s:%s)" % (tsname, klname))
 

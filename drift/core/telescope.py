@@ -50,7 +50,6 @@ def map_half_plane(arr):
 
 
 def _merge_keyarray(keys1, keys2, mask1=None, mask2=None):
-
     tmask1 = mask1 if mask1 is not None else np.ones_like(keys1, dtype=bool)
     tmask2 = mask2 if mask2 is not None else np.ones_like(keys2, dtype=bool)
 
@@ -243,7 +242,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     _pickle_keys = []
 
     def __getstate__(self):
-
         state = self.__dict__.copy()
 
         for key in self.__dict__:
@@ -324,7 +322,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def feedmap(self):
         """An (nfeed, nfeed) array giving the mapping between feedpairs and
-        the calculated baselines. Each entry is an index into the arrays of unique pairs."""
+        the calculated baselines. Each entry is an index into the arrays of unique pairs.
+        """
 
         if self._feedmap is None:
             self.calculate_feedpairs()
@@ -370,7 +369,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         return self._frequencies
 
     def calculate_frequencies(self):
-
         if self.freq_lower or self.freq_upper:
             import warnings
 
@@ -397,7 +395,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         # Rebin frequencies if needed
         if self.channel_bin > 1:
-
             if self.num_freq % self.channel_bin != 0:
                 raise ValueError(
                     "Channel binning must exactly divide the total number of channels"
@@ -1004,6 +1001,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
             A structured array with (prod_ind, conj) pairs the same length as
             `unique_pairs`.
         """
+
         # Taken from draco.util.tools.cmap, but we can't depend on it in driftscan
         # NOTE: garbage if i > j
         def ind2tri(i, j, n):
@@ -1137,7 +1135,6 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     # ===== Implementations of abstract functions =======
 
     def _beam_map_single(self, bl_index, f_index):
-
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
         beami, beamj = self._beam(feedi, f_index), self._beam(feedj, f_index)
@@ -1160,7 +1157,6 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         return cvis
 
     def _transfer_single(self, bl_index, f_index, lmax, lside):
-
         if self._nside != hputil.nside_for_lmax(
             lmax, accuracy_boost=self.accuracy_boost
         ):
@@ -1251,7 +1247,6 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
         raise NotImplementedError("`polarisation` must be implemented.")
 
     def _beam_map_single(self, bl_index, f_index):
-
         # Get beam maps for each feed.
         feedi, feedj = self.uniquepairs[bl_index]
         beami, beamj = self._beam(feedi, f_index), self._beam(feedj, f_index)
@@ -1271,7 +1266,6 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
     # ===== Implementations of abstract functions =======
 
     def _transfer_single(self, bl_index, f_index, lmax, lside):
-
         if self._nside != hputil.nside_for_lmax(lmax):
             self._init_trans(hputil.nside_for_lmax(lmax))
 

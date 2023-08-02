@@ -1368,7 +1368,7 @@ class SimplePolarisedTelescope(PolarisedTelescope, metaclass=abc.ABCMeta):
             One-dimensional array with the polarization for each feed ('X' or 'Y').
         """
         return np.asarray(
-            ["X" if feed % 2 == 0 else "Y" for feed in self.beamclass], dtype=np.str
+            ["X" if feed % 2 == 0 else "Y" for feed in self.beamclass], dtype=str
         )
 
     @property

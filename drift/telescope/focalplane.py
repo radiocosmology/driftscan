@@ -36,7 +36,6 @@ def beam_circular(angpos, zenith, uv_diameter):
 
 
 def gaussian_beam(angpos, pointing, fwhm):
-
     sigma = np.radians(fwhm) / (8.0 * np.log(2.0)) ** 0.5
     x2 = (1.0 - coord.sph_dot(angpos, pointing) ** 2) / (4 * sigma**2)
 
@@ -44,7 +43,6 @@ def gaussian_beam(angpos, pointing, fwhm):
 
 
 class FocalPlaneArray(telescope.UnpolarisedTelescope):
-
     beam_num_u = config.Property(proptype=int, default=10)
     beam_num_v = config.Property(proptype=int, default=10)
 
@@ -80,7 +78,6 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     @util.cache_last
     def beam_gaussian(self, feed, freq):
-
         pointing = self.beam_pointings[feed]
         if self.beam_freq_scale:
             fwhm = self.beam_size * self.frequencies[freq] / self.beam_pivot
@@ -91,7 +88,6 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     @util.cache_last
     def beam_square(self, feed, freq):
-
         pointing = self.beam_pointings[feed]
         bdist = self._angpos - pointing[np.newaxis, :]
         bdist = np.abs(
@@ -135,7 +131,6 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
         return np.zeros([self.nfeed, 2])
 
     def _unique_beams(self):
-
         beam_mask = np.identity(self.nfeed, dtype=bool)
         beam_map = telescope._remap_keyarray(
             np.diag(np.arange(self.nfeed)), mask=beam_mask

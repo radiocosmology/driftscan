@@ -6,11 +6,9 @@ from drift.telescope import cylinder, cylbeam
 
 
 class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):
-
     pos_sigma = 0.5
 
     def feed_positions_cylinder(self, cylinder_index):
-
         pos = super(RandomCylinder, self).feed_positions_cylinder(cylinder_index)
 
         rs = np.random.get_state()
@@ -30,12 +28,10 @@ class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):
 
 
 class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
-
     min_spacing = config.Property(proptype=float, default=-1.0)
     max_spacing = config.Property(proptype=float, default=20.0)
 
     def feed_positions_cylinder(self, cylinder_index):
-
         if cylinder_index >= self.num_cylinders or cylinder_index < 0:
             raise Exception("Cylinder index is invalid.")
 
@@ -57,11 +53,9 @@ class GradientCylinder(cylinder.UnpolarisedCylinderTelescope):
 
 
 class CylinderExtra(cylinder.UnpolarisedCylinderTelescope):
-
     extra_feeds = config.Property(proptype=np.array, default=[])
 
     def feed_positions_cylinder(self, cylinder_index):
-
         pos = super(CylinderExtra, self).feed_positions_cylinder(cylinder_index)
 
         nextra = self.extra_feeds.shape[0]
@@ -124,7 +118,6 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         beampert = int(self.beamclass[feed] // 2)
 
         if beampert == 0:
-
             return cylbeam.beam_x(
                 self._angpos,
                 self.zenith,
@@ -134,7 +127,6 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             )
 
         elif beampert == 1:
-
             beam0 = cylbeam.beam_x(
                 self._angpos,
                 self.zenith,
@@ -175,7 +167,6 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
         beampert = int(self.beamclass[feed] // 2)
 
         if beampert == 0:
-
             return cylbeam.beam_y(
                 self._angpos,
                 self.zenith,
@@ -185,7 +176,6 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
             )
 
         elif beampert == 1:
-
             beam0 = cylbeam.beam_y(
                 self._angpos,
                 self.zenith,
@@ -208,11 +198,9 @@ class CylinderPerturbed(cylinder.PolarisedCylinderTelescope):
 
 
 class CylinderShift(cylinder.UnpolarisedCylinderTelescope):
-
     shift = config.Property(proptype=float, default=0.0)
 
     def feed_positions_cylinder(self, cylinder_index):
-
         pos = super(CylinderExtra, self).feed_positions_cylinder(cylinder_index)
 
         nextra = self.extra_feeds.shape[0]

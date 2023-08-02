@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):
-
     data = [(mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist)]
 
     mpiutil.barrier()
@@ -37,9 +36,7 @@ def collect_m_arrays(mlist, func, shapes, dtype):
         marrays = [np.zeros((len(mlist),) + shape, dtype=dtype) for shape in shapes]
 
         for p_process in p_all:
-
             for mi, result in p_process:
-
                 for si in range(len(shapes)):
                     if result[si] is not None:
                         marrays[si][mi] = result[si]
@@ -50,7 +47,6 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 
 
 def collect_m_array(mlist, func, shape, dtype):
-
     res = collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)
 
     return res[0] if mpiutil.rank0 else None
@@ -89,7 +85,6 @@ def eigh_gen(A, B, message=""):
         )
 
     else:
-
         try:
             evals, evecs = la.eigh(A, B, overwrite_a=True, overwrite_b=True)
         except la.LinAlgError as e:
@@ -104,7 +99,6 @@ def eigh_gen(A, B, message=""):
             errno = mo.group(1)
 
             if int(errno) < (A.shape[0] + 1):
-
                 logger.info(
                     "Matrix probably not positive definite due to numerical issues. "
                     + "Trying to add a constant diagonal...."
@@ -215,7 +209,6 @@ class KLTransform(config.Reader):
         """
 
         if self._cvfg is None:
-
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3 and npol != 4:
@@ -428,7 +421,6 @@ class KLTransform(config.Reader):
         return evals, evecs
 
     def _ev_save_hook(self, f, evextra):
-
         ac = evextra["ac"]
 
         # If we had to regularise because the noise spectrum is numerically ill
@@ -850,7 +842,6 @@ class KLTransform(config.Reader):
         return self.project_matrix_svd_to_kl(mi, mproj, threshold)
 
     def project_sky_matrix_forward_old(self, mi, mat, threshold=None):
-
         npol = self.telescope.num_pol_sky
         lside = self.telescope.lmax + 1
         nfreq = self.telescope.nfreq
@@ -879,7 +870,6 @@ class KLTransform(config.Reader):
         return matf
 
     def project_sky(self, sky, mlist=None, threshold=None, harmonic=False):
-
         # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
             mlist = list(range(self.telescope.mmax + 1))

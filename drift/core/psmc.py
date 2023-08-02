@@ -77,7 +77,6 @@ class PSMonteCarlo(psestimation.PSEstimation):
         num, starts, ends = mpiutil.split_m(self.nsamples, (self.nsamples // 1000) + 1)
 
         for n, s, e in zip(num, starts, ends):
-
             x = self.gen_sample(mi, n)
             qa[:, s:e] = self.q_estimator(mi, x)
 
@@ -140,7 +139,6 @@ class PSMonteCarloAlt(psestimation.PSEstimation):
         )
 
         for bi in range(nbands):
-
             # Product with sky covariance C_l(z, z')
             xv4 = np.zeros_like(xv3)
             for li in range(self.telescope.lmax + 1):

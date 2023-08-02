@@ -56,7 +56,6 @@ def test_dir(tmpdir_factory):
 # process. It works once because the MPI env is not initialised until the
 # `ProductManager` call which occurs *after* the product generation.
 def _gen_prod(output_dir: Path, config: Path):
-
     # If the data already exists then we don't need to re-run the tests
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
@@ -114,7 +113,6 @@ def manager(products_run):
 
 @pytest.fixture(scope="module")
 def saved_products(test_dir: Path):
-
     _base = test_dir / "saved_products"
     _base.mkdir(parents=True, exist_ok=True)
 

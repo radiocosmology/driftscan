@@ -135,14 +135,12 @@ class ProductManager(object):
 
         ## Create output directory and copy over params file.
         if mpiutil.rank0:
-
             # Create directory if required
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
 
             # Rewrite config file to make output path absolute (and put in <outdir>/config.yaml)
             if not os.path.exists(dfile) or not os.path.samefile(configfile, dfile):
-
                 outdir_orig = outdir
                 # Work out absolute path
                 if not os.path.isabs(outdir):

@@ -199,7 +199,6 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
 
     # @util.cache_last
     def beamx(self, feed, freq):
-
         return cylbeam.beam_x(
             self._angpos,
             self.zenith,
@@ -210,7 +209,6 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
 
     # @util.cache_last
     def beamy(self, feed, freq):
-
         return cylbeam.beam_y(
             self._angpos,
             self.zenith,

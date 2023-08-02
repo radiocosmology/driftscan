@@ -6,7 +6,6 @@ from drift.telescope import cylinder
 
 
 def gaussian_fwhm(x, fwhm):
-
     sigma = fwhm / (8.0 * np.log(2.0)) ** 0.5
     x2 = x**2 / (2 * sigma**2)
 
@@ -14,12 +13,10 @@ def gaussian_fwhm(x, fwhm):
 
 
 class RestrictedBeam(cylinder.CylinderTelescope):
-
     beam_height = config.Property(proptype=float, default=30.0)
     beam_type = config.Property(proptype=str, default="box")
 
     def bmask_gaussian(self, feed, freq):
-
         pointing = self.zenith
         bdist = self._angpos - pointing[np.newaxis, :]
         bdist = np.abs(
@@ -35,7 +32,6 @@ class RestrictedBeam(cylinder.CylinderTelescope):
         return bmask
 
     def bmask_box(self, feed, freq):
-
         pointing = self.zenith
         bdist = self._angpos - pointing[np.newaxis, :]
         bdist = np.abs(
@@ -76,11 +72,9 @@ class RestrictedPolarisedCylinder(RestrictedBeam, cylinder.PolarisedCylinderTele
 
 
 class RestrictedExtra(RestrictedCylinder):
-
     extra_feeds = config.Property(proptype=np.array, default=[])
 
     def feed_positions_cylinder(self, cylinder_index):
-
         pos = super(RestrictedExtra, self).feed_positions_cylinder(cylinder_index)
 
         nextra = self.extra_feeds.shape[0]

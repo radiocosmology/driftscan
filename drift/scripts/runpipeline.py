@@ -48,7 +48,6 @@ def interactive_config(configfile):
     "--submit/--nosubmit", default=True, help="Submit the job to the queue (or not)"
 )
 def queue_config(configfile, submit):
-
     import os
     import os.path
     import shutil

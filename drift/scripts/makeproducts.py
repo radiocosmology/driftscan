@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import functools
+import operator
+import itertools
 import logging
 import math
 
@@ -10,6 +13,14 @@ from caput.profile import Profiler
 
 
 products = None
+
+# Email notification options for slurm and PBS
+_SLURM_MAIL_TYPES = ["BEGIN", "END", "FAIL", "REQUEUE", "ALL"]
+_PBS_MAIL_TYPES = functools.reduce(
+    operator.concat,
+    [["".join(p) for p in itertools.permutations("abe", n)] for n in [1, 2, 3]],
+)
+_MAIL_TYPES = _SLURM_MAIL_TYPES + _PBS_MAIL_TYPES
 
 
 @click.group()
@@ -102,7 +113,20 @@ def interactive(configfile):
 @click.option(
     "--submit/--nosubmit", default=True, help="Submit the job to the queue (or not)"
 )
-def queue(configfile, submit):
+@click.option(
+    "--email",
+    type=str,
+    help=("Email address for notifications specified by mailtype option."),
+)
+@click.option(
+    "--mailtype",
+    type=click.Choice(_MAIL_TYPES),
+    help=(
+        "Email notification option, following --mail-type syntax for slurm "
+        "or -m syntax for PBS"
+    ),
+)
+def queue(configfile, submit, email=None, mailtype=None):
     """Submit the CONFIGFILE to be processed in a batch queue on a cluster.
 
     This will queue up a job (with parameters from the `cluster` section of
@@ -172,7 +196,6 @@ def queue(configfile, submit):
     }
 
     if queue_sys in cluster_defaults:
-
         clusterconf["queue_sys"] = queue_sys
         clusterconf["ppn"] = (
             conf["ppn"] if "ppn" in conf else cluster_defaults[queue_sys]["ppn"]
@@ -191,6 +214,27 @@ def queue(configfile, submit):
             if "submit_command" in conf
             else cluster_defaults[queue_sys]["submit"]
         )
+
+        # Add email notification options to submit command, if specified
+        if email is not None:
+            if mailtype is None:
+                raise ValueError(
+                    f"Must specify {queue_sys} mailtype for email notifications"
+                )
+
+            if queue_sys == "pbs":
+                if mailtype not in _PBS_MAIL_TYPES:
+                    raise ValueError(f"Invalid PBS mailtype specified ({mailtype})")
+
+                submit_command = f"{submit_command} -M {email} -m {mailtype}"
+
+            elif queue_sys == "slurm":
+                if mailtype not in _SLURM_MAIL_TYPES:
+                    raise ValueError(f"Invalid slurm mailtype specified ({mailtype})")
+
+                submit_command = (
+                    f"{submit_command} --mail-user={email} --mail-type={mailtype}"
+                )
 
     else:
         clusterconf["queue_sys"] = queue_sys
@@ -257,7 +301,8 @@ pbs_script = """#!/bin/bash
 source %(venv)s
 cd %(workdir)s
 export OMP_NUM_THREADS=%(ompnum)i
-mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s run %(configpath)s &> %(logpath)s
+mpirun -np %(mpiproc)i -npernode %(pernode)i -bind-to none python %(scriptpath)s \
+  run %(configpath)s &> %(logpath)s
 """
 
 slurm_script = """#!/bin/bash

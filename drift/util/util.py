@@ -21,7 +21,6 @@ def cache_last(func):
 
     @functools.wraps(func)
     def decorated(*args, **kwargs):
-
         if args != arg_cache[0] or kwargs != kw_cache[0]:
             # Generate cache value
             ret_cache[0] = func(*args, **kwargs)

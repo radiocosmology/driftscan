@@ -18,7 +18,6 @@ class PointSources(gaussianfg.PointSources):
 
 
 def foreground_model(lmax, frequencies, npol, pol_frac=1.0, pol_length=None):
-
     fsyn = galaxy.FullSkySynchrotron()
     fps = PointSources()
 
@@ -46,7 +45,6 @@ def foreground_model(lmax, frequencies, npol, pol_frac=1.0, pol_length=None):
 
 
 def im21cm_model(lmax, frequencies, npol, cr=None, temponly=False):
-
     nfreq = frequencies.size
 
     if not cr:

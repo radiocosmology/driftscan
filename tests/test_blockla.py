@@ -6,7 +6,6 @@ import scipy.linalg as la
 
 
 def test_blocksvd():
-
     a1 = np.zeros((4, 6))
     b1 = np.random.standard_normal((2, 2, 3))
 

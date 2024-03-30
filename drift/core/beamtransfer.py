@@ -904,9 +904,9 @@ class BeamTransfer(config.Reader):
                                         fs.attrs["inv_bsvd_from_pinv2"] = [fi]
                                     else:
                                         bad_freqs = fs.attrs["inv_bsvd_from_pinv2"]
-                                        fs.attrs[
-                                            "inv_bsvd_from_pinv2"
-                                        ] = bad_freqs.append(fi)
+                                        fs.attrs["inv_bsvd_from_pinv2"] = (
+                                            bad_freqs.append(fi)
+                                        )
                                 except:
                                     # If pinv2 fails, print error message
                                     raise Exception(
@@ -1218,9 +1218,9 @@ class BeamTransfer(config.Reader):
             fbeam = beam[fi, : svnum[fi], :]  # Beam matrix for this frequency and cut
             lmat = dmat[fi, :]  # Matrix section for this frequency
 
-            matf[
-                svbounds[fi] : svbounds[fi + 1], svbounds[fi] : svbounds[fi + 1]
-            ] = np.dot((fbeam * lmat), fbeam.T.conj())
+            matf[svbounds[fi] : svbounds[fi + 1], svbounds[fi] : svbounds[fi + 1]] = (
+                np.dot((fbeam * lmat), fbeam.T.conj())
+            )
 
         svdfile.close()
 

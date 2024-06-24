@@ -37,6 +37,7 @@ setup(
     packages=find_packages(),
     ext_modules=cythonize([fast_ext]),
     install_requires=requires,
+    python_requires=">=3.9",
     package_data=drift_data,
     entry_points="""
         [console_scripts]

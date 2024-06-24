@@ -53,7 +53,7 @@ jobs:
     - name: Install pip dependencies
       run: |
         pip install pytest
-        pip install --use-deprecated=legacy-resolver -e .
+        pip install --use-deprecated=legacy-resolver -e . --no-binary bitshuffle
     - name: Run tests
       env:
         OMP_NUM_THREADS: 1
@@ -84,6 +84,6 @@ jobs:
     - name: Install pip dependencies
       run: |
         pip install -r doc/requirements.txt
-        pip install --use-deprecated=legacy-resolver -e .
+        pip install --use-deprecated=legacy-resolver -e . --no-binary bitshuffle
     - name: Build sphinx docs
       run: sphinx-build -W -b html doc/ doc/_build/html

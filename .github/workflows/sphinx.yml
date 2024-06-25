@@ -9,13 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Set up Python 3.9
+      - name: Set up Python 3.11
         uses: actions/setup-python@v1
         with:
-          python-version: 3.9
+          python-version: "3.11"
 
       - name: Install apt dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
       - uses: actions/checkout@v2
       - name: Install pip requirements

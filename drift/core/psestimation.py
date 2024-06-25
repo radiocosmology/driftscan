@@ -31,7 +31,6 @@ def uniform_band(k, kstart, kend):
 
 def bandfunc_2d_polar(ks, ke, ts, te):
     def band(k, mu):
-
         # k = (kpar**2 + kperp**2)**0.5
         theta = np.arccos(mu)
 
@@ -45,7 +44,6 @@ def bandfunc_2d_polar(ks, ke, ts, te):
 
 def bandfunc_2d_cart(kpar_s, kpar_e, kperp_s, kperp_e):
     def band(k, mu):
-
         kpar = k * mu
         kperp = k * (1.0 - mu**2) ** 0.5
 
@@ -58,7 +56,6 @@ def bandfunc_2d_cart(kpar_s, kpar_e, kperp_s, kperp_e):
 
 
 def range_config(lst):
-
     lst2 = []
 
     endpoint = False
@@ -268,7 +265,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
         # Create different sets of bands depending on whether we're using polar bins or not.
         if self.bandtype == "polar":
-
             # Create the array of band bounds
             self.theta_bands = np.linspace(
                 0.0, np.pi / 2.0, self.num_theta + 1, endpoint=True
@@ -308,7 +304,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
                 self.band_power = cr.ps_vv(self.k_center)
 
         elif self.bandtype == "cartesian":
-
             # Broadcast the bounds against each other to make the 2D array of bands
             kparb, kperpb = np.broadcast_arrays(
                 self.kpar_bands[np.newaxis, :], self.kperp_bands[:, np.newaxis]
@@ -349,7 +344,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
         # Use new parallel map to speed up computaiton of bands
         if self.clarray is None:
-
             self.make_clzz_array()
 
         logger.info("Done.")
@@ -384,7 +378,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         return clzz
 
     def make_clzz_array(self):
-
         p_bands, s_bands, e_bands = mpiutil.split_all(self.nbands)
         p, s, e = mpiutil.split_local(self.nbands)
 
@@ -560,7 +553,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
                 f.create_dataset("theta_bands", data=self.theta_bands)
 
             elif self.bandtype == "cartesian":
-
                 f.create_dataset("kpar_start", data=self.kpar_start)
                 f.create_dataset("kpar_end", data=self.kpar_end)
                 f.create_dataset("kpar_center", data=self.kpar_center)
@@ -585,9 +577,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         return h5py.File(self.psdir + "fisher.hdf5", "r")
 
     def fisher_bias(self):
-
         with h5py.File(self.psdir + "/fisher.hdf5", "r") as f:
-
             return f["fisher"][:], f["bias"][:]
 
     # ===================================================
@@ -666,7 +656,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
         # Calculate q_a for each band
         for bi in range(self.nbands):
-
             for li in range(lside):
 
                 lxvec = x2[:, li]
@@ -790,7 +779,6 @@ class PSExact(PSEstimation):
             self._bp_cache = []
 
         for i in range(len(self.clarray)):
-
             fn = self._cfile % (mi, i)
             if os.path.exists(fn):
                 logger.info("Deleting cache file:" + fn)

@@ -13,7 +13,6 @@ from drift.util import util
 
 
 class Timestream(object):
-
     directory = None
     output_directory = None
     beamtransfer_dir = None
@@ -170,7 +169,6 @@ class Timestream(object):
         col_mmodes = np.transpose(col_mmodes, (3, 0, 1, 2))
 
         for lmi, mi in enumerate(range(sm, em)):
-
             # Make directory for each m-mode
             if not os.path.exists(self._mdir(mi)):
                 os.makedirs(self._mdir(mi))
@@ -181,7 +179,6 @@ class Timestream(object):
                 f.attrs["m"] = mi
 
         if mpiutil.rank0:
-
             # Make file marker that the m's have been correctly generated:
             open(self.output_directory + "/mmodes/COMPLETED_M", "a").close()
 
@@ -220,7 +217,6 @@ class Timestream(object):
 
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-
             if os.path.exists(self._svdfile(mi)):
                 print("File %s exists. Skipping..." % self._svdfile(mi))
                 continue
@@ -240,7 +236,6 @@ class Timestream(object):
 
     def mapmake_full(self, nside, mapname):
         def _make_alm(mi):
-
             print("Making %i" % mi)
 
             mmode = self.mmode(mi)
@@ -251,7 +246,6 @@ class Timestream(object):
         alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
 
         if mpiutil.rank0:
-
             alm = np.zeros(
                 (
                     self.telescope.nfreq,
@@ -263,7 +257,6 @@ class Timestream(object):
             )
 
             for mi in range(self.telescope.mmax + 1):
-
                 alm[..., mi] = alm_list[mi]
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
@@ -274,11 +267,9 @@ class Timestream(object):
         mpiutil.barrier()
 
     def mapmake_svd(self, nside, mapname):
-
         self.generate_mmodes_svd()
 
         def _make_alm(mi):
-
             svdmode = self.mmode_svd(mi)
 
             sphmode = self.beamtransfer.project_vector_svd_to_sky(mi, svdmode)
@@ -288,7 +279,6 @@ class Timestream(object):
         alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
 
         if mpiutil.rank0:
-
             alm = np.zeros(
                 (
                     self.telescope.nfreq,
@@ -300,7 +290,6 @@ class Timestream(object):
             )
 
             for mi in range(self.telescope.mmax + 1):
-
                 alm[..., mi] = alm_list[mi]
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
@@ -315,7 +304,6 @@ class Timestream(object):
     # ========== Project into KL-mode basis ==============
 
     def set_kltransform(self, klname, threshold=None):
-
         self.klname = klname
 
         if threshold is None:
@@ -342,7 +330,6 @@ class Timestream(object):
 
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-
             if os.path.exists(self._klfile(mi)):
                 print("File %s exists. Skipping..." % self._klfile(mi))
                 continue
@@ -389,12 +376,10 @@ class Timestream(object):
                 f.create_dataset("evals", data=evarray)
 
     def fake_kl_data(self):
-
         kl = self.manager.kltransforms[self.klname]
 
         # Iterate over local m's, project mode and save to disk.
         for mi in mpiutil.mpirange(self.telescope.mmax + 1):
-
             evals = kl.evals_m(mi)
 
             if evals is None:
@@ -413,7 +398,6 @@ class Timestream(object):
         mpiutil.barrier()
 
     def mapmake_kl(self, nside, mapname, wiener=False):
-
         mapfile = self.output_directory + "/" + mapname
 
         if os.path.exists(mapfile):
@@ -448,7 +432,6 @@ class Timestream(object):
         alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
 
         if mpiutil.rank0:
-
             alm = np.zeros(
                 (
                     self.telescope.nfreq,
@@ -463,7 +446,6 @@ class Timestream(object):
             mlist = list(range(1 if self.no_m_zero else 0, self.telescope.mmax + 1))
 
             for mi in mlist:
-
                 alm[..., mi] = alm_list[mi]
 
             skymap = hputil.sphtrans_inv_sky(alm, nside)
@@ -486,7 +468,6 @@ class Timestream(object):
         self.psname = psname
 
     def powerspectrum(self):
-
         import scipy.linalg as la
 
         if os.path.exists(self._psfile):
@@ -497,7 +478,6 @@ class Timestream(object):
         ps.genbands()
 
         def _q_estimate(mi):
-
             return ps.q_estimator(mi, self.mmode_kl(mi))
 
         # Determine whether to use m=0 or not
@@ -512,7 +492,6 @@ class Timestream(object):
 
         if mpiutil.rank0:
             with h5py.File(self._psfile, "w") as f:
-
                 cv = la.inv(fisher)
                 err = cv.diagonal() ** 0.5
                 cr = cv / np.outer(err, err)
@@ -589,7 +568,6 @@ class Timestream(object):
 
 
 def cross_powerspectrum(timestreams, psname, psfile):
-
     import scipy.linalg as la
 
     if os.path.exists(psfile):
@@ -604,12 +582,10 @@ def cross_powerspectrum(timestreams, psname, psfile):
     nstream = len(timestreams)
 
     def _q_estimate(mi):
-
         qp = np.zeros((nstream, nstream, ps.nbands), dtype=np.float64)
 
         for ti in range(nstream):
             for tj in range(ti + 1, nstream):
-
                 print("Making m=%i (%i, %i)" % (mi, ti, tj))
 
                 si = timestreams[ti]
@@ -638,7 +614,6 @@ def cross_powerspectrum(timestreams, psname, psfile):
 
     if mpiutil.rank0:
         with h5py.File(psfile, "w") as f:
-
             cv = la.inv(fisher)
             err = cv.diagonal() ** 0.5
             cr = cv / np.outer(err, err)
@@ -725,13 +700,11 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
     ## into visibility space.
 
     if projmaps:
-
         # Load file to find out the map shapes.
         with h5py.File(maps[0], "r") as f:
             mapshape = f["map"].shape
 
         if lfreq > 0:
-
             # Allocate array to store the local frequencies
             row_map = np.zeros((lfreq,) + mapshape[1:], dtype=np.float64)
 
@@ -789,7 +762,6 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
 
     ## If we're simulating noise, create a realisation and add it to col_vis
     if ndays > 0:
-
         # Fetch the noise powerspectrum
         noise_ps = tel.noisepower(
             np.arange(tel.npairs)[:, np.newaxis],
@@ -829,14 +801,12 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
 
     ## Iterate over the local frequencies and write them to disk.
     for lfi, fi in enumerate(local_freq):
-
         # Make directory if required
         if not os.path.exists(tstream._fdir(fi)):
             os.makedirs(tstream._fdir(fi))
 
         # Write file contents
         with h5py.File(tstream._ffile(fi), "w") as f:
-
             # Timestream data
             f.create_dataset("/timestream", data=vis_stream[:, lfi])
             f.create_dataset("/phi", data=tphi)

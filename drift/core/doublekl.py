@@ -28,7 +28,6 @@ class DoubleKL(kltransform.KLTransform):
     foreground_threshold = config.Property(proptype=float, default=100.0)
 
     def _transform_m(self, mi):
-
         inv = None
 
         nside = self.beamtransfer.ndof(mi)
@@ -88,7 +87,6 @@ class DoubleKL(kltransform.KLTransform):
         return evals, evecs, inv, evextra
 
     def _ev_save_hook(self, f, evextra):
-
         kltransform.KLTransform._ev_save_hook(self, f, evextra)
 
         # Save out S/F ratios
@@ -96,7 +94,6 @@ class DoubleKL(kltransform.KLTransform):
 
     def _collect(self):
         def evfunc(mi):
-
             ta = np.zeros(shape, dtype=np.float64)
 
             f = h5py.File(self._evfile % mi, "r")

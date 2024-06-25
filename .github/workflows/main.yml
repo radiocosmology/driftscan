@@ -34,7 +34,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.7, 3.9]
+        python-version: [3.9]
 
     runs-on: ubuntu-latest
     steps:
@@ -42,7 +42,9 @@ jobs:
 
     - name: Install apt dependencies
       run: |
+        sudo apt-get update
         sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -76,6 +78,7 @@ jobs:
 
     - name: Install apt dependencies
       run: |
+        sudo apt-get update
         sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
 
     - name: Install pip dependencies

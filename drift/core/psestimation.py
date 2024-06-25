@@ -514,7 +514,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
                 # Generate derived quantities (covariance, errors..)
-                cv = la.pinv(self.fisher, rcond=1e-8)
+                cv = la.pinv(self.fisher, atol=1e-8)
                 err = cv.diagonal() ** 0.5
                 cr = cv / np.outer(err, err)
             else:

@@ -1,6 +1,7 @@
 import cachetools
 import numpy as np
 
+from caput.interferometry import rotate_ypr
 from cora.util import coord, cubicspline
 
 from ..util._fast_tools import beam_exptan
@@ -39,42 +40,6 @@ def polpattern(angpos, dipole):
     coord.norm_vec2(polvec)
 
     return polvec
-
-
-def rotate_ypr(rot, xhat, yhat, zhat):
-    """Rotate the basis with a yaw, pitch and roll.
-
-    Parameters
-    ----------
-    rot : [yaw, pitch, roll]
-        Angles of rotation in radians.
-    xhat, yhat, zhat: np.ndarray[3]
-        Basis vectors to rotate.
-
-    Returns
-    -------
-    xhat, yhat, zhat : np.ndarray[3]
-        New basis vectors.
-    """
-
-    yaw, pitch, roll = rot
-
-    # Yaw rotation
-    xhat1 = np.cos(yaw) * xhat - np.sin(yaw) * yhat
-    yhat1 = np.sin(yaw) * xhat + np.cos(yaw) * yhat
-    zhat1 = zhat
-
-    # Pitch rotation
-    xhat2 = xhat1
-    yhat2 = np.cos(pitch) * yhat1 + np.sin(pitch) * zhat1
-    zhat2 = -np.sin(pitch) * yhat1 + np.cos(pitch) * zhat1
-
-    # Roll rotation
-    xhat3 = np.cos(roll) * xhat2 - np.sin(roll) * zhat2
-    yhat3 = yhat2
-    zhat3 = np.sin(roll) * xhat2 + np.cos(roll) * zhat2
-
-    return xhat3, yhat3, zhat3
 
 
 def beam_dipole(theta, phi, squint):

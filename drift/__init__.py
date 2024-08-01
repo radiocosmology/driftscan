@@ -1,5 +1,4 @@
-"""
-Modelling for transit radio telescopes.
+"""Modelling for transit radio telescopes.
 
 The existing code is mostly focussed on interferometers but can also be used
 for multi-beam transit telescopes.
@@ -17,7 +16,12 @@ Submodules
     util
 """
 
-from ._version import get_versions
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = get_versions()["version"]
-del get_versions
+try:
+    __version__ = version("cora")
+except PackageNotFoundError:
+    # package is not installed
+    pass
+
+del version, PackageNotFoundError

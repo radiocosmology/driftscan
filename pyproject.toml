@@ -1,2 +1,69 @@
 [build-system]
-requires = ['setuptools', 'wheel', 'Cython', 'oldest-supported-numpy']
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+    "setuptools-git-versioning",
+    "cython",
+    "oldest-supported-numpy",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "driftscan"
+description = "Transit telescope analysis with the m-mode formalism"
+license = { file = "LICENSE" }
+authors = [
+    { name = "The CHIME Collaboration", email = "lgray@phas.ubc.ca" }
+]
+maintainers = [
+    { name = "Liam Gray", email = "lgray@phas.ubc.ca" },
+    { name = "Don Wiebe", email = "dvw@phas.ubc.ca" }
+]
+dynamic = ["readme", "version"]
+requires-python = ">=3.9"
+dependencies = [
+    "cachetools",
+    "caput @ git+https://github.com/radiocosmology/caput.git",
+    "cora @ git+https://github.com/radiocosmology/cora.git",
+    "click",
+    "h5py",
+    "healpy>=1.8",
+    "mpi4py",
+    "numpy>=1.7,<2",
+    "scipy>=0.10",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+docs = ["Sphinx", "sphinx_rtd_theme"]
+lint = ["black", "pydocstyle"]
+
+[project.urls]
+Documentation = "https://radiocosmology.github.io/driftscan"
+Repository = "https://github.com/radiocosmology/driftscan"
+
+[project.scripts]
+drift-makeproducts = "drift.scripts.makeproducts:cli"
+drift-runpipeline = "drift.scripts.runpipeline:cli"
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.md"], content-type = "text/markdown" }
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools.package-data]
+"drift.telescope" = ["gmrtpositions.dat"]

@@ -9,21 +9,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v1
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install apt dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install pip requirements
         run: |
-          pip install -r requirements.txt
-          pip install -r doc/requirements.txt
-          pip install .
+          pip install -e .
+          pip install -e .[docs]
       - name: Sphinx build
         run: |
           git checkout -b gh-pages

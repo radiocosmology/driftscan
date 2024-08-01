@@ -1,12 +1,9 @@
-=============================
-Drift Scan Telescope Analysis
-=============================
+# Drift Scan Telescope Analysis
 
 This is a Python project for simulating and analysing the transit radio
 telescopes, with a particular focus on 21cm Cosmology.
 
-Installation
-============
+## Installation
 
 The primary dependency of this project is the `cora` package. This can be
 fetched from `here <http://github.com/radiocosmology/cora>`_. In addition to its
@@ -26,6 +23,5 @@ It should also be installable directly with `pip` using the command::
 	$ pip install [-e] git+ssh://git@github.com/radiocosmology/driftscan
 
 
-Documentation
-=============
+## Documentation
  The full documentation of `driftscan` is at https://radiocosmology.github.io/driftscan/.

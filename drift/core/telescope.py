@@ -177,7 +177,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         Use specific values for the telescope's l_max and m_max, instead of computing
         these values based on the angular scales accessible to the longest baseline
         at the highest frequency. l_boost is ignored if these values are specified.
-        This is useful if you intend to combine several sets of beam transfer matrices 
+        This is useful if you intend to combine several sets of beam transfer matrices
         that are separately computed over different frequency ranges. Default: None.
     minlength, maxlength : scalar
         Minimum and maximum baseline lengths to include (in metres).
@@ -808,8 +808,6 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         # Sort the baselines by ascending lmax and iterate through in that
         # order, calculating the transfer matrices
-        i_arr = np.argsort(lmax.flat)
-
         for iflat in np.argsort(lmax.flat):
             ind = np.unravel_index(iflat, lmax.shape)
 

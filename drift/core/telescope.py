@@ -173,6 +173,12 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         much less sensitive to negative-m (depending on the hemisphere, and
         baseline alignment). This does not affect the beams calculated, only
         how they're used in further calculation. Default: False
+    force_lmax, force_mmax : int
+        Use specific values for the telescope's l_max and m_max, instead of computing
+        these values based on the angular scales accessible to the longest baseline
+        at the highest frequency. l_boost is ignored if these values are specified.
+        This is useful if you intend to combine several sets of beam transfer matrices 
+        that are separately computed over different frequency ranges. Default: None.
     minlength, maxlength : scalar
         Minimum and maximum baseline lengths to include (in metres).
     local_origin : bool
@@ -213,6 +219,8 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
     accuracy_boost = config.Property(proptype=float, default=1.0)
     l_boost = config.Property(proptype=float, default=1.0)
+    force_lmax = config.Property(proptype=int, default=None)
+    force_mmax = config.Property(proptype=int, default=None)
 
     minlength = config.Property(proptype=float, default=0.0)
     maxlength = config.Property(proptype=float, default=1.0e7)
@@ -466,18 +474,24 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def lmax(self):
         """The maximum l the telescope is sensitive to."""
-        lmax, mmax = max_lm(
-            self.baselines, self.wavelengths.min(), self.u_width, self.v_width
-        )
-        return int(np.ceil(lmax.max() * self.l_boost))
+        if self.force_lmax is not None:
+            return self.force_lmax
+        else:
+            lmax, mmax = max_lm(
+                self.baselines, self.wavelengths.min(), self.u_width, self.v_width
+            )
+            return int(np.ceil(lmax.max() * self.l_boost))
 
     @property
     def mmax(self):
         """The maximum m the telescope is sensitive to."""
-        lmax, mmax = max_lm(
-            self.baselines, self.wavelengths.min(), self.u_width, self.v_width
-        )
-        return int(np.ceil(mmax.max() * self.l_boost))
+        if self.force_mmax is not None:
+            return self.force_mmax
+        else:
+            lmax, mmax = max_lm(
+                self.baselines, self.wavelengths.min(), self.u_width, self.v_width
+            )
+            return int(np.ceil(mmax.max() * self.l_boost))
 
     # ===================================================
 

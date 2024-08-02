@@ -144,10 +144,10 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         The center of the lowest and highest frequency bands. Deprecated, use
         `freq_start`, `freq_end` instead.
     freq_start, freq_end : scalar
-        The start and end frequencies in MHz.
+        The start and end frequencies in MHz. Defaults: 800, 400.
     num_freq : scalar
         The number of frequency bands (only use for setting up the frequency
-        binning). Generally using `nfreq` is preferred.
+        binning). Generally using `nfreq` is preferred. Default: 1024.
     freq_mode : {"centre", "edge"}
         Choose if `freq_start` and `freq_end` are the edges of the band
         ("edge"), or whether they are the central frequencies of the first
@@ -167,12 +167,16 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         Default selects all channels.
     tsys_flat : scalar
         The system temperature (in K). Override `tsys` for anything more
-        sophisticated.
-    positive_m_only: boolean
-        Whether to only deal with half the `m` range. In many cases we are
-        much less sensitive to negative-m (depending on the hemisphere, and
-        baseline alignment). This does not affect the beams calculated, only
-        how they're used in further calculation. Default: False
+        sophisticated. Default: 50.
+    ndays : int
+        Number of days to assume when computing thermal noise. Default: 733.
+    accuracy_boost : float
+        When computing beam transfer function, increase nside of healpix maps by
+        2**accuracy_boost compared to default determination of nside. Default: 1.0.
+    l_boost: float
+        Increase lmax and mmax for telescope, and lmax/mmax values computed for
+        individual baselines, by a factor of l_boost compared to default computations.
+        Default: 1.0.
     force_lmax, force_mmax : int
         Use specific values for the telescope's l_max and m_max, instead of computing
         these values based on the angular scales accessible to the longest baseline
@@ -181,12 +185,15 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         that are separately computed over different frequency ranges. Default: None.
     minlength, maxlength : scalar
         Minimum and maximum baseline lengths to include (in metres).
+    auto_correlations : bool
+        Include elements for feed auto-correlations in computed beam transfer matrices.
+        Default: False.
     local_origin : bool
         If set the observers location is the terrestrial origin, and so the
         rotation angle corresponds to the right ascension that is overhead
         (Local Stellar Angle in `caput.time`). If not the origin is Greenwich,
         so the rotation angle is what is overhead at Greenwich (Earth Rotation
-        Angle).
+        Angle). Default: True.
     skip_freq : list
         Frequency indices (with the set of frequencies defined by the other parameters)
         to skip. Skipped frequencies are considered to be present, *but* their beam

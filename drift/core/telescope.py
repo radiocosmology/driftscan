@@ -1,6 +1,6 @@
 import abc
 import logging
-
+from functools import cached_property
 import numpy as np
 
 from caput import cache
@@ -710,7 +710,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         """
         return bl_ind in self.skip_baselines
 
-    @cache.cached_property
+    @cached_property
     def included_freq(self) -> np.ndarray:
         """The frequency indices that *are* being calculated.
 
@@ -723,7 +723,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
             [ind for ind in range(self.nfreq) if not self._skip_freq(ind)], dtype=int
         )
 
-    @cache.cached_property
+    @cached_property
     def included_baseline(self) -> np.ndarray:
         """The baseline indices that *are* being calculated.
 
@@ -737,7 +737,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
             dtype=int,
         )
 
-    @cache.cached_property
+    @cached_property
     def included_pol(self) -> np.ndarray:
         """The pol indices that *are* being calculated.
 
@@ -977,7 +977,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
     # ====== Properties to help with draco pipeline =====
 
-    @cache.cached_property
+    @cached_property
     def prodstack(self):
         """Generate the results of a prodstack.
 
@@ -996,7 +996,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         return upairs.ravel().view(dtype)
 
-    @cache.cached_property
+    @cached_property
     def index_map_prod(self):
         """Generate a *full triangle* `index_map/prod` like object.
 
@@ -1010,7 +1010,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         return tpairs.T.flatten().view(dtype)
 
-    @cache.cached_property
+    @cached_property
     def index_map_stack(self):
         """Generate an `index_map/stack` like object.
 
@@ -1037,7 +1037,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
 
         return stack_map
 
-    @cache.cached_property
+    @cached_property
     def reverse_map_stack(self):
         """Generate a `reverse_map/stack` like object.
 
@@ -1315,7 +1315,7 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
 
         return btrans
 
-    @cache.cached_property
+    @cached_property
     def included_pol(self) -> np.ndarray:
         """The included polarisation indices.
 

@@ -4,7 +4,7 @@ requires = [
     "wheel",
     "setuptools-git-versioning",
     "cython",
-    "oldest-supported-numpy",
+    "numpy>=2.0.0.rc1",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -29,7 +29,7 @@ dependencies = [
     "h5py",
     "healpy>=1.8",
     "mpi4py",
-    "numpy>=1.7,<2",
+    "numpy>=1.24",
     "scipy>=0.10",
 ]
 classifiers = [

@@ -14,6 +14,7 @@ from drift.telescope import (
     focalplane,
     restrictedcylinder,
     exotic_cylinder,
+    external_beam,
 )
 from drift.core import beamtransfer
 
@@ -35,6 +36,7 @@ teltype_dict = {
     "RestrictedExtra": restrictedcylinder.RestrictedExtra,
     "GradientCylinder": exotic_cylinder.GradientCylinder,
     "PertCylinder": exotic_cylinder.CylinderPerturbed,
+    "PolarisedCylinderExternalBeam": external_beam.PolarisedCylinderTelescopeExternalBeam,
 }
 
 

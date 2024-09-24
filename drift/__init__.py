@@ -19,7 +19,7 @@ Submodules
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("cora")
+    __version__ = version("driftscan")
 except PackageNotFoundError:
     # package is not installed
     pass

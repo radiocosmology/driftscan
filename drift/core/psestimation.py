@@ -523,7 +523,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
                 cr = np.zeros_like(self.fisher)
 
             f = h5py.File(self.psdir + "/fisher.hdf5", "w")
-            f.attrs["bandtype"] = np.string_(self.bandtype)  # HDF5 string issues
+            f.attrs["bandtype"] = np.bytes_(self.bandtype)  # HDF5 string issues
 
             f.create_dataset("fisher", data=self.fisher)
             f.create_dataset("bias", data=self.bias)

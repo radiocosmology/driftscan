@@ -1,0 +1,583 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drift.core.kltransform &mdash; driftscan 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="drift.core.manager" href="drift.core.manager.html" />
+    <link rel="prev" title="drift.core.doublekl" href="drift.core.doublekl.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            driftscan
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="drift.core.html">drift.core</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="drift.core.beamtransfer.html">drift.core.beamtransfer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.crosspower.html">drift.core.crosspower</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.doublekl.html">drift.core.doublekl</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.core.kltransform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.manager.html">drift.core.manager</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psestimation.html">drift.core.psestimation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psmc.html">drift.core.psmc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.skymodel.html">drift.core.skymodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.telescope.html">drift.core.telescope</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.visibility.html">drift.core.visibility</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.telescope.html">drift.telescope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.util.html">drift.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Programming References</a></li>
+          <li class="breadcrumb-item"><a href="drift.core.html">drift.core</a></li>
+      <li class="breadcrumb-item active">drift.core.kltransform</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/_autosummary/drift.core.kltransform.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-drift.core.kltransform">
+<span id="drift-core-kltransform"></span><h1>drift.core.kltransform<a class="headerlink" href="#module-drift.core.kltransform" title="Link to this heading"></a></h1>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">collect_m_array</span></code>(mlist, func, shape, dtype)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">collect_m_arrays</span></code>(mlist, func, shapes, dtype)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.kltransform.eigh_gen" title="drift.core.kltransform.eigh_gen"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigh_gen</span></code></a>(A, B[, message])</p></td>
+<td><p>Solve the generalised eigenvalue problem.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.kltransform.inv_gen" title="drift.core.kltransform.inv_gen"><code class="xref py py-obj docutils literal notranslate"><span class="pre">inv_gen</span></code></a>(A)</p></td>
+<td><p>Find the inverse of A.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.kltransform.KLTransform" title="drift.core.kltransform.KLTransform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">KLTransform</span></code></a>(bt[, subdir])</p></td>
+<td><p>Perform KL transform.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.kltransform.</span></span><span class="sig-name descname"><span class="pre">KLTransform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Reader</span></code></p>
+<p>Perform KL transform.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.subset">
+<span class="sig-name descname"><span class="pre">subset</span></span><a class="headerlink" href="#drift.core.kltransform.KLTransform.subset" title="Link to this definition"></a></dt>
+<dd><p>If True, throw away modes below a S/N <cite>threshold</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>boolean</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.threshold">
+<span class="sig-name descname"><span class="pre">threshold</span></span><a class="headerlink" href="#drift.core.kltransform.KLTransform.threshold" title="Link to this definition"></a></dt>
+<dd><p>S/N threshold to cut modes at.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.inverse">
+<span class="sig-name descname"><span class="pre">inverse</span></span><a class="headerlink" href="#drift.core.kltransform.KLTransform.inverse" title="Link to this definition"></a></dt>
+<dd><p>If True construct and cache inverse transformation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>boolean</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">use_thermal,</span> <span class="pre">use_foregrounds</span></span></dt>
+<dd><p>Whether to use instrumental noise/foregrounds (default: both True)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>boolean</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform._foreground_regulariser">
+<span class="sig-name descname"><span class="pre">_foreground_regulariser</span></span><a class="headerlink" href="#drift.core.kltransform.KLTransform._foreground_regulariser" title="Link to this definition"></a></dt>
+<dd><p>The regularisation constant for the foregrounds. Adds in a diagonal of
+size reg * cf.max(). Default is 2e-15</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.evals_all">
+<span class="sig-name descname"><span class="pre">evals_all</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.evals_all" title="Link to this definition"></a></dt>
+<dd><p>Collects the full eigenvalue spectrum for all m-modes.</p>
+<p>Reads in from files on disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>evarray</strong> – The full set of eigenvalues across all m-modes.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.evals_m">
+<span class="sig-name descname"><span class="pre">evals_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.evals_m" title="Link to this definition"></a></dt>
+<dd><p>Fetch the KL-modes for a particular m.</p>
+<p>This attempts to read in the results from disk, if available and if not
+will create them.</p>
+<p>Also, it will cache the previous m-mode in memory, so as to avoid disk
+access in many cases. However <em>this</em> is not sensitive to changes in the
+threshold, be careful.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m to fetch KL-modes for.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>evals</strong> – KL-modes with S/N greater than some threshold. Both evals and evecs
+are potentially <cite>None</cite>, if there are no modes either in the file, or
+satisfying S/N &gt; threshold.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.foreground">
+<span class="sig-name descname"><span class="pre">foreground</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.foreground" title="Link to this definition"></a></dt>
+<dd><p>Compute the foreground covariance matrix (on the sky).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cv_fg</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray[pol2, pol1, l, freq1, freq2]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.generate" title="Link to this definition"></a></dt>
+<dd><p>Perform the KL-transform for all m-modes and save the result.</p>
+<p>Uses MPI to distribute the work (if available).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mlist</strong> (<em>array_like</em><em>, </em><em>optional</em>) – Set of m’s to calculate KL-modes for By default do all m-modes.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.invmodes_m">
+<span class="sig-name descname"><span class="pre">invmodes_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.invmodes_m" title="Link to this definition"></a></dt>
+<dd><p>Get the inverse modes.</p>
+<p>If the true inverse has been cached, return the modes for the current
+<cite>threshold</cite>. Otherwise generate the Moore-Penrose pseudo-inverse.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode to generate for.</p></li>
+<li><p><strong>threshold</strong> (<em>scalar</em>) – S/N threshold to use.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>invmodes</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.modes_m">
+<span class="sig-name descname"><span class="pre">modes_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.modes_m" title="Link to this definition"></a></dt>
+<dd><p>Fetch the KL-modes for a particular m.</p>
+<p>This attempts to read in the results from disk, if available and if not
+will create them.</p>
+<p>Also, it will cache the previous m-mode in memory, so as to avoid disk
+access in many cases. However <em>this</em> is not sensitive to changes in the
+threshold, be careful.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m to fetch KL-modes for.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>evals, evecs</strong> – KL-modes with S/N greater than some threshold. Both evals and evecs
+are potentially <cite>None</cite>, if there are no modes either in the file, or
+satisfying S/N &gt; threshold.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.project_matrix_sky_to_kl">
+<span class="sig-name descname"><span class="pre">project_matrix_sky_to_kl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.project_matrix_sky_to_kl" title="Link to this definition"></a></dt>
+<dd><p>Project a covariance matrix from the sky into the eigenbasis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Sky matrix to project.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>projmatrix</strong> – The matrix projected into the eigenbasis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.project_matrix_svd_to_kl">
+<span class="sig-name descname"><span class="pre">project_matrix_svd_to_kl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.project_matrix_svd_to_kl" title="Link to this definition"></a></dt>
+<dd><p>Project a matrix from the telescope basis into the eigenbasis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Telescope matrix to project.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>projmatrix</strong> – The matrix projected into the eigenbasis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.project_vector_kl_to_svd">
+<span class="sig-name descname"><span class="pre">project_vector_kl_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.project_vector_kl_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a vector in the Eigenbasis back into the telescope space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Eigenbasis data vector.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>projvector</strong> – The vector projected into the eigenbasis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.project_vector_sky_to_kl">
+<span class="sig-name descname"><span class="pre">project_vector_sky_to_kl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.project_vector_sky_to_kl" title="Link to this definition"></a></dt>
+<dd><p>Project an m-vector from the sky into the eigenbasis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Sky data vector packed as [freq, pol, l]</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>projvector</strong> – The vector projected into the eigenbasis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.project_vector_svd_to_kl">
+<span class="sig-name descname"><span class="pre">project_vector_svd_to_kl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.project_vector_svd_to_kl" title="Link to this definition"></a></dt>
+<dd><p>Project a telescope data vector into the eigenbasis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Telescope data vector.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>projvector</strong> – The vector projected into the eigenbasis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.signal">
+<span class="sig-name descname"><span class="pre">signal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.signal" title="Link to this definition"></a></dt>
+<dd><p>Compute the signal covariance matrix (on the sky).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cv_fg</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray[pol2, pol1, l, freq1, freq2]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.skymodes_m">
+<span class="sig-name descname"><span class="pre">skymodes_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.skymodes_m" title="Link to this definition"></a></dt>
+<dd><p>Find the representation of the KL-modes on the sky.</p>
+<p>Use the beamtransfers to rotate the SN-modes onto the sky. This routine
+is based on <cite>modes_m</cite>, as such the same caching and caveats apply.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>threshold</strong> (<em>real scalar</em><em>, </em><em>optional</em>) – Returns only KL-modes with S/N greater than threshold. By default
+return all modes saved in the file (this maybe be a subset already,
+see <cite>transform_save</cite>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>skymodes</strong> – The modes as found in <span class="math notranslate nohighlight">\(a_{lm}(\nu)\)</span> space. Note this routine does not
+return the evals.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#drift.core.kltransform.KLTransform.modes_m" title="drift.core.kltransform.KLTransform.modes_m"><code class="xref py py-func docutils literal notranslate"><span class="pre">modes_m()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.sn_covariance">
+<span class="sig-name descname"><span class="pre">sn_covariance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.sn_covariance" title="Link to this definition"></a></dt>
+<dd><p>Compute the signal and noise covariances (on the telescope).</p>
+<p>The signal is formed from the 21cm signal, whereas the noise includes
+both foregrounds and instrumental noise. This is for a single m-mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – The m-mode to calculate at.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>s, n</strong> – Signal and noice covariance matrices.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[nfreq, ntel, nfreq, ntel]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.kltransform.KLTransform.transform_save">
+<span class="sig-name descname"><span class="pre">transform_save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.KLTransform.transform_save" title="Link to this definition"></a></dt>
+<dd><p>Save the KL-modes for a given m.</p>
+<p>Perform the transform and cache the results for later use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode to calculate.</p></li>
+<li><p><strong>Results</strong></p></li>
+<li><p><strong>-------</strong></p></li>
+<li><p><strong>evals</strong> (<em>np.ndarray</em>) – See <cite>transfom_m</cite> for details.</p></li>
+<li><p><strong>evecs</strong> (<em>np.ndarray</em>) – See <cite>transfom_m</cite> for details.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.kltransform.eigh_gen">
+<span class="sig-prename descclassname"><span class="pre">drift.core.kltransform.</span></span><span class="sig-name descname"><span class="pre">eigh_gen</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.eigh_gen" title="Link to this definition"></a></dt>
+<dd><p>Solve the generalised eigenvalue problem. <span class="math notranslate nohighlight">\(\mathbf{A} \mathbf{v} =
+\lambda \mathbf{B} \mathbf{v}\)</span></p>
+<p>This routine will attempt to correct for when <cite>B</cite> is not positive definite
+(usually due to numerical precision), by adding a constant diagonal to make
+all of its eigenvalues positive.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>A</strong> (<em>np.ndarray</em>) – Matrices to operate on.</p></li>
+<li><p><strong>B</strong> (<em>np.ndarray</em>) – Matrices to operate on.</p></li>
+<li><p><strong>message</strong> (<em>string</em><em>, </em><em>optional</em>) – Optional string to print if an exception is thrown. Default: “”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>evals</strong> (<em>np.ndarray</em>) – Eigenvalues of the problem.</p></li>
+<li><p><strong>evecs</strong> (<em>np.ndarray</em>) – 2D array of eigenvectors (packed column by column).</p></li>
+<li><p><strong>add_const</strong> (<em>scalar</em>) – The constant added on the diagonal to regularise.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.kltransform.inv_gen">
+<span class="sig-prename descclassname"><span class="pre">drift.core.kltransform.</span></span><span class="sig-name descname"><span class="pre">inv_gen</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.kltransform.inv_gen" title="Link to this definition"></a></dt>
+<dd><p>Find the inverse of A.</p>
+<p>If a standard matrix inverse has issues try using the pseudo-inverse.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>A</strong> (<em>np.ndarray</em>) – Matrix to invert.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>inv</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="drift.core.doublekl.html" class="btn btn-neutral float-left" title="drift.core.doublekl" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="drift.core.manager.html" class="btn btn-neutral float-right" title="drift.core.manager" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2014, J. Richard Shaw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

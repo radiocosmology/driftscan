@@ -1,0 +1,1100 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drift.core.telescope &mdash; driftscan 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="drift.core.visibility" href="drift.core.visibility.html" />
+    <link rel="prev" title="drift.core.skymodel" href="drift.core.skymodel.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            driftscan
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="drift.core.html">drift.core</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="drift.core.beamtransfer.html">drift.core.beamtransfer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.crosspower.html">drift.core.crosspower</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.doublekl.html">drift.core.doublekl</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.kltransform.html">drift.core.kltransform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.manager.html">drift.core.manager</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psestimation.html">drift.core.psestimation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psmc.html">drift.core.psmc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.skymodel.html">drift.core.skymodel</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.core.telescope</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.visibility.html">drift.core.visibility</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.telescope.html">drift.telescope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.util.html">drift.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Programming References</a></li>
+          <li class="breadcrumb-item"><a href="drift.core.html">drift.core</a></li>
+      <li class="breadcrumb-item active">drift.core.telescope</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/_autosummary/drift.core.telescope.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-drift.core.telescope">
+<span id="drift-core-telescope"></span><h1>drift.core.telescope<a class="headerlink" href="#module-drift.core.telescope" title="Link to this heading"></a></h1>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.telescope.in_range" title="drift.core.telescope.in_range"><code class="xref py py-obj docutils literal notranslate"><span class="pre">in_range</span></code></a>(arr, min, max)</p></td>
+<td><p>Check if array entries are within the given range.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">map_half_plane</span></code>(arr)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.telescope.max_lm" title="drift.core.telescope.max_lm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max_lm</span></code></a>(baselines, wavelengths, uwidth[, vwidth])</p></td>
+<td><p>Get the maximum (l,m) that a baseline is sensitive to.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">out_of_range</span></code>(arr, min, max)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.telescope.PolarisedTelescope" title="drift.core.telescope.PolarisedTelescope"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PolarisedTelescope</span></code></a>([latitude, longitude])</p></td>
+<td><p>A base for a polarised telescope.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.telescope.SimplePolarisedTelescope" title="drift.core.telescope.SimplePolarisedTelescope"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SimplePolarisedTelescope</span></code></a>([latitude, longitude])</p></td>
+<td><p>A base for a polarised telescope.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.telescope.SimpleUnpolarisedTelescope" title="drift.core.telescope.SimpleUnpolarisedTelescope"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SimpleUnpolarisedTelescope</span></code></a>([latitude, longitude])</p></td>
+<td><p>A base for a polarised telescope.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.telescope.TransitTelescope" title="drift.core.telescope.TransitTelescope"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TransitTelescope</span></code></a>([latitude, longitude])</p></td>
+<td><p>Base class for simulating any transit interferometer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.telescope.UnpolarisedTelescope" title="drift.core.telescope.UnpolarisedTelescope"><code class="xref py py-obj docutils literal notranslate"><span class="pre">UnpolarisedTelescope</span></code></a>([latitude, longitude])</p></td>
+<td><p>A base for an unpolarised telescope.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.telescope.PolarisedTelescope">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">PolarisedTelescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.PolarisedTelescope" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.telescope.TransitTelescope" title="drift.core.telescope.TransitTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">TransitTelescope</span></code></a></p>
+<p>A base for a polarised telescope.</p>
+<p>Again, an abstract class, but the only things that require implementing
+are the <cite>feedpositions</cite>, <cite>_get_unique</cite> and the <cite>beam</cite> function, as well
+as the polarization property.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.PolarisedTelescope.skip_V">
+<span class="sig-name descname"><span class="pre">skip_V</span></span><a class="headerlink" href="#drift.core.telescope.PolarisedTelescope.skip_V" title="Link to this definition"></a></dt>
+<dd><p>Omit calculation of Stokes V transfer function to a mild computational
+saving.  As there is almost no Stokes V emission on the sky this is a
+reasonable trade off.  The entries are left in the transfer matrices, but
+they will be filled with zeros.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.PolarisedTelescope.skip_pol">
+<span class="sig-name descname"><span class="pre">skip_pol</span></span><a class="headerlink" href="#drift.core.telescope.PolarisedTelescope.skip_pol" title="Link to this definition"></a></dt>
+<dd><p>Omit calculation of Stokes Q, U and V for a large computational saving.  This
+means that the effect of the (large) polarized signal from the sky will not
+be correctly calculated.  Only do this if you are <em>really</em> sure it’s what you
+want.  The entries are left in the transfer matrices, but they will be filled
+with zeros.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">beam</span> <span class="pre">:</span> <span class="pre">methods</span></span></dt>
+<dd><p>(abstract method) Routines giving the field pattern for the x and y feeds.</p>
+</dd></dl>
+
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.PolarisedTelescope.included_pol">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">included_pol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#drift.core.telescope.PolarisedTelescope.included_pol" title="Link to this definition"></a></dt>
+<dd><p>The included polarisation indices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Polarisation indices.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>pol_ind</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.PolarisedTelescope.polarisation">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">polarisation</span></span><a class="headerlink" href="#drift.core.telescope.PolarisedTelescope.polarisation" title="Link to this definition"></a></dt>
+<dd><p>Polarisation map.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pol</strong> – One-dimensional array of strings describing the polarisation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.telescope.SimplePolarisedTelescope">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">SimplePolarisedTelescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.SimplePolarisedTelescope" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.telescope.PolarisedTelescope" title="drift.core.telescope.PolarisedTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">PolarisedTelescope</span></code></a></p>
+<p>A base for a polarised telescope.</p>
+<p>Again, an abstract class, but the only things that require implementing are
+the <cite>feedpositions</cite>, <cite>_get_unique</cite> and the beam functions <cite>beamx</cite> and <cite>beamy</cite>.</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">beamx,</span> <span class="pre">beamy</span> <span class="pre">:</span> <span class="pre">methods</span></span></dt>
+<dd><p>(abstract methods) Routines giving the field pattern for the x and y feeds.</p>
+</dd></dl>
+
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.SimplePolarisedTelescope.beamclass">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">beamclass</span></span><a class="headerlink" href="#drift.core.telescope.SimplePolarisedTelescope.beamclass" title="Link to this definition"></a></dt>
+<dd><p>Simple beam mode of dual polarisation feeds.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.SimplePolarisedTelescope.beamx">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">beamx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.SimplePolarisedTelescope.beamx" title="Link to this definition"></a></dt>
+<dd><p>Beam for the X polarisation feed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feed</strong> (<em>integer</em>) – Index for the feed.</p></li>
+<li><p><strong>freq</strong> (<em>integer</em>) – Index for the frequency.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong> – Healpix maps (of size [self._nside, 2]) of the field pattern in the
+theta and phi directions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.SimplePolarisedTelescope.beamy">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">beamy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.SimplePolarisedTelescope.beamy" title="Link to this definition"></a></dt>
+<dd><p>Beam for the Y polarisation feed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feed</strong> (<em>integer</em>) – Index for the feed.</p></li>
+<li><p><strong>freq</strong> (<em>integer</em>) – Index for the frequency.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong> – Healpix maps (of size [self._nside, 2]) of the field pattern in the
+theta and phi directions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.SimplePolarisedTelescope.feedpositions">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feedpositions</span></span><a class="headerlink" href="#drift.core.telescope.SimplePolarisedTelescope.feedpositions" title="Link to this definition"></a></dt>
+<dd><p>An (nfeed,2) array of the feed positions relative to an arbitary point (in m)</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.SimplePolarisedTelescope.polarisation">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">polarisation</span></span><a class="headerlink" href="#drift.core.telescope.SimplePolarisedTelescope.polarisation" title="Link to this definition"></a></dt>
+<dd><p>Polarisation map.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pol</strong> – One-dimensional array with the polarization for each feed (‘X’ or ‘Y’).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.telescope.SimpleUnpolarisedTelescope">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">SimpleUnpolarisedTelescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.SimpleUnpolarisedTelescope" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.telescope.UnpolarisedTelescope" title="drift.core.telescope.UnpolarisedTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnpolarisedTelescope</span></code></a></p>
+<p>A base for a polarised telescope.</p>
+<p>Again, an abstract class, but the only things that require implementing are
+the <cite>feedpositions</cite>, <cite>_get_unique</cite> and the beam functions <cite>beamx</cite> and <cite>beamy</cite>.</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">beamx,</span> <span class="pre">beamy</span> <span class="pre">:</span> <span class="pre">methods</span></span></dt>
+<dd><p>(abstract methods) Routines giving the field pattern for the x and y feeds.</p>
+</dd></dl>
+
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.SimpleUnpolarisedTelescope.beamclass">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">beamclass</span></span><a class="headerlink" href="#drift.core.telescope.SimpleUnpolarisedTelescope.beamclass" title="Link to this definition"></a></dt>
+<dd><p>Simple beam mode of dual polarisation feeds.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.SimpleUnpolarisedTelescope.feedpositions">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feedpositions</span></span><a class="headerlink" href="#drift.core.telescope.SimpleUnpolarisedTelescope.feedpositions" title="Link to this definition"></a></dt>
+<dd><p>An (nfeed,2) array of the feed positions relative to an arbitary point (in m)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">TransitTelescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Reader</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Observer</span></code></p>
+<p>Base class for simulating any transit interferometer.</p>
+<p>This is an abstract class, and several methods must be implemented before it
+is usable. These are:</p>
+<ul class="simple">
+<li><p><cite>feedpositions</cite> - a property which contains the positions of all the feeds</p></li>
+<li><p><cite>_get_unique</cite> -  calculates which baselines are identical</p></li>
+<li><p><cite>_transfer_single</cite> - calculate the beam transfer for a single baseline+freq</p></li>
+<li><p><cite>_make_matrix_array</cite> - makes an array of the right size to hold the
+transfer functions</p></li>
+<li><p><cite>_copy_transfer_into_single</cite> - copy a single transfer matrix into a
+collection.</p></li>
+</ul>
+<p>The last two are required for supporting polarised beam functions.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">freq_lower,</span> <span class="pre">freq_higher</span></span></dt>
+<dd><p>The center of the lowest and highest frequency bands. Deprecated, use
+<cite>freq_start</cite>, <cite>freq_end</cite> instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">freq_start,</span> <span class="pre">freq_end</span></span></dt>
+<dd><p>The start and end frequencies in MHz. Defaults: 800, 400.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.num_freq">
+<span class="sig-name descname"><span class="pre">num_freq</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.num_freq" title="Link to this definition"></a></dt>
+<dd><p>The number of frequency bands (only use for setting up the frequency
+binning). Generally using <cite>nfreq</cite> is preferred. Default: 1024.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.freq_mode">
+<span class="sig-name descname"><span class="pre">freq_mode</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.freq_mode" title="Link to this definition"></a></dt>
+<dd><p>Choose if <cite>freq_start</cite> and <cite>freq_end</cite> are the edges of the band
+(“edge”), or whether they are the central frequencies of the first
+and last channel, in this case the last (Nyquist) frequency can
+either be skipped (“centre”, default) or included (“centre_nyquist”).
+The behaviour of the “centre” mode matches the output of the CASPER
+PFB-FIR block.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>{“centre”, “edge”}</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.channel_bin">
+<span class="sig-name descname"><span class="pre">channel_bin</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.channel_bin" title="Link to this definition"></a></dt>
+<dd><p>Number of channels to bin together. This must exactly devide the total number.
+Binning is performed prior to selection of any subset. Default: 1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.channel_list">
+<span class="sig-name descname"><span class="pre">channel_list</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.channel_list" title="Link to this definition"></a></dt>
+<dd><p>List of channel indices to select. If set, this takes priority over
+<cite>channel_range</cite>. Currently this is not implemented.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.channel_range">
+<span class="sig-name descname"><span class="pre">channel_range</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.channel_range" title="Link to this definition"></a></dt>
+<dd><p>Select subset of frequencies using a range of frequency channel indices,
+either [start, stop, step], [start, stop], or [stop] is acceptable.
+Default selects all channels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.tsys_flat">
+<span class="sig-name descname"><span class="pre">tsys_flat</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.tsys_flat" title="Link to this definition"></a></dt>
+<dd><p>The system temperature (in K). Override <cite>tsys</cite> for anything more
+sophisticated. Default: 50.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.ndays">
+<span class="sig-name descname"><span class="pre">ndays</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.ndays" title="Link to this definition"></a></dt>
+<dd><p>Number of days to assume when computing thermal noise. Default: 733.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.accuracy_boost">
+<span class="sig-name descname"><span class="pre">accuracy_boost</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.accuracy_boost" title="Link to this definition"></a></dt>
+<dd><p>When computing beam transfer function, increase nside of healpix maps by
+2**accuracy_boost compared to default determination of nside. Default: 1.0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.l_boost">
+<span class="sig-name descname"><span class="pre">l_boost</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.l_boost" title="Link to this definition"></a></dt>
+<dd><p>Increase lmax and mmax for telescope, and lmax/mmax values computed for
+individual baselines, by a factor of l_boost compared to default computations.
+Default: 1.0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">force_lmax,</span> <span class="pre">force_mmax</span></span></dt>
+<dd><p>Use specific values for the telescope’s l_max and m_max, instead of computing
+these values based on the angular scales accessible to the longest baseline
+at the highest frequency. l_boost is ignored if these values are specified.
+This is useful if you intend to combine several sets of beam transfer matrices
+that are separately computed over different frequency ranges. Default: None.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">minlength,</span> <span class="pre">maxlength</span></span></dt>
+<dd><p>Minimum and maximum baseline lengths to include (in metres).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scalar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.auto_correlations">
+<span class="sig-name descname"><span class="pre">auto_correlations</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.auto_correlations" title="Link to this definition"></a></dt>
+<dd><p>Include elements for feed auto-correlations in computed beam transfer matrices.
+Default: False.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.local_origin">
+<span class="sig-name descname"><span class="pre">local_origin</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.local_origin" title="Link to this definition"></a></dt>
+<dd><p>If set the observers location is the terrestrial origin, and so the
+rotation angle corresponds to the right ascension that is overhead
+(Local Stellar Angle in <cite>caput.time</cite>). If not the origin is Greenwich,
+so the rotation angle is what is overhead at Greenwich (Earth Rotation
+Angle). Default: True.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.skip_freq">
+<span class="sig-name descname"><span class="pre">skip_freq</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.skip_freq" title="Link to this definition"></a></dt>
+<dd><p>Frequency indices (with the set of frequencies defined by the other parameters)
+to skip. Skipped frequencies are considered to be present, <em>but</em> their beam
+transfer matrices are implicitly zero and thus are skipped in the beam transfer
+matrix calculation. This is useful for RFI channels that we know will be masked.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.skip_baselines">
+<span class="sig-name descname"><span class="pre">skip_baselines</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.skip_baselines" title="Link to this definition"></a></dt>
+<dd><p>Baseline indices to skip. Like skipped frequencies, skipped baselines are
+considered to be present, <em>but</em> their beam transfer matrices are implicitly zero
+and thus are skipped in the beam transfer matrix calculation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.beam_cache_size">
+<span class="sig-name descname"><span class="pre">beam_cache_size</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.beam_cache_size" title="Link to this definition"></a></dt>
+<dd><p>Size of the beam cache in MB. Setting this minimises the amount of recalculation
+of the primary beams while generating beam transfer matrices. Default is 200 MB.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.baselines">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">baselines</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.baselines" title="Link to this definition"></a></dt>
+<dd><p>The unique baselines in the telescope.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.beamclass">
+<em class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">beamclass</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.beamclass" title="Link to this definition"></a></dt>
+<dd><p>An nfeed array of the class of each beam (identical labels are
+considered to have identical beams).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.calculate_feedpairs">
+<span class="sig-name descname"><span class="pre">calculate_feedpairs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.calculate_feedpairs" title="Link to this definition"></a></dt>
+<dd><p>Calculate all the unique feedpairs and their redundancies, and set
+the internal state of the object.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.feedconj">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feedconj</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.feedconj" title="Link to this definition"></a></dt>
+<dd><p>An (nfeed, nfeed) array giving the feed pairs which must be complex
+conjugated.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.feedmap">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feedmap</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.feedmap" title="Link to this definition"></a></dt>
+<dd><p>An (nfeed, nfeed) array giving the mapping between feedpairs and
+the calculated baselines. Each entry is an index into the arrays of unique pairs.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.feedmask">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feedmask</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.feedmask" title="Link to this definition"></a></dt>
+<dd><p>An (nfeed, nfeed) array giving the entries that have been
+calculated. This allows to mask out pairs we want to ignore.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.feedpositions">
+<em class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feedpositions</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.feedpositions" title="Link to this definition"></a></dt>
+<dd><p>An (nfeed,2) array of the feed positions relative to an arbitary point (in m)</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.frequencies">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frequencies</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.frequencies" title="Link to this definition"></a></dt>
+<dd><p>The centre of each frequency band (in MHz).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.included_baseline">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">included_baseline</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#drift.core.telescope.TransitTelescope.included_baseline" title="Link to this definition"></a></dt>
+<dd><p>The baseline indices that <em>are</em> being calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Indices of included baselines.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bl_ind</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.included_freq">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">included_freq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#drift.core.telescope.TransitTelescope.included_freq" title="Link to this definition"></a></dt>
+<dd><p>The frequency indices that <em>are</em> being calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Indices of included frequencies.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>freq_ind</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.included_pol">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">included_pol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#drift.core.telescope.TransitTelescope.included_pol" title="Link to this definition"></a></dt>
+<dd><p>The pol indices that <em>are</em> being calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Indices of included polarisations.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>pol_ind</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.index_map_prod">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">index_map_prod</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.index_map_prod" title="Link to this definition"></a></dt>
+<dd><p>Generate a <em>full triangle</em> <cite>index_map/prod</cite> like object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>prodmap</strong> – A structured array of (input_a, input_b) pairs for the upper triangle.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.index_map_stack">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">index_map_stack</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.index_map_stack" title="Link to this definition"></a></dt>
+<dd><p>Generate an <cite>index_map/stack</cite> like object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stack</strong> – A structured array with (prod_ind, conj) pairs the same length as
+<cite>unique_pairs</cite>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.input_index">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input_index</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.input_index" title="Link to this definition"></a></dt>
+<dd><p>Override to add custom labelling of the inputs, e.g. serial numbers.</p>
+<p>This should give an identifier that uniquely labels a correlator input and so
+can be used to match inputs through subsetting and reordering.</p>
+<p>There are two conventional fields used in the output, either a <cite>chan_id</cite>
+field for an integer label, or a <cite>correlator_input</cite> for a string labelling
+(useful for serial number strings). If both are present, <cite>correlator_input</cite>
+is used.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.lmax">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lmax</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.lmax" title="Link to this definition"></a></dt>
+<dd><p>The maximum l the telescope is sensitive to.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.mmax">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mmax</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.mmax" title="Link to this definition"></a></dt>
+<dd><p>The maximum m the telescope is sensitive to.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.nbase">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nbase</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.nbase" title="Link to this definition"></a></dt>
+<dd><p>The number of unique baselines.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.nfeed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nfeed</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.nfeed" title="Link to this definition"></a></dt>
+<dd><p>The number of feeds.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.nfreq">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nfreq</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.nfreq" title="Link to this definition"></a></dt>
+<dd><p>The number of frequency bins.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.noisepower">
+<span class="sig-name descname"><span class="pre">noisepower</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bl_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ndays</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.noisepower" title="Link to this definition"></a></dt>
+<dd><p>Calculate the instrumental noise power spectrum.</p>
+<p>Assume we are still within the regime where the power spectrum is white
+in <cite>m</cite> modes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bl_indices</strong> (<em>array_like</em>) – Indices of baselines to calculate.</p></li>
+<li><p><strong>f_indices</strong> (<em>array_like</em>) – Indices of frequencies to calculate. Must be broadcastable against
+<cite>bl_indices</cite>.</p></li>
+<li><p><strong>ndays</strong> (<em>integer</em>) – The number of sidereal days observed.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>noise_ps</strong> – The noise power spectrum.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.npairs">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">npairs</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.npairs" title="Link to this definition"></a></dt>
+<dd><p>The number of unique feed pairs.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.num_pol_sky">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">num_pol_sky</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.num_pol_sky" title="Link to this definition"></a></dt>
+<dd><p>The number of polarisation combinations on the sky that we are
+considering. Should be either 1 (T=I only), 3 (T, Q, U) or 4 (T, Q, U and V).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.prodstack">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">prodstack</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.prodstack" title="Link to this definition"></a></dt>
+<dd><p>Generate the results of a prodstack.</p>
+<p>This is similar to the output of <cite>uniquepairs</cite>, but has the same typing as used
+within draco.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>prodstack</strong> – A structured array with (input_a, input_b) pairs.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.redundancy">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">redundancy</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.redundancy" title="Link to this definition"></a></dt>
+<dd><p>The redundancy of each baseline (corresponds to entries in
+cyl.baselines).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.reverse_map_stack">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">reverse_map_stack</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.reverse_map_stack" title="Link to this definition"></a></dt>
+<dd><p>Generate a <cite>reverse_map/stack</cite> like object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stack</strong> – A structured array of (stack_ind, conj) pairs the same length as <cite>prod</cite>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.transfer_for_baseline">
+<span class="sig-name descname"><span class="pre">transfer_for_baseline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">baseline</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.transfer_for_baseline" title="Link to this definition"></a></dt>
+<dd><p>Fetch all transfer matrices for a given baseline.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>baseline</strong> (<em>integer</em>) – The baseline index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>transfer</strong> – The transfer matrices. Packed as in <cite>TransitTelescope.transfer_matrices</cite>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.transfer_for_frequency">
+<span class="sig-name descname"><span class="pre">transfer_for_frequency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freq</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.transfer_for_frequency" title="Link to this definition"></a></dt>
+<dd><p>Fetch all transfer matrices for a given frequency.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>freq</strong> (<em>integer</em>) – The frequency index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>transfer</strong> – The transfer matrices. Packed as in <cite>TransitTelescope.transfer_matrices</cite>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.transfer_matrices">
+<span class="sig-name descname"><span class="pre">transfer_matrices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bl_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_lmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.transfer_matrices" title="Link to this definition"></a></dt>
+<dd><p>Calculate the spherical harmonic transfer matrices for baseline and
+frequency combinations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bl_indices</strong> (<em>array_like</em>) – Indices of baselines to calculate.</p></li>
+<li><p><strong>f_indices</strong> (<em>array_like</em>) – Indices of frequencies to calculate. Must be broadcastable against
+<cite>bl_indices</cite>.</p></li>
+<li><p><strong>global_lmax</strong> (<em>boolean</em><em>, </em><em>optional</em>) – If set (default), the output size <cite>lside</cite> in (l,m) is big enough to
+hold the maximum for the entire telescope. If not set it is only big
+enough for the requested set.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>transfer</strong> – An array containing the transfer functions. The shape is somewhat
+complicated, the first indices correspond to the broadcast size of
+<cite>bl_indices</cite> and <cite>f_indices</cite>, then there may be some polarisation
+indices, then finally the (l,m) indices, range (lside, 2*lside-1).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, dtype=np.complex128</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.tsys">
+<span class="sig-name descname"><span class="pre">tsys</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.tsys" title="Link to this definition"></a></dt>
+<dd><p>The system temperature.</p>
+<p>Currenty has a flat T_sys across the whole bandwidth. Override for
+anything more complicated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>f_indices</strong> (<em>array_like</em>) – Indices of frequencies to get T_sys at.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tsys</strong> – System temperature at requested frequencies.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array_like</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.u_width">
+<em class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">u_width</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.u_width" title="Link to this definition"></a></dt>
+<dd><p>The approximate physical width (in the u-direction) of the dish/telescope etc, for
+calculating the maximum (l,m).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.uniquepairs">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">uniquepairs</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.uniquepairs" title="Link to this definition"></a></dt>
+<dd><p>An (npairs, 2) array of the feed pairs corresponding to each baseline.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.v_width">
+<em class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">v_width</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.v_width" title="Link to this definition"></a></dt>
+<dd><p>The approximate physical length (in the v-direction) of the dish/telescope etc, for
+calculating the maximum (l,m).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.wavelengths">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">wavelengths</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.wavelengths" title="Link to this definition"></a></dt>
+<dd><p>The central wavelength of each frequency band (in metres).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.telescope.TransitTelescope.zenith">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">zenith</span></span><a class="headerlink" href="#drift.core.telescope.TransitTelescope.zenith" title="Link to this definition"></a></dt>
+<dd><p>The zenith vector in spherical polars.</p>
+<p>The position of the zenith spherical polars (in radians). Read only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>zenith</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>[theta, phi]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.telescope.UnpolarisedTelescope">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">UnpolarisedTelescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longitude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.UnpolarisedTelescope" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.telescope.TransitTelescope" title="drift.core.telescope.TransitTelescope"><code class="xref py py-class docutils literal notranslate"><span class="pre">TransitTelescope</span></code></a></p>
+<p>A base for an unpolarised telescope.</p>
+<p>Again, an abstract class, but the only things that require implementing are
+the <cite>feedpositions</cite>, <cite>_get_unique</cite> and the <cite>beam</cite> function.</p>
+<p>Initialise a telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+<li><p><strong>longitude</strong> (<em>scalar</em>) – Position on the Earths surface of the telescope (in degrees).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.UnpolarisedTelescope.beam">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">beam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.UnpolarisedTelescope.beam" title="Link to this definition"></a></dt>
+<dd><p>Beam for a particular feed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feed</strong> (<em>integer</em>) – Index for the feed.</p></li>
+<li><p><strong>freq</strong> (<em>integer</em>) – Index for the frequency.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong> – A Healpix map (of size self._nside) of the beam. Potentially
+complex.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.telescope.UnpolarisedTelescope.noisepower">
+<span class="sig-name descname"><span class="pre">noisepower</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bl_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ndays</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.UnpolarisedTelescope.noisepower" title="Link to this definition"></a></dt>
+<dd><p>Calculate the instrumental noise power spectrum.</p>
+<p>Assume we are still within the regime where the power spectrum is white
+in <cite>m</cite> modes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bl_indices</strong> (<em>array_like</em>) – Indices of baselines to calculate.</p></li>
+<li><p><strong>f_indices</strong> (<em>array_like</em>) – Indices of frequencies to calculate. Must be broadcastable against
+<cite>bl_indices</cite>.</p></li>
+<li><p><strong>ndays</strong> (<em>integer</em>) – The number of sidereal days observed.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>noise_ps</strong> – The noise power spectrum.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.telescope.in_range">
+<span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">in_range</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.in_range" title="Link to this definition"></a></dt>
+<dd><p>Check if array entries are within the given range.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>arr</strong> (<em>np.ndarray</em>) – Array to check.</p></li>
+<li><p><strong>min</strong> (<em>scalar</em><em> or </em><em>np.ndarray</em>) – Minimum and maximum values to test against. Values can be in arrays
+broadcastable against <cite>arr</cite>.</p></li>
+<li><p><strong>max</strong> (<em>scalar</em><em> or </em><em>np.ndarray</em>) – Minimum and maximum values to test against. Values can be in arrays
+broadcastable against <cite>arr</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>val</strong> – True if all entries are within range.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>boolean</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.telescope.max_lm">
+<span class="sig-prename descclassname"><span class="pre">drift.core.telescope.</span></span><span class="sig-name descname"><span class="pre">max_lm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">baselines</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wavelengths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uwidth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vwidth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.telescope.max_lm" title="Link to this definition"></a></dt>
+<dd><p>Get the maximum (l,m) that a baseline is sensitive to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>baselines</strong> (<em>np.ndarray</em>) – An array of baselines.</p></li>
+<li><p><strong>wavelengths</strong> (<em>np.ndarray</em>) – An array of frequencies.</p></li>
+<li><p><strong>width</strong> (<em>np.ndarray</em>) – Width of the receiver in the u-direction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>lmax, mmax</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array_like</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="drift.core.skymodel.html" class="btn btn-neutral float-left" title="drift.core.skymodel" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="drift.core.visibility.html" class="btn btn-neutral float-right" title="drift.core.visibility" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2014, J. Richard Shaw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

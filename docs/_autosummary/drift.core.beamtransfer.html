@@ -1,0 +1,946 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drift.core.beamtransfer &mdash; driftscan 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="drift.core.crosspower" href="drift.core.crosspower.html" />
+    <link rel="prev" title="drift.core" href="drift.core.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            driftscan
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="drift.core.html">drift.core</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.core.beamtransfer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.crosspower.html">drift.core.crosspower</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.doublekl.html">drift.core.doublekl</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.kltransform.html">drift.core.kltransform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.manager.html">drift.core.manager</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psestimation.html">drift.core.psestimation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psmc.html">drift.core.psmc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.skymodel.html">drift.core.skymodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.telescope.html">drift.core.telescope</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.visibility.html">drift.core.visibility</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.telescope.html">drift.telescope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.util.html">drift.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Programming References</a></li>
+          <li class="breadcrumb-item"><a href="drift.core.html">drift.core</a></li>
+      <li class="breadcrumb-item active">drift.core.beamtransfer</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/_autosummary/drift.core.beamtransfer.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-drift.core.beamtransfer">
+<span id="drift-core-beamtransfer"></span><h1>drift.core.beamtransfer<a class="headerlink" href="#module-drift.core.beamtransfer" title="Link to this heading"></a></h1>
+<p>Calculation and management of Beam Transfer matrices</p>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">matrix_image</span></code>(A[, rtol, atol, errmsg])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">matrix_nullspace</span></code>(A[, rtol, atol, errmsg])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.beamtransfer.svd_gen" title="drift.core.beamtransfer.svd_gen"><code class="xref py py-obj docutils literal notranslate"><span class="pre">svd_gen</span></code></a>(A[, errmsg])</p></td>
+<td><p>Find the inverse of A.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.beamtransfer.BeamTransfer" title="drift.core.beamtransfer.BeamTransfer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BeamTransfer</span></code></a>(directory[, telescope])</p></td>
+<td><p>A class for reading and writing Beam Transfer matrices from disk.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.beamtransfer.BeamTransferFullSVD" title="drift.core.beamtransfer.BeamTransferFullSVD"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BeamTransferFullSVD</span></code></a>(directory[, telescope])</p></td>
+<td><p>BeamTransfer class that performs the old temperature only SVD.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.beamtransfer.BeamTransferNoSVD" title="drift.core.beamtransfer.BeamTransferNoSVD"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BeamTransferNoSVD</span></code></a>(directory[, telescope])</p></td>
+<td><p>Subclass of BeamTransfer that skips SVD decomposition.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.beamtransfer.BeamTransferTempSVD" title="drift.core.beamtransfer.BeamTransferTempSVD"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BeamTransferTempSVD</span></code></a>(directory[, telescope])</p></td>
+<td><p>BeamTransfer class that performs the old temperature only SVD.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.beamtransfer.</span></span><span class="sig-name descname"><span class="pre">BeamTransfer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telescope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Reader</span></code></p>
+<p>A class for reading and writing Beam Transfer matrices from disk.</p>
+<p>In addition this provides methods for projecting vectors and matrices
+between the sky and the telescope basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>directory</strong> (<em>string</em>) – Path of directory to read and write Beam Transfers from.</p></li>
+<li><p><strong>telescope</strong> (<a class="reference internal" href="drift.core.telescope.html#drift.core.telescope.TransitTelescope" title="drift.core.telescope.TransitTelescope"><em>drift.core.telescope.TransitTelescope</em></a><em>, </em><em>optional</em>) – Telescope object to use for calculation. If <cite>None</cite> (default), try to
+load a cached version from the given directory.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.mem_chunk">
+<span class="sig-name descname"><span class="pre">mem_chunk</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.mem_chunk" title="Link to this definition"></a></dt>
+<dd><p>The amount of memory to use per process in this calculation in GB. This is a
+target and not a strict upper limit.  This will change the number of chunks the
+calculation is split into. Default is 3 GB.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.svcut">
+<span class="sig-name descname"><span class="pre">svcut</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.svcut" title="Link to this definition"></a></dt>
+<dd><p>The relative precision below the maximum singular value to exclude low
+sensitivity SVD modes. This can be dynamically changed as it is evaluated
+when performing projections.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.polsvcut">
+<span class="sig-name descname"><span class="pre">polsvcut</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.polsvcut" title="Link to this definition"></a></dt>
+<dd><p>The relative precision below the maximum value to assume the polarisation
+sensitivity is zero. This is used to find the polarisation null space. This
+is used to generate the cached SVD modes and so cannot be changed after they
+are generated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.truncate">
+<span class="sig-name descname"><span class="pre">truncate</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.truncate" title="Link to this definition"></a></dt>
+<dd><p>Whether precision truncation of the beam transfer matrices should be done.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.truncate_rel">
+<span class="sig-name descname"><span class="pre">truncate_rel</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.truncate_rel" title="Link to this definition"></a></dt>
+<dd><p>The relative per element precision to use for the truncation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.truncate_maxl">
+<span class="sig-name descname"><span class="pre">truncate_maxl</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.truncate_maxl" title="Link to this definition"></a></dt>
+<dd><p>The truncation precision to use relative the maximum value for all l’s of
+that mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.chunk_cache_size">
+<span class="sig-name descname"><span class="pre">chunk_cache_size</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.chunk_cache_size" title="Link to this definition"></a></dt>
+<dd><p>The size of the per m-file HDF5 chunk cache. Default is 128 MB.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.beam_m">
+<span class="sig-name descname"><span class="pre">beam_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.beam_m" title="Link to this definition"></a></dt>
+<dd><p>Fetch the beam transfer matrix for a given m.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode to fetch.</p></li>
+<li><p><strong>fi</strong> (<em>integer</em>) – frequency block to fetch. fi=None (default) returns all.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray (nfreq, 2, npairs, npol_sky, lmax+1)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.beam_singularvalues">
+<span class="sig-name descname"><span class="pre">beam_singularvalues</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.beam_singularvalues" title="Link to this definition"></a></dt>
+<dd><p>Fetch the vector of beam singular values for a given m.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – m-mode to fetch.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray (nfreq, svd_len)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.beam_svd">
+<span class="sig-name descname"><span class="pre">beam_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.beam_svd" title="Link to this definition"></a></dt>
+<dd><p>Fetch the SVD beam transfer matrix (S V^H) for a given m. This SVD beam
+transfer projects from the sky into the SVD basis.</p>
+<p>This returns the full SVD spectrum. Cutting based on SVD value must be
+done by other routines (see project*svd methods).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode to fetch.</p></li>
+<li><p><strong>fi</strong> (<em>integer</em>) – frequency block to fetch. fi=None (default) returns all.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray (nfreq, svd_len, npol_sky, lmax+1)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.beam_ut">
+<span class="sig-name descname"><span class="pre">beam_ut</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.beam_ut" title="Link to this definition"></a></dt>
+<dd><p>Fetch the SVD beam transfer matrix (U^H) for a given m. This SVD beam
+transfer projects from the telescope space into the SVD basis.</p>
+<p>This returns the full SVD spectrum. Cutting based on SVD value must be
+done by other routines (see project*svd methods).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode to fetch.</p></li>
+<li><p><strong>fi</strong> (<em>integer</em>) – frequency block to fetch. fi=None (default) returns all.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray (nfreq, svd_len, ntel)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_svd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_svd_inv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.generate" title="Link to this definition"></a></dt>
+<dd><p>Save out all beam transfer matrices to disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regen</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Force regeneration even if cache files exist (default: False).</p></li>
+<li><p><strong>skip_svd</strong> (<em>boolen</em><em>, </em><em>optional</em>) – Skip SVD beam generation. Saves time and space if you are only map making.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.generate_cache">
+<span class="sig-name descname"><span class="pre">generate_cache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_svd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_svd_inv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.generate_cache" title="Link to this definition"></a></dt>
+<dd><p>Save out all beam transfer matrices to disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regen</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Force regeneration even if cache files exist (default: False).</p></li>
+<li><p><strong>skip_svd</strong> (<em>boolen</em><em>, </em><em>optional</em>) – Skip SVD beam generation. Saves time and space if you are only map making.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.invbeam_m">
+<span class="sig-name descname"><span class="pre">invbeam_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.invbeam_m" title="Link to this definition"></a></dt>
+<dd><p>Pseudo-inverse of the beam (for a given m).</p>
+<p>Uses the Moore-Penrose Pseudo-inverse as the optimal inverse for
+reconstructing the data. No <cite>single</cite> option as this only makes sense
+when combined.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – m-mode to calculate.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>invbeam</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray (nfreq, npol_sky, lmax+1, 2, npairs)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.invbeam_svd">
+<span class="sig-name descname"><span class="pre">invbeam_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.invbeam_svd" title="Link to this definition"></a></dt>
+<dd><p>Fetch the SVD beam transfer matrix (S V^H) for a given m. This SVD beam
+transfer projects from the sky into the SVD basis.</p>
+<p>This returns the full SVD spectrum. Cutting based on SVD value must be
+done by other routines (see project*svd methods).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode to fetch.</p></li>
+<li><p><strong>fi</strong> (<em>integer</em>) – frequency block to fetch. fi=None (default) returns all.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>beam</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray (nfreq, svd_len, npol_sky, lmax+1)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.ndof">
+<span class="sig-name descname"><span class="pre">ndof</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.ndof" title="Link to this definition"></a></dt>
+<dd><p>The number of degrees of freedom at a given m.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.nfreq">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nfreq</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.nfreq" title="Link to this definition"></a></dt>
+<dd><p>Number of frequencies measured.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.nsky">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nsky</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.nsky" title="Link to this definition"></a></dt>
+<dd><p>Degrees of freedom on the sky at each frequency.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.ntel">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ntel</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.ntel" title="Link to this definition"></a></dt>
+<dd><p>Degrees of freedom measured by the telescope (per frequency)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_matrix_diagonal_telescope_to_svd">
+<span class="sig-name descname"><span class="pre">project_matrix_diagonal_telescope_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dmat</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_matrix_diagonal_telescope_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a diagonal matrix from the telescope basis into the SVD basis.</p>
+<p>This slightly specialised routine is for projecting the noise
+covariance into the SVD space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>dmat</strong> (<em>np.ndarray</em>) – Sky matrix packed as [nfreq, ntel]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tmat</strong> – Covariance in SVD basis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray [nsvd, nsvd]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_matrix_forward">
+<span class="sig-name descname"><span class="pre">project_matrix_forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_matrix_forward" title="Link to this definition"></a></dt>
+<dd><p>Project a covariance matrix from the sky into the visibility basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Sky matrix packed as [pol, pol, l, freq, freq]</p></li>
+<li><p><strong>temponly</strong> (<em>boolean</em>) – Force projection of temperature (TT) part only (default: False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tmat</strong> – Covariance in telescope basis, packed as [nfreq, ntel, nfreq, ntel].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_matrix_sky_to_svd">
+<span class="sig-name descname"><span class="pre">project_matrix_sky_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_matrix_sky_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a covariance matrix from the sky into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Sky matrix packed as [pol, pol, l, freq, freq]. Must have pol
+indices even if <cite>temponly=True</cite>.</p></li>
+<li><p><strong>temponly</strong> (<em>boolean</em>) – Force projection of temperature (TT) part only (default: False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tmat</strong> – Covariance in SVD basis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray [nsvd, nsvd]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_matrix_sky_to_telescope">
+<span class="sig-name descname"><span class="pre">project_matrix_sky_to_telescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_matrix_sky_to_telescope" title="Link to this definition"></a></dt>
+<dd><p>Project a covariance matrix from the sky into the visibility basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Sky matrix packed as [pol, pol, l, freq, freq]</p></li>
+<li><p><strong>temponly</strong> (<em>boolean</em>) – Force projection of temperature (TT) part only (default: False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tmat</strong> – Covariance in telescope basis, packed as [nfreq, ntel, nfreq, ntel].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_backward">
+<span class="sig-name descname"><span class="pre">project_vector_backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_backward" title="Link to this definition"></a></dt>
+<dd><p>Invert a vector from the telescope space onto the sky. This is the
+map-making process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Telescope data vector, packed as [nfreq, ntel].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – Sky vector to return, packed as [nfreq, npol, lmax+1].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_forward">
+<span class="sig-name descname"><span class="pre">project_vector_forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_forward" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the sky into the visibility basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Sky data vector packed as [nfreq, npol, lmax+1]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – Telescope vector to return, packed as [nfreq, ntel]</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_sky_to_svd">
+<span class="sig-name descname"><span class="pre">project_vector_sky_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_sky_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the the sky into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Sky data vector packed as [nfreq, lmax+1]</p></li>
+<li><p><strong>temponly</strong> (<em>boolean</em>) – Force projection of temperature part only (default: False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>svec</strong> – SVD vector to return.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_sky_to_telescope">
+<span class="sig-name descname"><span class="pre">project_vector_sky_to_telescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_sky_to_telescope" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the sky into the visibility basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Sky data vector packed as [nfreq, npol, lmax+1]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – Telescope vector to return, packed as [nfreq, ntel]</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_svd_to_sky">
+<span class="sig-name descname"><span class="pre">project_vector_svd_to_sky</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_svd_to_sky" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the the sky into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Sky data vector packed as [nfreq, lmax+1]</p></li>
+<li><p><strong>temponly</strong> (<em>boolean</em>) – Force projection of temperature part only (default: False)</p></li>
+<li><p><strong>conj</strong> (<em>boolean</em>) – Reverse projection by applying conjugation (as opposed to pseudo-
+inverse). Default is False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>svec</strong> – SVD vector to return.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_svd_to_telescope">
+<span class="sig-name descname"><span class="pre">project_vector_svd_to_telescope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">svec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_svd_to_telescope" title="Link to this definition"></a></dt>
+<dd><p>Map a vector from the SVD basis into the original data basis.</p>
+<p>This projection may be lose information about the sky, depending on the
+polarisation filtering. This essentially uses the pseudo-inverse which
+is simply related to the original projection matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>svec</strong> (<em>np.ndarray</em>) – SVD data vector.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>vec</strong> – Data vector to return.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[freq, sign, baseline]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_telescope_to_sky">
+<span class="sig-name descname"><span class="pre">project_vector_telescope_to_sky</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_telescope_to_sky" title="Link to this definition"></a></dt>
+<dd><p>Invert a vector from the telescope space onto the sky. This is the
+map-making process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Telescope data vector, packed as [nfreq, ntel].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – Sky vector to return, packed as [nfreq, npol, lmax+1].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.project_vector_telescope_to_svd">
+<span class="sig-name descname"><span class="pre">project_vector_telescope_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.project_vector_telescope_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Map a vector from the telescope space into the SVD basis.</p>
+<p>This projection may be lose information about the sky, depending on
+the polarisation filtering.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Telescope data vector packed as [freq, baseline, polarisation]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>svec</strong> – SVD vector to return.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[svdnum]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.svd_all">
+<span class="sig-name descname"><span class="pre">svd_all</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.svd_all" title="Link to this definition"></a></dt>
+<dd><p>Collects the full SVD spectrum for all m-modes.</p>
+<p>Reads in from file on disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>svarray</strong> – The full set of singular values across all m-modes.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray[mmax+1, nfreq, svd_len]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransfer.svd_len">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">svd_len</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransfer.svd_len" title="Link to this definition"></a></dt>
+<dd><p>The size of the SVD output matrices.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferFullSVD">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.beamtransfer.</span></span><span class="sig-name descname"><span class="pre">BeamTransferFullSVD</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telescope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferFullSVD" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.beamtransfer.BeamTransfer" title="drift.core.beamtransfer.BeamTransfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">BeamTransfer</span></code></a></p>
+<p>BeamTransfer class that performs the old temperature only SVD.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferFullSVD.svd_len">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">svd_len</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferFullSVD.svd_len" title="Link to this definition"></a></dt>
+<dd><p>The size of the SVD output matrices.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.beamtransfer.</span></span><span class="sig-name descname"><span class="pre">BeamTransferNoSVD</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telescope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.beamtransfer.BeamTransfer" title="drift.core.beamtransfer.BeamTransfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">BeamTransfer</span></code></a></p>
+<p>Subclass of BeamTransfer that skips SVD decomposition.</p>
+<p>To use in a driftscan config file, the <cite>nosvd</cite> flag needs
+to be set. (In this case, the value of <cite>skip_svd</cite> is ignored,
+because the SVD step is automatically skipped.)</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.beam_svd">
+<span class="sig-name descname"><span class="pre">beam_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.beam_svd" title="Link to this definition"></a></dt>
+<dd><p>Fetch beam SVD matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>mat</strong> – Beam-SVD matrix, which in this class is just the beam transfer
+matrix, packed as [nfreq, 2, nbase, npol, lmax+1].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.ndof">
+<span class="sig-name descname"><span class="pre">ndof</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.ndof" title="Link to this definition"></a></dt>
+<dd><p>Compute number of degrees of freedom in telescope basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>n</strong> – N_dof = ntel * nfreq = nbase * 2 * nfreq.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.ndofmax">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ndofmax</span></span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.ndofmax" title="Link to this definition"></a></dt>
+<dd><p>Compute number of degrees of freedom in telescope basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>n</strong> – N_dof = ntel * nfreq = nbase * 2 * nfreq.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.project_matrix_diagonal_telescope_to_svd">
+<span class="sig-name descname"><span class="pre">project_matrix_diagonal_telescope_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dmat</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.project_matrix_diagonal_telescope_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a diagonal matrix from the telescope basis to the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>dmat</strong> (<em>np.ndarray</em>) – Diagonal telescope-basis matrix packed as [nfreq, ntel].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – SVD-basis matrix to return, packed as [ndof, ndof].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.project_matrix_sky_to_svd">
+<span class="sig-name descname"><span class="pre">project_matrix_sky_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.project_matrix_sky_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a covariance matrix from the sky into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Sky matrix packed as [pol, pol, l, freq, freq].</p></li>
+<li><p><strong>temponly</strong> (<em>boolean</em>) – Force projection of temperature (TT) part only (default: False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tmat</strong> – SVD-basis matrix, packed as [ndof, ndof]. Recall that
+ndof = ntel * nfreq = 2 * nbase * nfreq.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.project_matrix_telescope_to_svd">
+<span class="sig-name descname"><span class="pre">project_matrix_telescope_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mat</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.project_matrix_telescope_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Map a matrix from the telescope space into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>mat</strong> (<em>np.ndarray</em>) – Telescope-basis matrix, packed as [freq, baseline, freq, baseline].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>out_mat</strong> – SVD-basis matrix, packed as [ndof, ndof].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.project_vector_sky_to_svd">
+<span class="sig-name descname"><span class="pre">project_vector_sky_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.project_vector_sky_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the sky into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Sky data vector packed as [nfreq, npol, lmax+1]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – Telescope vector to return, packed as [ndof].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.project_vector_svd_to_sky">
+<span class="sig-name descname"><span class="pre">project_vector_svd_to_sky</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temponly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.project_vector_svd_to_sky" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the the SVD basis into the sky basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – SVD vector, packed as [ndof, …]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>svec</strong> – Sky vector to return, packed as [nfreq, npol, lmax+1, …]</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferNoSVD.project_vector_telescope_to_svd">
+<span class="sig-name descname"><span class="pre">project_vector_telescope_to_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferNoSVD.project_vector_telescope_to_svd" title="Link to this definition"></a></dt>
+<dd><p>Project a vector from the telescope basis into the SVD basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – Mode index to fetch for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em>) – Telescope data vector packed as [nfreq, ntel].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tvec</strong> – SVD vector to return, packed as [ndof].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.BeamTransferTempSVD">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.beamtransfer.</span></span><span class="sig-name descname"><span class="pre">BeamTransferTempSVD</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telescope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.BeamTransferTempSVD" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.beamtransfer.BeamTransfer" title="drift.core.beamtransfer.BeamTransfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">BeamTransfer</span></code></a></p>
+<p>BeamTransfer class that performs the old temperature only SVD.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.beamtransfer.svd_gen">
+<span class="sig-prename descclassname"><span class="pre">drift.core.beamtransfer.</span></span><span class="sig-name descname"><span class="pre">svd_gen</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errmsg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.beamtransfer.svd_gen" title="Link to this definition"></a></dt>
+<dd><p>Find the inverse of A.</p>
+<p>If a standard matrix inverse has issues try using the pseudo-inverse.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>A</strong> (<em>np.ndarray</em>) – Matrix to invert.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>inv</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="drift.core.html" class="btn btn-neutral float-left" title="drift.core" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="drift.core.crosspower.html" class="btn btn-neutral float-right" title="drift.core.crosspower" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2014, J. Richard Shaw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

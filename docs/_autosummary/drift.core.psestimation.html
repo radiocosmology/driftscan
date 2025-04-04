@@ -1,0 +1,448 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drift.core.psestimation &mdash; driftscan 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="drift.core.psmc" href="drift.core.psmc.html" />
+    <link rel="prev" title="drift.core.manager" href="drift.core.manager.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            driftscan
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Driftscan</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Programming References</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../reference.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="drift.core.html">drift.core</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="drift.core.beamtransfer.html">drift.core.beamtransfer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.crosspower.html">drift.core.crosspower</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.doublekl.html">drift.core.doublekl</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.kltransform.html">drift.core.kltransform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.manager.html">drift.core.manager</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">drift.core.psestimation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.psmc.html">drift.core.psmc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.skymodel.html">drift.core.skymodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.telescope.html">drift.core.telescope</a></li>
+<li class="toctree-l4"><a class="reference internal" href="drift.core.visibility.html">drift.core.visibility</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="drift.pipeline.html">drift.pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.scripts.html">drift.scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.telescope.html">drift.telescope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="drift.util.html">drift.util</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">driftscan</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Programming References</a></li>
+          <li class="breadcrumb-item"><a href="drift.core.html">drift.core</a></li>
+      <li class="breadcrumb-item active">drift.core.psestimation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/_autosummary/drift.core.psestimation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-drift.core.psestimation">
+<span id="drift-core-psestimation"></span><h1>drift.core.psestimation<a class="headerlink" href="#module-drift.core.psestimation" title="Link to this heading"></a></h1>
+<p>Estimate powerspectra and forecast constraints from real data.</p>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandfunc_2d_cart</span></code>(kpar_s, kpar_e, kperp_s, ...)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandfunc_2d_polar</span></code>(ks, ke, ts, te)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.psestimation.decorrelate_ps" title="drift.core.psestimation.decorrelate_ps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">decorrelate_ps</span></code></a>(ps, fisher)</p></td>
+<td><p>Decorrelate the powerspectrum estimate.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.psestimation.decorrelate_ps_file" title="drift.core.psestimation.decorrelate_ps_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">decorrelate_ps_file</span></code></a>(fname)</p></td>
+<td><p>Load and decorrelate the powerspectrum in <cite>fname</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">range_config</span></code>(lst)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">uniform_band</span></code>(k, kstart, kend)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#drift.core.psestimation.PSEstimation" title="drift.core.psestimation.PSEstimation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PSEstimation</span></code></a>(kltrans[, subdir])</p></td>
+<td><p>Base class for quadratic powerspectrum estimation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#drift.core.psestimation.PSExact" title="drift.core.psestimation.PSExact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PSExact</span></code></a>(kltrans[, subdir])</p></td>
+<td><p>PS Estimation class with exact calculation of the Fisher matrix.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.psestimation.</span></span><span class="sig-name descname"><span class="pre">PSEstimation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kltrans</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ps'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Reader</span></code></p>
+<p>Base class for quadratic powerspectrum estimation.</p>
+<p>See Tegmark 1997 for details.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.bandtype">
+<span class="sig-name descname"><span class="pre">bandtype</span></span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.bandtype" title="Link to this definition"></a></dt>
+<dd><p>Which types of bands to use (default: polar).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>{‘polar’, ‘cartesian’}</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="simple">
+<dt>k_bands<span class="classifier">np.ndarray</span></dt><dd><p>Array of band boundaries. e.g. np.array([0.0, 0.5, ]), polar only</p>
+</dd>
+<dt>num_theta: integer</dt><dd><p>Number of theta bands to use (polar only)</p>
+</dd>
+<dt>kpar_bands<span class="classifier">np.ndarray</span></dt><dd><p>Array of band boundaries. e.g. np.array([0.0, 0.5, ]), cartesian only</p>
+</dd>
+<dt>kperp_bands<span class="classifier">np.ndarray</span></dt><dd><p>Array of band boundaries. e.g. np.array([0.0, 0.5, ]), cartesian only</p>
+</dd>
+<dt>threshold<span class="classifier">scalar</span></dt><dd><p>Threshold for including eigenmodes (default is 0.0, i.e. all modes)</p>
+</dd>
+<dt>unit_bands<span class="classifier">boolean</span></dt><dd><p>If True, bands are sections of the exact powerspectrum (such that the
+fiducial bin amplitude is 1).</p>
+</dd>
+<dt>zero_mean<span class="classifier">boolean</span></dt><dd><p>If True (default), then the fiducial parameters have zero mean.</p>
+</dd>
+</dl>
+<p>Initialise a PS estimator class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kltrans</strong> (<a class="reference internal" href="drift.core.kltransform.html#drift.core.kltransform.KLTransform" title="drift.core.kltransform.KLTransform"><em>KLTransform</em></a>) – The KL Transform filter to use.</p></li>
+<li><p><strong>subdir</strong> (<em>string</em><em>, </em><em>optional</em>) – Subdirectory of the KLTransform directory to store results in.
+Default is ‘ps’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.delbands">
+<span class="sig-name descname"><span class="pre">delbands</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.delbands" title="Link to this definition"></a></dt>
+<dd><p>Delete power spectrum bands to save memory.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.fisher_bias_m">
+<span class="sig-name descname"><span class="pre">fisher_bias_m</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.fisher_bias_m" title="Link to this definition"></a></dt>
+<dd><p>Generate the Fisher matrix and bias for a specific m.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – m-mode to calculate for.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.fisher_file">
+<span class="sig-name descname"><span class="pre">fisher_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.fisher_file" title="Link to this definition"></a></dt>
+<dd><p>Fetch the h5py file handle for the Fisher matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file</strong> – File pointing at the hdf5 file with the Fisher matrix.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>h5py.File</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.genbands">
+<span class="sig-name descname"><span class="pre">genbands</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.genbands" title="Link to this definition"></a></dt>
+<dd><p>Precompute the powerspectrum bands, including the P(k, mu) bands
+and the angular powerspectrum.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.generate" title="Link to this definition"></a></dt>
+<dd><p>Calculate the total Fisher matrix and bias and save to a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>regen</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Force regeneration if products already exist (default <cite>False</cite>).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.make_clzz">
+<span class="sig-name descname"><span class="pre">make_clzz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pk</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.make_clzz" title="Link to this definition"></a></dt>
+<dd><p>Make an angular powerspectrum from the input matter powerspectrum.</p>
+<p>Uses the lmax and frequencies from the telescope object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pk</strong> (<em>function</em><em>, </em><em>np.ndarray -&gt; np.ndarray</em>) – The input powerspectrum (must be vectorized).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>aps</strong> – The angular powerspectrum.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[lmax+1, nfreq, nfreq]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.nbands">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nbands</span></span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.nbands" title="Link to this definition"></a></dt>
+<dd><p>Number of powerspectrum bands.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.num_evals">
+<span class="sig-name descname"><span class="pre">num_evals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.num_evals" title="Link to this definition"></a></dt>
+<dd><p>Number of eigenvalues for this <cite>m</cite> (and threshold).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – m-mode index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>num_evals</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>integer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSEstimation.q_estimator">
+<span class="sig-name descname"><span class="pre">q_estimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSEstimation.q_estimator" title="Link to this definition"></a></dt>
+<dd><p>Estimate the q-parameters from given data (see paper).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – The m-mode we are calculating for.</p></li>
+<li><p><strong>vec</strong> (<em>np.ndarray</em><em>[</em><em>num_kl</em><em>, </em><em>num_realisatons</em><em>]</em>) – The vector(s) of data we are estimating from. These are KL-mode
+coefficients.</p></li>
+<li><p><strong>noise</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Whether we should project against the noise matrix. Used for
+estimating the bias by Monte-Carlo. Default is False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>qa</strong> – Array of q-parameters. If noise=True then the array is one longer,
+and the last parameter is the projection against the noise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[numbands]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSExact">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">drift.core.psestimation.</span></span><span class="sig-name descname"><span class="pre">PSExact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kltrans</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ps'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSExact" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#drift.core.psestimation.PSEstimation" title="drift.core.psestimation.PSEstimation"><code class="xref py py-class docutils literal notranslate"><span class="pre">PSEstimation</span></code></a></p>
+<p>PS Estimation class with exact calculation of the Fisher matrix.</p>
+<p>Initialise a PS estimator class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kltrans</strong> (<a class="reference internal" href="drift.core.kltransform.html#drift.core.kltransform.KLTransform" title="drift.core.kltransform.KLTransform"><em>KLTransform</em></a>) – The KL Transform filter to use.</p></li>
+<li><p><strong>subdir</strong> (<em>string</em><em>, </em><em>optional</em>) – Subdirectory of the KLTransform directory to store results in.
+Default is ‘ps’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSExact.cacheproj">
+<span class="sig-name descname"><span class="pre">cacheproj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSExact.cacheproj" title="Link to this definition"></a></dt>
+<dd><p>Cache projected covariances on disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – m-mode.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSExact.delproj">
+<span class="sig-name descname"><span class="pre">delproj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSExact.delproj" title="Link to this definition"></a></dt>
+<dd><p>Deleted cached covariances from disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mi</strong> (<em>integer</em>) – m-mode.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSExact.getproj">
+<span class="sig-name descname"><span class="pre">getproj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSExact.getproj" title="Link to this definition"></a></dt>
+<dd><p>Fetch cached KL-covariance (either from disk or just calculate if small enough).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode.</p></li>
+<li><p><strong>bi</strong> (<em>integer</em>) – band index.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>klcov</strong> – Covariance in KL-basis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[nevals, nevals]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="drift.core.psestimation.PSExact.makeproj">
+<span class="sig-name descname"><span class="pre">makeproj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.PSExact.makeproj" title="Link to this definition"></a></dt>
+<dd><p>Project angular powerspectrum band into KL-basis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mi</strong> (<em>integer</em>) – m-mode.</p></li>
+<li><p><strong>bi</strong> (<em>integer</em>) – band index.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>klcov</strong> – Covariance in KL-basis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[nevals, nevals]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.psestimation.decorrelate_ps">
+<span class="sig-prename descclassname"><span class="pre">drift.core.psestimation.</span></span><span class="sig-name descname"><span class="pre">decorrelate_ps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fisher</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.decorrelate_ps" title="Link to this definition"></a></dt>
+<dd><p>Decorrelate the powerspectrum estimate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ps</strong> (<em>np.ndarray</em><em>[</em><em>nbands</em><em>]</em>) – Powerspectrum estimate.</p></li>
+<li><p><strong>fisher</strong> (<em>np.ndarrays</em><em>[</em><em>nbands</em><em>, </em><em>nbands</em><em>]</em>) – Fisher matrix.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>psd</strong> (<em>np.narray[nbands]</em>) – Decorrelated powerspectrum estimate.</p></li>
+<li><p><strong>errors</strong> (<em>np.ndarray[nbands]</em>) – Errors on decorrelated bands.</p></li>
+<li><p><strong>window</strong> (<em>np.ndarray[nbands, nbands]</em>) – Window functions for each band row-wise.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="drift.core.psestimation.decorrelate_ps_file">
+<span class="sig-prename descclassname"><span class="pre">drift.core.psestimation.</span></span><span class="sig-name descname"><span class="pre">decorrelate_ps_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fname</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#drift.core.psestimation.decorrelate_ps_file" title="Link to this definition"></a></dt>
+<dd><p>Load and decorrelate the powerspectrum in <cite>fname</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fname</strong> (<em>string</em>) – Name of file to load.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>psd</strong> (<em>np.narray[nbands]</em>) – Decorrelated powerspectrum estimate.</p></li>
+<li><p><strong>errors</strong> (<em>np.ndarray[nbands]</em>) – Errors on decorrelated bands.</p></li>
+<li><p><strong>window</strong> (<em>np.ndarray[nbands, nbands]</em>) – Window functions for each band row-wise.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="drift.core.manager.html" class="btn btn-neutral float-left" title="drift.core.manager" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="drift.core.psmc.html" class="btn btn-neutral float-right" title="drift.core.psmc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2014, J. Richard Shaw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

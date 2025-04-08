@@ -506,11 +506,18 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
         self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
 
-        # Write out all the PS estimation products
         if mpiutil.rank0:
             et = time.time()
             logger.info(f"======== Ending PS calculation (time={et - st:f}) ========")
 
+        self.write_fisher_file()
+
+    # ===================================================
+
+    def write_fisher_file(self):
+        """Write PS estimation products into hdf5 file"""
+        # Write out all the PS estimation products
+        if mpiutil.rank0:
             # Check to see ensure that Fisher matrix isn't all zeros.
             if not (self.fisher == 0).all():
                 # Generate derived quantities (covariance, errors..)
@@ -559,8 +566,6 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
             f.close()
 
-    # ===================================================
-
     def fisher_file(self):
         """Fetch the h5py file handle for the Fisher matrix.
 
@@ -579,6 +584,41 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
     # ====== Estimate the q-parameters from data ========
 
+    def project_vector_kl_to_sky(self, mi, vec1):
+        """
+        Parameters
+        ----------
+        mi : integer
+            M-mode index to fetch for.
+        vec1 : np.ndarray
+            The vector of data in the KL-basis packed as [num_kl, num_realisatons].
+
+        Returns
+        -------
+        x2 : np.ndarray
+            The vector of data in the sky basis packed as [nfreq, lmax+1, num_realisations]
+        """
+
+        evals, evecs = self.kltrans.modes_m(mi)
+
+        if evals is None:
+            return np.zeros((0,), dtype=np.complex128)
+
+        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
+        x0 = (vec1.T / (evals + 1.0)).T
+
+        # Project back into SVD basis
+        x1 = np.dot(evecs.T.conj(), x0)
+
+        # Project back into sky basis
+        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(
+            mi, x1, temponly=True, conj=True
+        )
+        # Slice array for temponly
+        x2 = x2[:, 0]
+
+        return x2
+
     def q_estimator(self, mi, vec1, vec2=None, noise=False):
         """Estimate the q-parameters from given data (see paper).
 
@@ -586,9 +626,8 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         ----------
         mi : integer
             The m-mode we are calculating for.
-        vec : np.ndarray[num_kl, num_realisatons]
-            The vector(s) of data we are estimating from. These are KL-mode
-            coefficients.
+        vec1, vec2 : np.ndarrays[num_kl, num_realisatons]
+            The vector(s) of data we are estimating from. These are KL-mode coefficients. Passing in `vec2` is optional and for cross power spectrum calculation.
         noise : boolean, optional
             Whether we should project against the noise matrix. Used for
             estimating the bias by Monte-Carlo. Default is False.
@@ -600,27 +639,15 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             and the last parameter is the projection against the noise.
         """
 
-        evals, evecs = self.kltrans.modes_m(mi)
-
-        if evals is None:
-            return np.zeros((self.nbands + 1 if noise else self.nbands,))
-
-        # Weight by C**-1 (transposes are to ensure broadcast works for 1 and 2d vecs)
-        x0 = (vec1.T / (evals + 1.0)).T
-
-        # Project back into SVD basis
-        x1 = np.dot(evecs.T.conj(), x0)
-
-        # Project back into sky basis
-        x2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+        x2 = self.project_vector_kl_to_sky(mi, vec1)
 
         if vec2 is not None:
-            y0 = (vec2.T / (evals + 1.0)).T
-            y1 = np.dot(evecs.T.conj(), x0)
-            y2 = self.kltrans.beamtransfer.project_vector_svd_to_sky(mi, x1, conj=True)
+            y2 = self.project_vector_kl_to_sky(mi, vec2)
         else:
-            y0 = x0
             y2 = x2
+
+        if (x2.shape[0], y2.shape[0]) == (0, 0):
+            return np.zeros((self.nbands + 1 if noise else self.nbands,))
 
         # Create empty q vector (length depends on if we're calculating the noise term too)
         qa = np.zeros((self.nbands + 1 if noise else self.nbands,) + vec1.shape[1:])
@@ -630,8 +657,9 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         # Calculate q_a for each band
         for bi in range(self.nbands):
             for li in range(lside):
-                lxvec = x2[:, 0, li]
-                lyvec = y2[:, 0, li]
+
+                lxvec = x2[:, li]
+                lyvec = y2[:, li]
 
                 qa[bi] += np.sum(
                     lyvec.conj()
@@ -643,9 +671,21 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
         # Calculate q_a for noise power (x0^H N x0 = |x0|^2)
         if noise:
+            evals, evecs = self.kltrans.modes_m(mi)
+
+            if evals is None:
+                return np.zeros((self.nbands + 1))
+
             # If calculating crosspower don't include instrumental noise
             noisemodes = 0.0 if self.crosspower else 1.0
             noisemodes = noisemodes + (evals if self.zero_mean else 0.0)
+
+            x0 = (vec1.T / (evals + 1.0)).T
+
+            if vec2 is not None:
+                y0 = (vec2.T / (evals + 1.0)).T
+            else:
+                y0 = x0
 
             qa[-1] = np.sum((x0 * y0.conj()).T.real * noisemodes, axis=-1)
 
@@ -655,7 +695,8 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
 
 
 class PSExact(PSEstimation):
-    """PS Estimation class with exact calculation of the Fisher matrix."""
+    """PS Estimation class with exact calculation of the Fisher matrix.
+    """
 
     @property
     def _cfile(self):

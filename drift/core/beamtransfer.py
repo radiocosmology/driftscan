@@ -10,14 +10,11 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
-from caput import config
-from caput import misc
-from caput import mpiutil
-from caput import profile
+from caput import config, misc, mpiutil, profile
 from caput.truncate import bit_truncate_max_complex
 
-from drift.util import util, blockla
-from drift.core import kltransform
+from ..util import util, blockla
+from . import kltransform
 
 
 # Get the logger object

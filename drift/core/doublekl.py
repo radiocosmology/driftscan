@@ -6,7 +6,7 @@ import h5py
 
 from caput import mpiutil, config
 
-from drift.core import kltransform
+from . import kltransform
 
 
 # Get logger for module

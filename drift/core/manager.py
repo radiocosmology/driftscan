@@ -8,18 +8,22 @@ import yaml
 
 from caput import mpiutil
 
-from drift.telescope import (
+from ..telescope import (
     cylinder,
     gmrt,
     focalplane,
     restrictedcylinder,
     exotic_cylinder,
 )
-from drift.core import beamtransfer
-
-from drift.core import kltransform, doublekl
-from drift.core import psestimation, psmc, crosspower
-from drift.core import skymodel
+from . import (
+    beamtransfer,
+    kltransform,
+    doublekl,
+    psestimation,
+    psmc,
+    crosspower,
+    skymodel,
+)
 
 
 logger = logging.getLogger(__name__)

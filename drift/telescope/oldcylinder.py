@@ -1,10 +1,9 @@
 import numpy as np
 
 from caput import config
+from caput.coordinates import coord
 
-from cora.util import coord
-
-from drift.core import telescope, visibility
+from ..core import telescope, visibility
 
 
 class CylinderTelescope(telescope.TransitTelescope):

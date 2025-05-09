@@ -2,8 +2,7 @@
 
 import numpy as np
 
-from cora.util import coord
-from ..util._fast_tools import fringe
+from caput.coordinates import coord
 
 
 def uv_plane_cart(zenith):

@@ -4,9 +4,9 @@ import numpy as np
 from scipy.special import jn
 
 from caput import config
+from caput.coordinates import coord
 
-from cora.util import coord
-from drift.core import telescope
+from ..core import telescope
 
 
 def jinc(x):

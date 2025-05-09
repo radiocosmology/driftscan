@@ -2,8 +2,8 @@ import numpy as np
 
 from scipy.special import jn
 
-from cora.util import coord
-from drift.core import telescope
+from caput.coordinates import coord
+from ..core import telescope
 
 
 def jinc(x):

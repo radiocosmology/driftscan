@@ -1,11 +1,11 @@
 import numpy as np
 from scipy.special import jn
 
-from caput import config
+from caput import config, units
+from caput.coordinates import coord
 
-from cora.util import coord, units
-from drift.core import telescope
-from drift.util import util
+from ..core import telescope
+from ..util import util
 
 
 def jinc(x):

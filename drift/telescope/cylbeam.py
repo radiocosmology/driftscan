@@ -1,8 +1,9 @@
 import cachetools
 import numpy as np
 
-from caput.interferometry import rotate_ypr
-from cora.util import coord, cubicspline
+from caput.coordinates.spherical import rotate_ypr
+from caput.coordinates import coord
+from cora.util import cubicspline
 
 from ..util._fast_tools import beam_exptan
 

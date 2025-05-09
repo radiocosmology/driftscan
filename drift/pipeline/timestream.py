@@ -5,11 +5,10 @@ import h5py
 import numpy as np
 
 from caput import mpiutil
-
 from cora.util import hputil
 
-from drift.core import kltransform
-from drift.util import util
+from ..core import kltransform
+from ..util import util
 
 
 class Timestream(object):

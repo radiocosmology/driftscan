@@ -2,7 +2,7 @@ import numpy as np
 
 from caput import mpiutil
 
-from drift.core import psmc
+from . import psmc
 
 
 class CrossPower(psmc.PSMonteCarlo):

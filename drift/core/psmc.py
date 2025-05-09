@@ -1,10 +1,9 @@
 import numpy as np
 
+from caput import mpiutil, config
 from cora.util import nputil
 
-from caput import mpiutil, config
-
-from drift.core import psestimation
+from . import psestimation
 
 
 class PSMonteCarlo(psestimation.PSEstimation):

@@ -2,8 +2,8 @@ import numpy as np
 
 from caput import config
 
-from drift.core import telescope
-from drift.telescope import cylbeam
+from ..core import telescope
+from ..telescope import cylbeam
 
 
 class CylinderTelescope(telescope.TransitTelescope):

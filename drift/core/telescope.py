@@ -3,11 +3,8 @@ import logging
 from functools import cached_property
 import numpy as np
 
-from caput import cache
-from caput import config
-from caput import time as ctime
-
-from cora.util import hputil, units
+from caput import cache, config, time as ctime, units
+from cora.util import hputil
 
 from . import visibility
 from ..util._fast_tools import _construct_pol_real, _construct_pol_complex

@@ -2,7 +2,7 @@ import numpy as np
 
 from caput import config
 
-from drift.telescope import cylinder, cylbeam
+from ..telescope import cylinder, cylbeam
 
 
 class RandomCylinder(cylinder.UnpolarisedCylinderTelescope):

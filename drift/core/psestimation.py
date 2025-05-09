@@ -13,8 +13,8 @@ from caput import config, mpiutil
 
 from cora.signal import corr21cm
 
-from drift.core import skymodel
-from drift.util import util
+from . import skymodel
+from ..util import util
 
 from mpi4py import MPI
 

@@ -4,9 +4,9 @@ import numpy as np
 from scipy.special import jn
 
 from caput import config
+from caput.astro.coordinates import spherical
 
-from cora.util import coord
-from drift.core import telescope
+from ..core import telescope
 
 
 def jinc(x):
@@ -31,7 +31,7 @@ def beam_circular(angpos, zenith, uv_diameter):
         Beam pattern at each position in angpos.
     """
 
-    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
+    x = (1.0 - spherical.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
 
     return 2 * jinc(x)
 
@@ -113,7 +113,9 @@ class GmrtArray(telescope.TransitTelescope):
                 [np.pi / 2.0 - np.radians(self.pointing), self.zenith[1]]
             )
 
-            x2 = (1.0 - coord.sph_dot(self._angpos, pointing) ** 2) / (4 * sigma**2)
+            x2 = (1.0 - spherical.sph_dot(self._angpos, pointing) ** 2) / (
+                4 * sigma**2
+            )
             self._bc_map = np.exp(-x2)
 
             self._bc_freq = freq

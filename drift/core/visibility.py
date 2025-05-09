@@ -2,8 +2,7 @@
 
 import numpy as np
 
-from cora.util import coord
-from ..util._fast_tools import fringe
+from caput.astro.coordinates import spherical
 
 
 def uv_plane_cart(zenith):
@@ -20,7 +19,7 @@ def uv_plane_cart(zenith):
         Unit vectors in the UV plane. `uhat` points East, and `vhat`
         points North.
     """
-    t_hat, phat = coord.thetaphi_plane_cart(zenith)
+    t_hat, phat = spherical.thetaphi_plane_cart(zenith)
     return phat, -t_hat
 
 
@@ -41,7 +40,7 @@ def horizon(sph_arr, zenith):
         each position).
     """
 
-    proj = coord.sph_dot(sph_arr, zenith)
+    proj = spherical.sph_dot(sph_arr, zenith)
 
     return np.signbit(-proj)
 
@@ -70,7 +69,7 @@ def cylinder_beam(sph_arr, zenith, cylwidth):
     uhatc, vhatc = uv_plane_cart(zenith)
 
     ## Note sinc function is normalised hence lack of pi
-    return np.sinc(np.inner(coord.sph_to_cart(sph_arr), cylwidth * uhatc))
+    return np.sinc(np.inner(spherical.sph_to_cart(sph_arr), cylwidth * uhatc))
 
 
 def pol_IQU(sph_arr, zenith, feed1, feed2):
@@ -105,7 +104,7 @@ def pol_IQU(sph_arr, zenith, feed1, feed2):
     """
 
     # Get theta, phi plane at each point.
-    t_hat, p_hat = coord.thetaphi_plane_cart(sph_arr)
+    t_hat, p_hat = spherical.thetaphi_plane_cart(sph_arr)
 
     # Get feed vectors in 3D Cartesian co-ordinates
     uhat, vhat = uv_plane_cart(zenith)

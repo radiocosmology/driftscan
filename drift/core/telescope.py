@@ -3,15 +3,13 @@ import logging
 from functools import cached_property
 import numpy as np
 
-from caput import cache
 from caput import config
-from caput import time as ctime
-
-from cora.util import hputil, units
+from caput.astro import constants, observer
+from caput.util.arraytools import LRUCache
+from cora.util import hputil
 
 from . import visibility
-from ..util._fast_tools import _construct_pol_real, _construct_pol_complex
-
+from ..util import _fast_tools
 
 # Create logger object
 logger = logging.getLogger(__name__)
@@ -122,7 +120,7 @@ def max_lm(baselines, wavelengths, uwidth, vwidth=0.0):
     return lmax, mmax
 
 
-class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
+class TransitTelescope(config.Reader, observer.Observer, metaclass=abc.ABCMeta):
     """Base class for simulating any transit interferometer.
 
     This is an abstract class, and several methods must be implemented before it
@@ -191,7 +189,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     local_origin : bool
         If set the observers location is the terrestrial origin, and so the
         rotation angle corresponds to the right ascension that is overhead
-        (Local Stellar Angle in `caput.time`). If not the origin is Greenwich,
+        (Local Stellar Angle in `caput.astro.time`). If not the origin is Greenwich,
         so the rotation angle is what is overhead at Greenwich (Earth Rotation
         Angle). Default: True.
     skip_freq : list
@@ -252,7 +250,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         """
 
         # Set the observers position on the Earth
-        ctime.Observer.__init__(self, longitude, latitude, **kwargs)
+        observer.Observer.__init__(self, longitude, latitude, **kwargs)
 
     _pickle_keys = []
 
@@ -433,7 +431,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
     @property
     def wavelengths(self):
         """The central wavelength of each frequency band (in metres)."""
-        return units.c / (1e6 * self.frequencies)
+        return constants.c / (1e6 * self.frequencies)
 
     @property
     def nfreq(self):
@@ -919,7 +917,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         bl_indices, f_indices = np.broadcast_arrays(bl_indices, f_indices)
 
         bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
-        delnu = units.t_sidereal * bw / (2 * np.pi)
+        delnu = constants.t_sidereal * bw / (2 * np.pi)
         noisepower = self.tsys(f_indices) ** 2 / (2 * np.pi * delnu * ndays)
         noisebase = noisepower / self.redundancy[bl_indices]
 
@@ -929,7 +927,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         ndays = self.ndays if not ndays else ndays
 
         bw = np.abs(self.frequencies[1] - self.frequencies[0]) * 1e6
-        delnu = units.t_sidereal * bw / (2 * np.pi)
+        delnu = constants.t_sidereal * bw / (2 * np.pi)
         noisepower = self.tsys(f_indices) ** 2 / (2 * np.pi * delnu * ndays)
 
         return (
@@ -957,7 +955,7 @@ class TransitTelescope(config.Reader, ctime.Observer, metaclass=abc.ABCMeta):
         # Cache the beam maps by (nside, freq, beamclass/pol) to minimise recomputation
 
         if self._beam_cache is None:
-            self._beam_cache = cache.NumpyCache(self.beam_cache_size << 20)
+            self._beam_cache = LRUCache(self.beam_cache_size << 20)
 
         # Key by the beam class, and not the feed_index to allow for many beams being
         # identical
@@ -1160,7 +1158,7 @@ class UnpolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
 
         # Get baseline separation and fringe map.
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+        fringe = _fast_tools.fringe(self._angpos, self.zenith, uv)
 
         pxarea = 4 * np.pi / beami.shape[0]
 
@@ -1272,13 +1270,15 @@ class PolarisedTelescope(TransitTelescope, metaclass=abc.ABCMeta):
 
         # Get baseline separation and fringe map.
         uv = self.baselines[bl_index] / self.wavelengths[f_index]
-        fringe = visibility.fringe(self._angpos, self.zenith, uv)
+        fringe = _fast_tools.fringe(self._angpos, self.zenith, uv)
         horizon = self._horizon.astype(np.float64)
 
         if np.iscomplexobj(beami) or np.iscomplexobj(beamj):
-            cv_stokes = _construct_pol_complex(beami, beamj, fringe, horizon)
+            cv_stokes = _fast_tools._construct_pol_complex(
+                beami, beamj, fringe, horizon
+            )
         else:
-            cv_stokes = _construct_pol_real(beami, beamj, fringe, horizon)
+            cv_stokes = _fast_tools._construct_pol_real(beami, beamj, fringe, horizon)
 
         return cv_stokes
 

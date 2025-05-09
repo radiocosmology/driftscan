@@ -2,7 +2,7 @@ import numpy as np
 
 from caput import config
 
-from drift.telescope import cylinder
+from ..telescope import cylinder
 
 
 def gaussian_fwhm(x, fwhm):

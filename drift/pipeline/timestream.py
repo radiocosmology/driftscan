@@ -4,12 +4,11 @@ import os
 import h5py
 import numpy as np
 
-from caput import mpiutil
-
+from caput.util import mpitools
 from cora.util import hputil
 
-from drift.core import kltransform
-from drift.util import util
+from ..core import kltransform
+from ..util import util
 
 
 class Timestream(object):
@@ -133,7 +132,7 @@ class Timestream(object):
         """
 
         if os.path.exists(self.output_directory + "/mmodes/COMPLETED_M"):
-            if mpiutil.rank0:
+            if mpitools.rank0:
                 print("******* m-files already generated ********")
             return
 
@@ -141,8 +140,8 @@ class Timestream(object):
         mmax = tel.mmax
         nfreq = tel.nfreq
 
-        lfreq, sfreq, efreq = mpiutil.split_local(nfreq)
-        lm, sm, em = mpiutil.split_local(mmax + 1)
+        lfreq, sfreq, efreq = mpitools.split_local(nfreq)
+        lm, sm, em = mpitools.split_local(mmax + 1)
 
         # Load in the local frequencies of the time stream
         tstream = np.zeros((lfreq, tel.npairs, self.ntime), dtype=np.complex128)
@@ -161,7 +160,7 @@ class Timestream(object):
             row_mpairs[:, 1, ..., mi] = row_mmodes[..., -mi].conj()
 
         # Transpose to get the entirety of an m-mode on each process (i.e. all frequencies)
-        col_mmodes = mpiutil.transpose_blocks(
+        col_mmodes = mpitools.transpose_blocks(
             row_mpairs, (nfreq, 2, tel.npairs, mmax + 1)
         )
 
@@ -178,11 +177,11 @@ class Timestream(object):
                 f.create_dataset("/mmode", data=col_mmodes[lmi])
                 f.attrs["m"] = mi
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             # Make file marker that the m's have been correctly generated:
             open(self.output_directory + "/mmodes/COMPLETED_M", "a").close()
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     # ====================================================
 
@@ -216,7 +215,7 @@ class Timestream(object):
         """Generate the SVD modes for the Timestream."""
 
         # Iterate over local m's, project mode and save to disk.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._svdfile(mi)):
                 print("File %s exists. Skipping..." % self._svdfile(mi))
                 continue
@@ -228,7 +227,7 @@ class Timestream(object):
                 f.create_dataset("mmode_svd", data=svdm)
                 f.attrs["m"] = mi
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     # ====================================================
 
@@ -243,9 +242,11 @@ class Timestream(object):
 
             return sphmode
 
-        alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
+        alm_list = mpitools.parallel_map(
+            _make_alm, list(range(self.telescope.mmax + 1))
+        )
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             alm = np.zeros(
                 (
                     self.telescope.nfreq,
@@ -264,7 +265,7 @@ class Timestream(object):
             with h5py.File(self.output_directory + "/" + mapname, "w") as f:
                 f.create_dataset("/map", data=skymap)
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     def mapmake_svd(self, nside, mapname):
         self.generate_mmodes_svd()
@@ -276,9 +277,11 @@ class Timestream(object):
 
             return sphmode
 
-        alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
+        alm_list = mpitools.parallel_map(
+            _make_alm, list(range(self.telescope.mmax + 1))
+        )
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             alm = np.zeros(
                 (
                     self.telescope.nfreq,
@@ -297,7 +300,7 @@ class Timestream(object):
             with h5py.File(self.output_directory + "/" + mapname, "w") as f:
                 f.create_dataset("/map", data=skymap)
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     # ====================================================
 
@@ -329,7 +332,7 @@ class Timestream(object):
         kl = self.manager.kltransforms[self.klname]
 
         # Iterate over local m's, project mode and save to disk.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._klfile(mi)):
                 print("File %s exists. Skipping..." % self._klfile(mi))
                 continue
@@ -345,7 +348,7 @@ class Timestream(object):
                 f.create_dataset("mmode_kl", data=klm)
                 f.attrs["m"] = mi
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     def collect_mmodes_kl(self):
         def evfunc(mi):
@@ -357,14 +360,14 @@ class Timestream(object):
 
             return evf
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             print("Creating eigenvalues file (process 0 only).")
 
         mlist = list(range(self.telescope.mmax + 1))
         shape = (self.beamtransfer.ndofmax,)
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.complex128)
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             fname = self.output_directory + (
                 "/klmodes_%s_%f.hdf5" % (self.klname, self.klthreshold)
             )
@@ -379,7 +382,7 @@ class Timestream(object):
         kl = self.manager.kltransforms[self.klname]
 
         # Iterate over local m's, project mode and save to disk.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             evals = kl.evals_m(mi)
 
             if evals is None:
@@ -395,13 +398,13 @@ class Timestream(object):
                 f.create_dataset("mmode_kl", data=klmode)
                 f.attrs["m"] = mi
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     def mapmake_kl(self, nside, mapname, wiener=False):
         mapfile = self.output_directory + "/" + mapname
 
         if os.path.exists(mapfile):
-            if mpiutil.rank0:
+            if mpitools.rank0:
                 print("File %s exists. Skipping...")
             return
 
@@ -429,9 +432,11 @@ class Timestream(object):
 
             return sphmode
 
-        alm_list = mpiutil.parallel_map(_make_alm, list(range(self.telescope.mmax + 1)))
+        alm_list = mpitools.parallel_map(
+            _make_alm, list(range(self.telescope.mmax + 1))
+        )
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             alm = np.zeros(
                 (
                     self.telescope.nfreq,
@@ -453,7 +458,7 @@ class Timestream(object):
             with h5py.File(mapfile, "w") as f:
                 f.create_dataset("/map", data=skymap)
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     # ====================================================
 
@@ -482,7 +487,7 @@ class Timestream(object):
 
         # Determine whether to use m=0 or not
         mlist = list(range(1 if self.no_m_zero else 0, self.telescope.mmax + 1))
-        qvals = mpiutil.parallel_map(_q_estimate, mlist)
+        qvals = mpitools.parallel_map(_q_estimate, mlist)
 
         qtotal = np.array(qvals).sum(axis=0)
 
@@ -490,7 +495,7 @@ class Timestream(object):
 
         powerspectrum = np.dot(la.inv(fisher), qtotal - bias)
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             with h5py.File(self._psfile, "w") as f:
                 cv = la.inv(fisher)
                 err = cv.diagonal() ** 0.5
@@ -514,7 +519,7 @@ class Timestream(object):
         del ps.clarray
         ps.clarray = None
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
         return powerspectrum
 
@@ -542,7 +547,7 @@ class Timestream(object):
         """Save out the Timestream object information."""
 
         # Save pickled telescope object
-        if mpiutil.rank0:
+        if mpitools.rank0:
             with open(self._picklefile, "wb") as f:
                 print("=== Saving Timestream object. ===")
                 pickle.dump(self, f)
@@ -600,7 +605,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
     mlist = list(
         range(1 if timestreams[0].no_m_zero else 0, products.telescope.mmax + 1)
     )
-    qvals = mpiutil.parallel_map(_q_estimate, mlist)
+    qvals = mpitools.parallel_map(_q_estimate, mlist)
 
     qtotal = np.array(qvals).sum(axis=0)
 
@@ -612,7 +617,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
     powerspectrum = np.dot(la.inv(fisher), qtotal)
     powerspectrum = powerspectrum.T.reshape(nstream, nstream, ps.nbands)
 
-    if mpiutil.rank0:
+    if mpitools.rank0:
         with h5py.File(psfile, "w") as f:
             cv = la.inv(fisher)
             err = cv.diagonal() ** 0.5
@@ -636,7 +641,7 @@ def cross_powerspectrum(timestreams, psname, psfile):
     del ps.clarray
     ps.clarray = None
 
-    mpiutil.barrier()
+    mpitools.barrier()
 
     return powerspectrum
 
@@ -677,10 +682,10 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
 
     projmaps = len(maps) > 0
 
-    lfreq, sfreq, efreq = mpiutil.split_local(nfreq)
+    lfreq, sfreq, efreq = mpitools.split_local(nfreq)
     local_freq = list(range(sfreq, efreq))
 
-    lm, sm, em = mpiutil.split_local(mmax + 1)
+    lm, sm, em = mpitools.split_local(mmax + 1)
 
     # If ndays is not set use the default value.
     if ndays is None:
@@ -726,7 +731,7 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
         # Perform the transposition to distribute different m's across processes. Neat
         # tip, putting a shorter value for the number of columns, trims the array at
         # the same time
-        col_alm = mpiutil.transpose_blocks(
+        col_alm = mpitools.transpose_blocks(
             row_alm, (nfreq, npol * (lmax + 1), mmax + 1)
         )
 
@@ -746,7 +751,7 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
         row_vis = vis_data.transpose((0, 2, 1))  # .reshape((lm * bt.ntel, nfreq))
 
         # Parallel transpose to get all m's back onto the same processor
-        col_vis_tmp = mpiutil.transpose_blocks(row_vis, ((mmax + 1), bt.ntel, nfreq))
+        col_vis_tmp = mpitools.transpose_blocks(row_vis, ((mmax + 1), bt.ntel, nfreq))
         col_vis_tmp = col_vis_tmp.reshape(mmax + 1, 2, tel.npairs, lfreq)
 
         # Transpose the local section to make the m's the last axis and unwrap the
@@ -772,7 +777,7 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
         # Seed random number generator to give consistent noise
         if seed is not None:
             # Must include rank such that we don't have massive power deficit from correlated noise
-            np.random.seed(seed + mpiutil.rank)
+            np.random.seed(seed + mpitools.rank)
 
         # Create and weight complex noise coefficients
         noise_vis = (
@@ -824,6 +829,6 @@ def simulate(m, outdir, maps=[], ndays=None, resolution=0, seed=None, **kwargs):
 
     tstream.save()
 
-    mpiutil.barrier()
+    mpitools.barrier()
 
     return tstream

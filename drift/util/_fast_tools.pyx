@@ -7,7 +7,7 @@ cimport numpy
 from libc.stdlib cimport abort, malloc, free
 from libc.math cimport sin, cos, tan, exp, hypot, M_PI, M_PI_2, M_LN2
 
-from cora.util.coord import thetaphi_plane_cart
+from caput.astro.coordinates.spherical import thetaphi_plane_cart
 
 ctypedef double complex complex128
 

@@ -4,7 +4,6 @@ The full project config can be found in `pyproject.toml`. `setup.py` is still
 required to build cython extensions.
 """
 
-import os
 import re
 import sysconfig
 

@@ -1,10 +1,10 @@
 import numpy as np
 
+from caput import config
+from caput.util import mpitools
 from cora.util import nputil
 
-from caput import mpiutil, config
-
-from drift.core import psestimation
+from . import psestimation
 
 
 class PSMonteCarlo(psestimation.PSEstimation):
@@ -74,7 +74,7 @@ class PSMonteCarlo(psestimation.PSEstimation):
         qa = np.zeros((self.nbands, self.nsamples))
 
         # Split calculation into subranges to save on memory usage
-        num, starts, ends = mpiutil.split_m(self.nsamples, (self.nsamples // 1000) + 1)
+        num, starts, ends = mpitools.split_m(self.nsamples, (self.nsamples // 1000) + 1)
 
         for n, s, e in zip(num, starts, ends):
             x = self.gen_sample(mi, n)

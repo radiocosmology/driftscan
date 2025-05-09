@@ -11,14 +11,12 @@ import scipy.linalg as la
 import h5py
 
 from caput import config
-from caput import misc
-from caput import mpiutil
-from caput import profile
-from caput.truncate import bit_truncate_max_complex
+from caput.memdata import lock_file
+from caput.util import mpitools, profiler
+from caput.util.truncate import bit_truncate_max_complex
 
-from drift.util import util, blockla
-from drift.core import kltransform
-
+from ..util import util, blockla
+from . import kltransform
 
 # Get the logger object
 logger = logging.getLogger(__name__)
@@ -75,7 +73,7 @@ def matrix_image(A, rtol=1e-8, atol=None, errmsg=""):
 
         image, spectrum = u, s
 
-    except la.LinAlgError as e:
+    except la.LinAlgError:
         # Try QR with pivoting
         logger.info(f"SVD1 not converged. {errmsg}")
 
@@ -114,7 +112,7 @@ def matrix_nullspace(A, rtol=1e-8, atol=None, errmsg=""):
 
         nullspace, spectrum = u, s
 
-    except la.LinAlgError as e:
+    except la.LinAlgError:
         # Try QR with pivoting
         logger.info(f"SVD1 not converged. {errmsg}")
 
@@ -235,10 +233,10 @@ class BeamTransfer(config.Reader):
         self.telescope = telescope
 
         # Create directory if required
-        if mpiutil.rank0 and not os.path.exists(directory):
+        if mpitools.rank0 and not os.path.exists(directory):
             os.makedirs(directory)
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
         if self.telescope is None:
             logger.info("Attempting to read telescope from disk...")
@@ -460,23 +458,23 @@ class BeamTransfer(config.Reader):
         self._generate_dirs()
 
         # Save pickled telescope object
-        if mpiutil.rank0:
+        if mpitools.rank0:
             with open(self._picklefile, "wb") as f:
                 logger.info("Saving Telescope object.")
                 pickle.dump(self.telescope, f)
 
-        with profile.IOUsage(logger=logger):
+        with profiler.IOUsage(logger=logger):
             self._generate_mfiles(regen)
 
         if not skip_svd:
             self._generate_svdfiles(regen, skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
         et = time.time()
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info(f"Beam generation time: {et - st:f}")
 
     generate_cache = generate  # For compatibility with old code
@@ -484,7 +482,7 @@ class BeamTransfer(config.Reader):
     def _generate_dirs(self):
         ## Create all the directories required to store the beam transfers.
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             # Create main directory for beamtransfer
             if not os.path.exists(self.directory):
                 os.makedirs(self.directory)
@@ -497,11 +495,11 @@ class BeamTransfer(config.Reader):
                 if not os.path.exists(dirname):
                     os.makedirs(dirname)
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     def _generate_mfiles(self, regen=False):
         if os.path.exists(self.directory + "/beam_m/COMPLETED") and not regen:
-            if mpiutil.rank0:
+            if mpitools.rank0:
                 logger.info("m-files already generated")
             return
 
@@ -535,16 +533,16 @@ class BeamTransfer(config.Reader):
         nodemem = self.mem_chunk * 2**30.0
 
         num_fb_per_node = int(nodemem / fbsize)
-        num_fb_per_chunk = num_fb_per_node * mpiutil.size
+        num_fb_per_chunk = num_fb_per_node * mpitools.size
         num_chunks = int(
             np.ceil(1.0 * nfb / num_fb_per_chunk)
         )  # Number of chunks to break the calculation into
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info(f"Splitting into {int(num_chunks)} chunks....")
 
         # The local m sections
-        lm, sm, em = mpiutil.split_local(self.telescope.mmax + 1)
+        lm, sm, em = mpitools.split_local(self.telescope.mmax + 1)
 
         if self.truncate:
             compression_kwargs = {
@@ -555,7 +553,7 @@ class BeamTransfer(config.Reader):
             compression_kwargs = {"compression": "lzf"}
 
         # Iterate over all m's and create the hdf5 files we will write into.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._mfile(mi)) and not regen:
                 logger.info(
                     f"m index {mi}. File: {self._mfile(mi)} exists. Skipping..."
@@ -578,25 +576,25 @@ class BeamTransfer(config.Reader):
 
             f.close()
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Iterate over chunks
-        for ci, fbrange in enumerate(mpiutil.split_m(nfb, num_chunks).T):
-            if mpiutil.rank0:
+        for ci, fbrange in enumerate(mpitools.split_m(nfb, num_chunks).T):
+            if mpitools.rank0:
                 logger.info(f"Starting chunk {int(ci + 1)} of {int(num_chunks)}")
 
             # Unpack freq-baselines range into num, start and end
             fbnum, fbstart, fbend = fbrange
 
             # Split the fb list into the ones local to this node
-            loc_num, loc_start, loc_end = mpiutil.split_local(fbnum)
+            loc_num, loc_start, loc_end = mpitools.split_local(fbnum)
 
             # Get the fb indices for everything in this chunk
             fb_ind_chunk = np.arange(fbstart, fbend)
 
             # Rotate indices to get a better distribution of work between ranks
             fb_ind_chunk = np.concatenate(
-                [fb_ind_chunk[i :: mpiutil.size] for i in range(mpiutil.size)]
+                [fb_ind_chunk[i :: mpitools.size] for i in range(mpitools.size)]
             )
 
             # fb_ind = list(range(fbstart + loc_start, fbstart + loc_end))
@@ -625,11 +623,11 @@ class BeamTransfer(config.Reader):
 
                 del tarray
 
-            if mpiutil.rank0:
+            if mpitools.rank0:
                 logger.info("Transposing and writing chunk.")
 
             # Perform an in memory MPI transpose to get the m-ordered array
-            m_array = mpiutil.transpose_blocks(fb_array, (fbnum, 2, np_inc, nl, nm))
+            m_array = mpitools.transpose_blocks(fb_array, (fbnum, 2, np_inc, nl, nm))
 
             del fb_array
 
@@ -664,11 +662,11 @@ class BeamTransfer(config.Reader):
 
             del m_array
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
         et = time.time()
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             # Make file marker that the m's have been correctly generated:
             open(self.directory + "/beam_m/COMPLETED", "a").close()
 
@@ -681,14 +679,14 @@ class BeamTransfer(config.Reader):
         ## results.
 
         m_list = np.arange(self.telescope.mmax + 1)
-        if mpiutil.rank0:
+        if mpitools.rank0:
             # For each m, check whether the file exists, if so, whether we
             # can open it. If these tests all pass, we can skip the file.
             # Otherwise, we need to generate a new SVD file for that m.
             for mi in m_list:
                 if os.path.exists(self._svdfile(mi)) and not regen:
                     # File may exist but be un-openable, so we catch such an
-                    # exception. This shouldn't happen if we use caput.misc.lock_file(),
+                    # exception. This shouldn't happen if we use caput.memdata.lock_file(),
                     # but we catch it just in case.
                     try:
                         fs = h5py.File(self._svdfile(mi), "r")
@@ -709,20 +707,20 @@ class BeamTransfer(config.Reader):
             m_list = m_list[m_list != -1]
 
         # Broadcast reduced list to all tasks
-        m_list = mpiutil.bcast(m_list)
+        m_list = mpitools.bcast(m_list)
 
         # Print m list
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info(f"m's remaining in beam SVD computation: {m_list}")
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Distribute m list over tasks, and do computations
-        for mi in mpiutil.partition_list_mpi(m_list):
+        for mi in mpitools.partition_list_mpi(m_list):
             logger.info(f"m index {mi}. Creating SVD file: {self._svdfile(mi)}")
             self._generate_svdfile_m(mi, skip_svd_inv=skip_svd_inv)
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
@@ -731,11 +729,11 @@ class BeamTransfer(config.Reader):
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file.
 
-        # Open file to write SVD results into, using caput.misc.lock_file()
+        # Open file to write SVD results into, using caput.memdata.lock_file()
         # to guard against crashes while the file is open. With preserve=True,
         # the temp file will be saved with a period in front of its name
         # if a crash occurs.
-        with misc.lock_file(self._svdfile(mi), preserve=True) as fs_lock:
+        with lock_file(self._svdfile(mi), preserve=True) as fs_lock:
             with h5py.File(fs_lock, "w") as fs:
                 # Create a chunked dataset for writing the SVD beam matrix into.
                 dsize_bsvd = (
@@ -889,7 +887,7 @@ class BeamTransfer(config.Reader):
                             # First try la.pinv, which uses a least-squares solver.
                             try:
                                 ibeam = la.pinv(beam)
-                            except la.LinAlgError as e:
+                            except la.LinAlgError:
                                 # If la.pinv fails, try la.pinv2, which is SVD-based and
                                 # more likely to succeed. If successful, add file
                                 # attribute
@@ -940,11 +938,11 @@ class BeamTransfer(config.Reader):
             np.float64,
         )
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             with h5py.File(self.directory + "/svdspectrum.hdf5", "w") as f:
                 f.create_dataset("singularvalues", data=svdspectrum)
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
     def svd_all(self):
         """Collects the full SVD spectrum for all m-modes.
@@ -1465,7 +1463,7 @@ class BeamTransferTempSVD(BeamTransfer):
 
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file. Use MPI if available.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._svdfile(mi)) and not regen:
                 logger.info(
                     f"m index {mi}. File: {self._svdfile(mi)} exists. Skipping..."
@@ -1586,7 +1584,7 @@ class BeamTransferTempSVD(BeamTransfer):
                 fs.attrs["cylobj"] = self._telescope_pickle
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()
@@ -1602,7 +1600,7 @@ class BeamTransferFullSVD(BeamTransfer):
 
         # For each `m` collect all the `m` sections from each frequency file,
         # and write them into a new `m` file. Use MPI if available.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._svdfile(mi)) and not regen:
                 logger.info(
                     f"m index {mi}. File: {self._svdfile(mi)} exists. Skipping..."
@@ -1722,7 +1720,7 @@ class BeamTransferFullSVD(BeamTransfer):
                 fs.attrs["cylobj"] = self._telescope_pickle
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Collect the spectrum into a single file.
         self._collect_svd_spectrum()

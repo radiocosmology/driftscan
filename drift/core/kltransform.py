@@ -7,7 +7,8 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 
-from caput import config, mpiutil
+from caput import config
+from caput.util import mpitools
 
 from cora.util import hputil
 
@@ -19,20 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 def collect_m_arrays(mlist, func, shapes, dtype):
-    data = [(mi, func(mi)) for mi in mpiutil.partition_list_mpi(mlist)]
+    data = [(mi, func(mi)) for mi in mpitools.partition_list_mpi(mlist)]
 
-    mpiutil.barrier()
+    mpitools.barrier()
 
-    if mpiutil.rank0 and mpiutil.size == 1:
+    if mpitools.rank0 and mpitools.size == 1:
         p_all = [data]
     else:
-        p_all = mpiutil.world.gather(data, root=0)
+        p_all = mpitools.world.gather(data, root=0)
 
-    mpiutil.barrier()  # Not sure if this barrier really does anything,
+    mpitools.barrier()  # Not sure if this barrier really does anything,
     # but hoping to stop collect breaking
 
     marrays = None
-    if mpiutil.rank0:
+    if mpitools.rank0:
         marrays = [np.zeros((len(mlist),) + shape, dtype=dtype) for shape in shapes]
 
         for p_process in p_all:
@@ -41,7 +42,7 @@ def collect_m_arrays(mlist, func, shapes, dtype):
                     if result[si] is not None:
                         marrays[si][mi] = result[si]
 
-    mpiutil.barrier()
+    mpitools.barrier()
 
     return marrays
 
@@ -49,11 +50,11 @@ def collect_m_arrays(mlist, func, shapes, dtype):
 def collect_m_array(mlist, func, shape, dtype):
     res = collect_m_arrays(mlist, lambda mi: [func(mi)], [shape], dtype)
 
-    return res[0] if mpiutil.rank0 else None
+    return res[0] if mpitools.rank0 else None
 
 
 def eigh_gen(A, B, message=""):
-    """Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
+    r"""Solve the generalised eigenvalue problem. :math:`\mathbf{A} \mathbf{v} =
     \lambda \mathbf{B} \mathbf{v}`
 
     This routine will attempt to correct for when `B` is not positive definite
@@ -194,11 +195,11 @@ class KLTransform(config.Reader):
 
         # Create directory if required
         self.evdir = self.beamtransfer.directory + "/" + subdir
-        if mpiutil.rank0 and not os.path.exists(self.evdir):
+        if mpitools.rank0 and not os.path.exists(self.evdir):
             os.makedirs(self.evdir)
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
     def foreground(self):
         """Compute the foreground covariance matrix (on the sky).
@@ -212,10 +213,8 @@ class KLTransform(config.Reader):
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3 and npol != 4:
-                raise Exception(
-                    "Can only handle unpolarised only (num_pol_sky \
-                                 = 1), or I, Q and U (num_pol_sky = 3)."
-                )
+                raise Exception("Can only handle unpolarised only (num_pol_sky \
+                                 = 1), or I, Q and U (num_pol_sky = 3).")
 
             # If not polarised then zero out the polarised components of the array
             if self.use_polarised:
@@ -244,10 +243,8 @@ class KLTransform(config.Reader):
             npol = self.telescope.num_pol_sky
 
             if npol != 1 and npol != 3 and npol != 4:
-                raise Exception(
-                    "Can only handle unpolarised only (num_pol_sky \
-                                = 1), or I, Q and U (num_pol_sky = 3)."
-                )
+                raise Exception("Can only handle unpolarised only (num_pol_sky \
+                                = 1), or I, Q and U (num_pol_sky = 3).")
 
             self._cvsg = skymodel.im21cm_model(
                 self.telescope.lmax, self.telescope.frequencies, npol
@@ -461,14 +458,14 @@ class KLTransform(config.Reader):
 
             return evf
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info("Creating eigenvalues file (process 0 only).")
 
         mlist = list(range(self.telescope.mmax + 1))
         shape = (self.beamtransfer.ndofmax,)
         evarray = collect_m_array(mlist, evfunc, shape, np.float64)
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             if os.path.exists(self.evdir + "/evals.hdf5"):
                 logger.info(f"File: {self.evdir + '/evals.hdf5'} exists. Skipping...")
                 return
@@ -488,12 +485,12 @@ class KLTransform(config.Reader):
             Set of m's to calculate KL-modes for By default do all m-modes.
         """
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             st = time.time()
             logger.info("======== Starting KL calculation ========")
 
         # Iterate list over MPI processes.
-        for mi in mpiutil.mpirange(self.telescope.mmax + 1):
+        for mi in mpitools.mpirange(self.telescope.mmax + 1):
             if os.path.exists(self._evfile % mi) and not regen:
                 logger.info(
                     f"m index {mi}. File: {self._evfile % mi} exists. Skipping..."
@@ -503,9 +500,9 @@ class KLTransform(config.Reader):
             self.transform_save(mi)
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             et = time.time()
             logger.info(f"======== Ending KL calculation (time={et - st:f}) ========")
 
@@ -873,7 +870,7 @@ class KLTransform(config.Reader):
         # Set default list of m-modes (i.e. all of them), and partition
         if mlist is None:
             mlist = list(range(self.telescope.mmax + 1))
-        mpart = mpiutil.partition_list_mpi(mlist)
+        mpart = mpitools.partition_list_mpi(mlist)
 
         # Total number of sky modes.
         nmodes = self.beamtransfer.nfreq * self.beamtransfer.ntel
@@ -892,11 +889,11 @@ class KLTransform(config.Reader):
         proj_sec = [(mi, _proj(mi)) for mi in mpart]
 
         # Gather projections onto the rank=0 node.
-        proj_all = mpiutil.world.gather(proj_sec, root=0)
+        proj_all = mpitools.world.gather(proj_sec, root=0)
 
         proj_arr = None
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             # Create array to put projections into
             proj_arr = np.zeros(
                 (2 * self.telescope.mmax + 1, nmodes), dtype=np.complex128

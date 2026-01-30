@@ -173,7 +173,9 @@ def beam_x(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
         Amplitude vector of beam at each point (in thetahat, phihat)
     """
     that, phat = spherical.thetaphi_plane_cart(zenith)
-    xhat, yhat, zhat = spherical.rotate_ypr(rot, phat, -that, spherical.sph_to_cart(zenith))
+    xhat, yhat, zhat = spherical.rotate_ypr(
+        rot, phat, -that, spherical.sph_to_cart(zenith)
+    )
 
     pvec = polpattern(angpos, xhat)
 

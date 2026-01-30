@@ -113,9 +113,7 @@ class GmrtArray(telescope.TransitTelescope):
                 [np.pi / 2.0 - np.radians(self.pointing), self.zenith[1]]
             )
 
-            x2 = (1.0 - spherical.sph_dot(self._angpos, pointing) ** 2) / (
-                4 * sigma**2
-            )
+            x2 = (1.0 - spherical.sph_dot(self._angpos, pointing) ** 2) / (4 * sigma**2)
             self._bc_map = np.exp(-x2)
 
             self._bc_freq = freq

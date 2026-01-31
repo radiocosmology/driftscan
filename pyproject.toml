@@ -45,7 +45,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest"]
-docs = ["Sphinx", "sphinx_rtd_theme"]
+docs = ["Sphinx<9", "sphinx_rtd_theme"]
 lint = ["black", "pydocstyle"]
 
 [project.urls]

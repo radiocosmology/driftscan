@@ -11,7 +11,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "driftscan"
 description = "Transit telescope analysis with the m-mode formalism"
-license = { file = "LICENSE" }
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     { name = "The CHIME Collaboration", email = "lgray@phas.ubc.ca" }
 ]

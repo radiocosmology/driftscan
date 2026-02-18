@@ -2,95 +2,117 @@ name: driftscan-ci-build
 on:
   pull_request:
     branches:
-    - main
+      - main
   push:
     branches:
-    - main
+      - main
 
 jobs:
 
   lint-code:
+
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
 
-    - name: Install apt dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-serial-dev
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-serial-dev
 
-    - name: Install lint requirements
-      run: |
-        pip install black pydocstyle
+      - name: Install lint requirements
+        run: |
+          pip install black pydocstyle
 
-    - name: Check code with black
-      run: black --check .
+      - name: Check code with black
+        run: black --check .
 
-    # TODO: add the rest of the project to this test
-    - name: Check docstrings
-      run: pydocstyle --convention=numpy tests/test_simplepolarizationtelescope.py
+      # TODO: add the rest of the project to this test
+      - name: Check docstrings
+        run: pydocstyle --convention=numpy tests/test_simplepolarizationtelescope.py
 
   run-tests:
 
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.14"]
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.13", "3.14"]
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - name: Install apt dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
+      - name: Install apt dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Insstall brew dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          CC=mpicc brew install open-mpi hdf5-mpi
 
-    - name: Install pip dependencies
-      run: |
-        pip install -e .
-        pip install -e .[test]
-    
-    - name: Run tests
-      env:
-        OMP_NUM_THREADS: 1
-      # Because of issues with MPI forking, the two functional tests must be run within
-      # separate processes or the second one won't run
-      run: |
-        cd tests
-        pytest -s test_blockla.py test_simplepolarizationtelescope.py
-        pytest -s test_functional.py
-        pytest -s test_functional_skip.py
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Update pip
+        run: pip install --upgrade pip
+
+      - name: Disable OpenMP warning on macos
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "DRIFT_NO_OPENMP=1" >> "$GITHUB_ENV"
+          echo "CORA_NO_OPENMP=1" >> "$GITHUB_ENV"
+          echo "CAPUT_NO_OPENMP=1" >> "$GITHUB_ENV"
+
+      - name: Disable zstd assembly for rcent macos with missing wheel
+        if: matrix.os == 'macos-latest' && matrix.python-version == '3.14'
+        run: echo "CFLAGS=-DZSTD_DISABLE_ASM" >> "$GITHUB_ENV"
+
+      - name: Install pip dependencies
+        run: CC=mpicc pip install -e ".[test]"
+
+      - name: Run tests
+        env:
+          OMP_NUM_THREADS: 1
+        # Because of issues with MPI forking, the two functional tests must be run within
+        # separate processes or the second one won't run
+        run: |
+          cd tests
+          pytest -s test_blockla.py test_simplepolarizationtelescope.py
+          pytest -s test_functional.py
+          pytest -s test_functional_skip.py
 
   build-docs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
 
-    - name: Install apt dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-serial-dev libopenmpi-dev openmpi-bin
 
-    - name: Install pip dependencies
-      run: |
-        pip install -e .
-        pip install -e .[docs]
-    
-    - name: Build sphinx docs
-      run: sphinx-build -W -b html doc/ doc/_build/html
+      - name: Install pip dependencies
+        run: |
+          pip install -e .
+          pip install -e .[docs]
+
+      - name: Build sphinx docs
+        run: sphinx-build -W -b html doc/ doc/_build/html

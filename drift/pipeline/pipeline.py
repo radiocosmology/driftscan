@@ -4,8 +4,8 @@ import yaml
 
 from caput import config
 
-from drift.core import manager
-from drift.pipeline import timestream
+from ..core import manager
+from . import timestream
 
 
 def fixpath(path):

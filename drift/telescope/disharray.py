@@ -2,8 +2,8 @@ import numpy as np
 
 from scipy.special import jn
 
-from cora.util import coord
-from drift.core import telescope
+from caput.astro.coordinates import spherical
+from ..core import telescope
 
 
 def jinc(x):
@@ -28,7 +28,7 @@ def beam_circular(angpos, zenith, uv_diameter):
         Beam pattern at each position in angpos.
     """
 
-    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
+    x = (1.0 - spherical.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
 
     return 2 * jinc(x)
 

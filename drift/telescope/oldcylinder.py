@@ -1,10 +1,9 @@
 import numpy as np
 
 from caput import config
+from caput.astro.coordinates import spherical
 
-from cora.util import coord
-
-from drift.core import telescope, visibility
+from ..core import telescope, visibility
 
 
 class CylinderTelescope(telescope.TransitTelescope):
@@ -193,8 +192,8 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
         if self.ortho_pol:
             bm[:, 1] = bpat
         else:
-            thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
-            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            thatz, phatz = spherical.thetaphi_plane_cart(self.zenith)
+            thatp, phatp = spherical.thetaphi_plane_cart(self._angpos)
             bm[:, 0] = np.dot(thatp, phatz) * bpat
             bm[:, 1] = np.dot(phatp, phatz) * bpat
 
@@ -212,8 +211,8 @@ class PolarisedCylinderTelescope(CylinderTelescope, telescope.SimplePolarisedTel
         if self.ortho_pol:
             bm[:, 0] = bpat
         else:
-            thatz, phatz = coord.thetaphi_plane_cart(self.zenith)
-            thatp, phatp = coord.thetaphi_plane_cart(self._angpos)
+            thatz, phatz = spherical.thetaphi_plane_cart(self.zenith)
+            thatp, phatp = spherical.thetaphi_plane_cart(self._angpos)
             bm[:, 0] = np.dot(thatp, thatz) * bpat
             bm[:, 1] = np.dot(phatp, thatz) * bpat
 

@@ -2,10 +2,11 @@ import numpy as np
 from scipy.special import jn
 
 from caput import config
+from caput.astro import constants
+from caput.astro.coordinates import spherical
 
-from cora.util import coord, units
-from drift.core import telescope
-from drift.util import util
+from ..core import telescope
+from ..util import util
 
 
 def jinc(x):
@@ -30,14 +31,14 @@ def beam_circular(angpos, zenith, uv_diameter):
         Beam pattern at each position in angpos.
     """
 
-    x = (1.0 - coord.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
+    x = (1.0 - spherical.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
 
     return 2 * jinc(x)
 
 
 def gaussian_beam(angpos, pointing, fwhm):
     sigma = np.radians(fwhm) / (8.0 * np.log(2.0)) ** 0.5
-    x2 = (1.0 - coord.sph_dot(angpos, pointing) ** 2) / (4 * sigma**2)
+    x2 = (1.0 - spherical.sph_dot(angpos, pointing) ** 2) / (4 * sigma**2)
 
     return np.exp(-x2)
 
@@ -110,7 +111,7 @@ class FocalPlaneArray(telescope.UnpolarisedTelescope):
 
     @property
     def dish_width(self):
-        lpivot = units.c / self.beam_pivot * 1e-6
+        lpivot = constants.c / self.beam_pivot * 1e-6
         return lpivot / np.radians(self.beam_size)
 
     @property

@@ -4,10 +4,10 @@ import os
 import numpy as np
 import h5py
 
-from caput import mpiutil, config
+from caput import config
+from caput.util import mpitools
 
-from drift.core import kltransform
-
+from . import kltransform
 
 # Get logger for module
 logger = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ class DoubleKL(kltransform.KLTransform):
 
             return ta
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info("Creating eigenvalues file (process 0 only).")
 
         mlist = list(range(self.telescope.mmax + 1))
@@ -116,7 +116,7 @@ class DoubleKL(kltransform.KLTransform):
 
         evarray = kltransform.collect_m_array(mlist, evfunc, shape, np.float64)
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             fname = self.evdir + "/evals.hdf5"
             if os.path.exists(fname):
                 logger.info("File: {fname} exists. Skipping...")

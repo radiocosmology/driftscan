@@ -1,8 +1,8 @@
 import cachetools
 import numpy as np
 
-from caput.interferometry import rotate_ypr
-from cora.util import coord, cubicspline
+from caput.astro.coordinates import spherical
+from cora.util import cubicspline
 
 from ..util._fast_tools import beam_exptan
 
@@ -26,9 +26,9 @@ def polpattern(angpos, dipole):
     """
 
     if dipole.shape[0] == 2:
-        dipole = coord.sph_to_cart(dipole)
+        dipole = spherical.sph_to_cart(dipole)
 
-    thatp, phatp = coord.thetaphi_plane_cart(angpos)
+    thatp, phatp = spherical.thetaphi_plane_cart(angpos)
 
     polvec = np.zeros(angpos.shape[:-1] + (2,), dtype=angpos.dtype)
 
@@ -37,7 +37,7 @@ def polpattern(angpos, dipole):
     polvec[..., 1] = np.dot(phatp, dipole)
 
     # Normalise length to unity.
-    coord.norm_vec2(polvec)
+    spherical.norm_vec2(polvec)
 
     return polvec
 
@@ -124,9 +124,11 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
     if _beam_pat_cache is None:
         _beam_pat_cache = cachetools.LRUCache(maxsize=100)
 
-    that, phat = coord.thetaphi_plane_cart(zenith)
+    that, phat = spherical.thetaphi_plane_cart(zenith)
 
-    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
+    xhat, yhat, zhat = spherical.rotate_ypr(
+        rot, phat, -that, spherical.sph_to_cart(zenith)
+    )
 
     yplane = lambda t: beam_exptan(t, fwhm_y)
 
@@ -138,8 +140,8 @@ def beam_amp(angpos, zenith, width, fwhm_x, fwhm_y, rot=[0.0, 0.0, 0.0]):
         _beam_pat_cache[bpkey] = fraunhofer_cylinder(xplane, width)
     beampat = _beam_pat_cache[bpkey]
 
-    cvec = coord.sph_to_cart(angpos)
-    horizon = (np.dot(cvec, coord.sph_to_cart(zenith)) > 0.0).astype(np.float64)
+    cvec = spherical.sph_to_cart(angpos)
+    horizon = (np.dot(cvec, spherical.sph_to_cart(zenith)) > 0.0).astype(np.float64)
 
     ew_amp = beampat(np.dot(cvec, xhat))
     ns_amp = yplane(np.dot(cvec, yhat))
@@ -170,8 +172,10 @@ def beam_x(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
     beam : np.ndarray[npoints, 2]
         Amplitude vector of beam at each point (in thetahat, phihat)
     """
-    that, phat = coord.thetaphi_plane_cart(zenith)
-    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
+    that, phat = spherical.thetaphi_plane_cart(zenith)
+    xhat, yhat, zhat = spherical.rotate_ypr(
+        rot, phat, -that, spherical.sph_to_cart(zenith)
+    )
 
     pvec = polpattern(angpos, xhat)
 
@@ -202,8 +206,10 @@ def beam_y(angpos, zenith, width, fwhm_e, fwhm_h, rot=[0.0, 0.0, 0.0]):
         Amplitude vector of beam at each point (in thetahat, phihat)
     """
     # Reverse as thetahat points south
-    that, phat = coord.thetaphi_plane_cart(zenith)
-    xhat, yhat, zhat = rotate_ypr(rot, phat, -that, coord.sph_to_cart(zenith))
+    that, phat = spherical.thetaphi_plane_cart(zenith)
+    xhat, yhat, zhat = spherical.rotate_ypr(
+        rot, phat, -that, spherical.sph_to_cart(zenith)
+    )
 
     pvec = polpattern(angpos, yhat)
 

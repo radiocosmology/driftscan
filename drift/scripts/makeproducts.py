@@ -8,9 +8,8 @@ import math
 
 import click
 
-from caput import mpiutil
-from caput.profile import Profiler
-
+from caput.util import mpitools
+from caput.util.profiler import Profiler
 
 products = None
 
@@ -60,10 +59,10 @@ def run(configfile, profile, profiler):
 
     # Add a useful filter for the logging
     # TODO: patch the levels into the config file, or command line options
-    filt = mpiutil.MPILogFilter(level_all=logging.INFO, level_rank0=logging.INFO)
+    filt = mpitools.MPILogFilter(level_all=logging.INFO, level_rank0=logging.INFO)
 
     # Set a useful logging format
-    size = mpiutil.size
+    size = mpitools.size
     rank_length = int(math.log10(size)) + 1
     mpi_fmt = f"[MPI %(mpi_rank){rank_length}d/%(mpi_size){rank_length}d]"
     formatter = logging.Formatter(

@@ -9,15 +9,15 @@ import h5py
 import numpy as np
 import scipy.linalg as la
 
-from caput import config, mpiutil
+from caput import config
+from caput.util import mpitools
 
 from cora.signal import corr21cm
 
-from drift.core import skymodel
-from drift.util import util
+from . import skymodel
+from ..util import util
 
 from mpi4py import MPI
-
 
 # Get logger for the module
 logger = logging.getLogger(__name__)
@@ -223,11 +223,11 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         self.telescope = kltrans.telescope
         self.psdir = self.kltrans.evdir + "/" + subdir + "/"
 
-        if mpiutil.rank0 and not os.path.exists(self.psdir):
+        if mpitools.rank0 and not os.path.exists(self.psdir):
             os.makedirs(self.psdir)
 
         # If we're part of an MPI run, synchronise here.
-        mpiutil.barrier()
+        mpitools.barrier()
 
     @property
     def nbands(self):
@@ -374,12 +374,12 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             temponly=True,
         )
 
-        logger.info(f"Rank: {mpiutil.rank} - Finished making band.")
+        logger.info(f"Rank: {mpitools.rank} - Finished making band.")
         return clzz
 
     def make_clzz_array(self):
-        p_bands, s_bands, e_bands = mpiutil.split_all(self.nbands)
-        p, s, e = mpiutil.split_local(self.nbands)
+        p_bands, s_bands, e_bands = mpitools.split_all(self.nbands)
+        p, s, e = mpitools.split_local(self.nbands)
 
         self.clarray = np.zeros(
             (
@@ -469,7 +469,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             Force regeneration if products already exist (default `False`).
         """
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             st = time.time()
             logger.info("======== Starting PS calculation ========")
 
@@ -479,7 +479,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             logger.info(f"Fisher matrix file: {ffile} exists. Skipping...")
             return
 
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Pre-compute all the angular power spectra for the bands
         self.genbands()
@@ -488,7 +488,7 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
         # Pair up each list item with its position.
         zlist = list(enumerate(range(self.telescope.mmax + 1)))
         # Partition list based on MPI rank
-        llist = mpiutil.partition_list_mpi(zlist)
+        llist = mpitools.partition_list_mpi(zlist)
         # Operate on sublist
         fisher_bias_list = [self.fisher_bias_m(item) for ind, item in llist]
 
@@ -503,11 +503,11 @@ class PSEstimation(config.Reader, metaclass=abc.ABCMeta):
             np.array(bias_loc), axis=0
         ).real  # Be careful of the .real here
 
-        self.fisher = mpiutil.allreduce(fisher_loc, op=MPI.SUM)
-        self.bias = mpiutil.allreduce(bias_loc, op=MPI.SUM)
+        self.fisher = mpitools.allreduce(fisher_loc, op=MPI.SUM)
+        self.bias = mpitools.allreduce(bias_loc, op=MPI.SUM)
 
         # Write out all the PS estimation products
-        if mpiutil.rank0:
+        if mpitools.rank0:
             et = time.time()
             logger.info(f"======== Ending PS calculation (time={et - st:f}) ========")
 

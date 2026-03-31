@@ -1,8 +1,8 @@
 import numpy as np
 
-from caput import mpiutil
+from caput.util import mpitools
 
-from drift.core import psmc
+from . import psmc
 
 
 class CrossPower(psmc.PSMonteCarlo):
@@ -30,7 +30,7 @@ class CrossPower(psmc.PSMonteCarlo):
         qa = np.zeros((self.nbands + 1, self.nsamples))
 
         # Split calculation into subranges to save on memory usage
-        num, starts, ends = mpiutil.split_m(self.nsamples, (self.nsamples // 1000) + 1)
+        num, starts, ends = mpitools.split_m(self.nsamples, (self.nsamples // 1000) + 1)
 
         for n, s, e in zip(num, starts, ends):
             x1 = self.gen_sample(mi, n)

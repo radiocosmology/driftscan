@@ -6,15 +6,16 @@ import warnings
 
 import yaml
 
-from caput import mpiutil
+from caput.util import mpitools
 
-from drift.telescope import (
+from ..telescope import (
     cylinder,
     gmrt,
     focalplane,
     restrictedcylinder,
     exotic_cylinder,
 )
+
 from drift.telescope.custom_disharray.core import (
     PolarisedDishArray,
     PolarisedDishArraySurvey,
@@ -28,11 +29,15 @@ from drift.telescope.custom_disharray.hirax import (
     HIRAXHexTileSurvey,
 )
 
-from drift.core import beamtransfer
-
-from drift.core import kltransform, doublekl
-from drift.core import psestimation, psmc, crosspower
-from drift.core import skymodel
+from . import (
+    beamtransfer,
+    kltransform,
+    doublekl,
+    psestimation,
+    psmc,
+    crosspower,
+    skymodel,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -155,7 +160,7 @@ class ProductManager(object):
         dfile = os.path.join(outdir, "config.yaml")
 
         ## Create output directory and copy over params file.
-        if mpiutil.rank0:
+        if mpitools.rank0:
             # Create directory if required
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
@@ -183,7 +188,7 @@ class ProductManager(object):
                     f.write(config_contents)
 
         # Need to wait until the dumped file has been created by rank=0
-        mpiutil.barrier()
+        mpitools.barrier()
 
         # Load config into a new class and return
         c = cls()
@@ -221,7 +226,7 @@ class ProductManager(object):
         self.directory = os.path.expanduser(self.directory)
         self.directory = os.path.expandvars(self.directory)
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info(f"Product directory: {self.directory}")
 
         ## Telescope configuration
@@ -322,5 +327,5 @@ class ProductManager(object):
                 psobj.generate()
                 psobj.delbands()
 
-        if mpiutil.rank0:
+        if mpitools.rank0:
             logger.info("DONE GENERATING PRODUCTS")

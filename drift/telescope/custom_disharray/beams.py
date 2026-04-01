@@ -511,6 +511,7 @@ class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
         Default: -40
     """
 
+    aperture_efficiency = config.Property(proptype=float, default=1.0)
     crosspol_type = config.enum(["pure", "scaled"], default="pure")
     crosspol_scale_dB = config.Property(proptype=float, default=-40)
 
@@ -527,13 +528,14 @@ class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
         tel_obj: TransitTelescope,
         feed_ind: int,
         freq_ind: int,
+        angpos: np.ndarray,
         altaz_pointing: Optional[np.ndarray] = None,
     ) -> np.ndarray:
 
         if altaz_pointing is None:
             altaz_pointing = np.radians([90, 180])
 
-        copol_beam = self.beam_func(tel_obj, feed_ind, freq_ind, altaz_pointing)
+        copol_beam = np.sqrt(self.aperture_efficiency) * self.beam_func(tel_obj, feed_ind, freq_ind, angpos, altaz_pointing)
 
         if tel_obj.num_pol_sky == 1:
             return copol_beam
@@ -550,7 +552,7 @@ class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
             return cocr_to_thetaphi(
                 cocr_beam,
                 pol_type=tel_obj.polarisation[feed_ind],
-                angpos=tel_obj._angpos,
+                angpos=angpos,
                 zenith=tel_obj.zenith,
                 altaz_pointing=altaz_pointing,
             )
@@ -570,11 +572,11 @@ class AiryBeam(AnalyticCoPolBeam):
     diameter = config.Property(proptype=float, default=6.0)
 
     def beam_func(
-        self, tel_obj: TransitTelescope, feed_ind: int, freq_ind: int, altaz_pointing
+        self, tel_obj: TransitTelescope, feed_ind: int, freq_ind: int, angpos: np.ndarray, altaz_pointing
     ) -> np.ndarray:
 
         seps = pointing_offset_separation(
-            tel_obj._angpos, tel_obj.zenith, altaz_pointing=altaz_pointing
+            angpos, tel_obj.zenith, altaz_pointing=altaz_pointing
         )
 
         return np.array(airy_beam(seps, tel_obj.wavelengths[freq_ind], self.diameter))
@@ -599,11 +601,11 @@ class GaussianBeam(AnalyticCoPolBeam):
     fwhm_factor = config.Property(proptype=float, default=1.0)
 
     def beam_func(
-        self, tel_obj: TransitTelescope, feed_ind: int, freq_ind: int, altaz_pointing
+        self, tel_obj: TransitTelescope, feed_ind: int, freq_ind: int, angpos: np.ndarray, altaz_pointing
     ) -> np.ndarray:
 
         seps = pointing_offset_separation(
-            tel_obj._angpos, tel_obj.zenith, altaz_pointing=altaz_pointing
+            angpos, tel_obj.zenith, altaz_pointing=altaz_pointing
         )
 
         return np.array(

@@ -2,7 +2,7 @@
 """
 
 import inspect
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 
 import numpy as np
 import scipy.linalg as linalg
@@ -122,7 +122,7 @@ class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
         else:
             return (self.layout_obj.polarisation == "Y").astype(int)
 
-    def beam(self, feed_ind: int, freq_ind: int) -> np.ndarray:
+    def beam(self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None) -> np.ndarray:
         """Primary beam pattern extracted from the `beam_obj`.
 
         Parameters
@@ -136,7 +136,10 @@ class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
         ------- 
             (npix, 2) Beam pattern in sky theta, phi directions. May be complex.
         """
-        return self.beam_obj(self, feed_ind, freq_ind)
+        if angpos is None:
+            angpos = self._angpos
+        
+        return self.beam_obj(self, feed_ind, freq_ind, angpos)
 
     @property
     def u_width(self) -> float:
@@ -301,7 +304,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
             orig_pol = self.single_pointing_telescope.polarisation
         return np.tile(orig_pol, len(self.elevation_pointings))
 
-    def beam(self, feed_ind: int, freq_ind: int) -> np.ndarray:
+    def beam(self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None) -> np.ndarray:
         """Primary beam pattern. If a beam_obj from a `:py:class:.CustomDishArray`
         that supports a pointing argument is detected, the offset pointing is 
         passed through. Otherwise the evaluated HEALPix beam pattern of the
@@ -318,6 +321,9 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
         ------- 
             (npix, 2) Beam pattern in sky theta, phi directions. May be complex.
         """
+        if angpos is None:
+            angpos = self._angpos
+        
         ddec = self.elevation_pointings[self.pointing_feedmap[feed_ind]]  # In degrees
         if hasattr(self, "beam_obj") and getattr(
             self.beam_obj, "supports_pointing", False
@@ -326,13 +332,13 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
             # argument.
             altaz_pointing = np.radians(np.array([90 + ddec, 180]))
             return self.beam_obj(
-                self, feed_ind, freq_ind, altaz_pointing=altaz_pointing
+                self, feed_ind, freq_ind, angpos, altaz_pointing=altaz_pointing
             )
         else:
             # We manually rotate the beam which is assumed to be at the zenith
             # pointing in sky Eth, Eph.
-            beam = super().beam(feed_ind, freq_ind)
-            return rotate_thetaphi_beam(beam, np.radians(-ddec), self._angpos)
+            beam = super().beam(feed_ind, freq_ind, angpos)
+            return rotate_thetaphi_beam(beam, np.radians(-ddec), angpos)
 
 
 class PolarisedDishArray(CustomDishArray, PolarisedTelescope):

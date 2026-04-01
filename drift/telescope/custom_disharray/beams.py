@@ -69,7 +69,7 @@ import numpy as np
 import healpy as hp
 
 from caput import config
-from cora.util import coord
+from caput.astro.coordinates import spherical as coord
 
 from drift.core.telescope import TransitTelescope
 from drift.telescope.cylbeam import polpattern

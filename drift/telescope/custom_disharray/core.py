@@ -1,5 +1,4 @@
-"""`TransitTelescope` mixins for dish array surveys with concrete implementations.
-"""
+"""`TransitTelescope` mixins for dish array surveys with concrete implementations."""
 
 import inspect
 from typing import Tuple, Union, Optional
@@ -43,7 +42,7 @@ def _confdict_from_classes(list_of_classes: list) -> dict:
 
 class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
     """
-    Mixin for :py:class:`drift.core.telescope.TransitTelescope` that 
+    Mixin for :py:class:`drift.core.telescope.TransitTelescope` that
     provides configurable primary beams and array layouts for dish array
     surveys.
 
@@ -74,9 +73,19 @@ class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
     longitude = config.Property(proptype=float, default=0)
     altitude = config.Property(proptype=float, default=0)
 
-    layout_spec = config.Property(proptype=dict, default={"type": "grid",})
+    layout_spec = config.Property(
+        proptype=dict,
+        default={
+            "type": "grid",
+        },
+    )
 
-    beam_spec = config.Property(proptype=dict, default={"type": "gaussian",},)
+    beam_spec = config.Property(
+        proptype=dict,
+        default={
+            "type": "gaussian",
+        },
+    )
 
     def __init__(self):
         """Initialise a telescope object. The observatory coordinates are derived
@@ -99,15 +108,15 @@ class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
     @property
     def feedpositions(self) -> np.ndarray:
         """(nfeed, 2) array of the relative positions of the feeds extracted from the `layout_obj`.
-         Units in metres, packed EW, NS.
+        Units in metres, packed EW, NS.
         """
         return self.layout_obj.feedpositions
 
     @property
     def polarisation(self) -> Union[np.ndarray, None]:
-        """(nfeed,) array of "X" (East-like) or "Y" (North-like) 
-            polarisation indices. If the mixin is applied to an
-            unpolarised telescope, returns None.
+        """(nfeed,) array of "X" (East-like) or "Y" (North-like)
+        polarisation indices. If the mixin is applied to an
+        unpolarised telescope, returns None.
         """
         return self.layout_obj.polarisation
 
@@ -122,7 +131,9 @@ class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
         else:
             return (self.layout_obj.polarisation == "Y").astype(int)
 
-    def beam(self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None) -> np.ndarray:
+    def beam(
+        self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """Primary beam pattern extracted from the `beam_obj`.
 
         Parameters
@@ -133,40 +144,38 @@ class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
             Frequency index to pass to the `beam_obj`.
 
         Returns
-        ------- 
+        -------
             (npix, 2) Beam pattern in sky theta, phi directions. May be complex.
         """
         if angpos is None:
             angpos = self._angpos
-        
+
         return self.beam_obj(self, feed_ind, freq_ind, angpos)
 
     @property
     def u_width(self) -> float:
-        """Minimum EW element separation [in metres] used for m, l range calculations.
-        """
+        """Minimum EW element separation [in metres] used for m, l range calculations."""
         return self.min_u
 
     @property
     def v_width(self) -> float:
-        """Minimum NS element separation [in metres] used for m, l range calculations.
-        """
+        """Minimum NS element separation [in metres] used for m, l range calculations."""
         return self.min_v
 
 
 class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
-    """Mixin for :py:class:`drift.core.telescope.TransitTelescope` that 
+    """Mixin for :py:class:`drift.core.telescope.TransitTelescope` that
     enables multi-pointed surveys in elevation.
 
     This works by duplicating the telescope feeds (and hence baselines),
     for each pointing. However pairs across pointings are masked so we
-    only linearly increase the number of baselines. Primary beams from the 
-    :py:class:`CustomDishArray` may support a pointing  argument. Otherwise, 
-    the polarised HEALPix beam pattern is directly rotated. A caveat to this 
-    approach is that the feed and baselines indices as well as related telescope 
-    state is now a mixture of physical indices and pointings. Some helper 
-    methods are provided to assist with decoupling this. 
-        
+    only linearly increase the number of baselines. Primary beams from the
+    :py:class:`CustomDishArray` may support a pointing  argument. Otherwise,
+    the polarised HEALPix beam pattern is directly rotated. A caveat to this
+    approach is that the feed and baselines indices as well as related telescope
+    state is now a mixture of physical indices and pointings. Some helper
+    methods are provided to assist with decoupling this.
+
     .. note::
         For implementation reasons it is also strongly recommended that this
         mixin be the bottom of the class hierarchy.
@@ -178,7 +187,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
         Positive is north of zenith, negative is south of zenith.
         Default: -10 [degrees]
     elevation_stop: :py:class:`caput.config.Property(proptype=float)`
-        End point of the elevation offset pointings, relative to zenith in degrees. 
+        End point of the elevation offset pointings, relative to zenith in degrees.
         Positive is north of zenith, negative is south of zenith.
         Default: 10 [degrees]
     npointings: :py:class:`caput.config.Property(proptype=int)`
@@ -240,7 +249,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
 
     @property
     def feedpositions(self) -> np.ndarray:
-        """(nfeed_actual x npointings, 2) array of the relative positions of the 
+        """(nfeed_actual x npointings, 2) array of the relative positions of the
         feeds repeated for each pointings. Units in metres, packed EW, NS.
         """
         return np.tile(
@@ -250,14 +259,13 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
 
     @property
     def nfeed_actual(self) -> int:
-        """ The number of physical feeds, nfeed has become nfeed x npointings 
+        """The number of physical feeds, nfeed has become nfeed x npointings
         to implement this Mixin.
         """
         return self.nfeed // self.npointings
 
     def _unique_baselines(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Ensures baselines from different pointings are treated as unique
-        """
+        """Ensures baselines from different pointings are treated as unique"""
         fmap, mask = self.single_pointing_telescope._unique_baselines()
         nfeed = self.single_pointing_telescope.nfeed
 
@@ -269,8 +277,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
         return _remap_keyarray(block_fmap, block_mask), block_mask
 
     def _unique_beams(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Ensures beams from different pointings are treated as unique
-        """
+        """Ensures beams from different pointings are treated as unique"""
         nfeed = self.single_pointing_telescope.nfeed
         bmap, mask = self.single_pointing_telescope._unique_beams()
 
@@ -283,7 +290,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
 
     @property
     def beamclass(self) -> np.ndarray:
-        """(nfeed_actual x npointings,) array of beamclass indices repeated and 
+        """(nfeed_actual x npointings,) array of beamclass indices repeated and
         made unique for each pointing.
         """
         orig_bc = self.single_pointing_telescope.beamclass
@@ -294,9 +301,9 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
 
     @property
     def polarisation(self) -> Union[np.ndarray, None]:
-        """(nfeed_actual x npointings,) array of "X" (East-like) or "Y" (North-like) 
-            polarisation indices. If the mixin is applied to an
-            unpolarised telescope, returns None.
+        """(nfeed_actual x npointings,) array of "X" (East-like) or "Y" (North-like)
+        polarisation indices. If the mixin is applied to an
+        unpolarised telescope, returns None.
         """
         if self.single_pointing_telescope.polarisation is None:
             return None
@@ -304,9 +311,11 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
             orig_pol = self.single_pointing_telescope.polarisation
         return np.tile(orig_pol, len(self.elevation_pointings))
 
-    def beam(self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None) -> np.ndarray:
+    def beam(
+        self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """Primary beam pattern. If a beam_obj from a `:py:class:.CustomDishArray`
-        that supports a pointing argument is detected, the offset pointing is 
+        that supports a pointing argument is detected, the offset pointing is
         passed through. Otherwise the evaluated HEALPix beam pattern of the
         `single_pointing_telescope` is directly rotated.
 
@@ -318,12 +327,12 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
             Frequency index to pass to the `beam_obj`.
 
         Returns
-        ------- 
+        -------
             (npix, 2) Beam pattern in sky theta, phi directions. May be complex.
         """
         if angpos is None:
             angpos = self._angpos
-        
+
         ddec = self.elevation_pointings[self.pointing_feedmap[feed_ind]]  # In degrees
         if hasattr(self, "beam_obj") and getattr(
             self.beam_obj, "supports_pointing", False
@@ -342,28 +351,24 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
 
 
 class PolarisedDishArray(CustomDishArray, PolarisedTelescope):
-    """A polarised, configurable dish array.
-    """
+    """A polarised, configurable dish array."""
 
     pass
 
 
 class PolarisedDishArraySurvey(MultiElevationSurvey, PolarisedDishArray):
-    """A polarised, configurable dish array survey with multiple elevation pointings.
-    """
+    """A polarised, configurable dish array survey with multiple elevation pointings."""
 
     pass
 
 
 class UnpolarisedDishArray(CustomDishArray, UnpolarisedTelescope):
-    """An unpolarised, configurable dish array.
-    """
+    """An unpolarised, configurable dish array."""
 
     pass
 
 
 class UnpolarisedDishArraySurvey(MultiElevationSurvey, UnpolarisedDishArray):
-    """An unpolarised, configurable dish array survey with multiple elevation pointings.
-    """
+    """An unpolarised, configurable dish array survey with multiple elevation pointings."""
 
     pass

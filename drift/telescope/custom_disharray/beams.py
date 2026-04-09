@@ -1,6 +1,6 @@
 """Helpers for parameterised primary beams for pointed dish arrays.
 
-The classes provide parameterised beams made use of by the 
+The classes provide parameterised beams made use of by the
 :py:class:`..core.CustomDishArray` mixin.
 
 These can be specified in the `beam_spec` section of the configuration file.
@@ -12,9 +12,9 @@ For example:
     # In a drift-makeproducts configuration file:
 
     telescope:
-      
+
       # Must be a TransitTelescope (sub)-class with CustomDishArray mixin.
-      type: PolarisedDishArray 
+      type: PolarisedDishArray
 
       # Any TransitTelescope / CustomDishArray Parameters
       ...
@@ -23,14 +23,14 @@ For example:
         # Gaussian beam with FWHM = lambda/(6 m)
         type: gaussian
         diameter: 6 # effective dish diameter in metres
-      
+
 Other examples:
 
 .. code-block:: yaml
 
     beam_spec:
-        # Airy beam corresponding to a co-polar pattern of a uniformly 
-        # illuminated aperture of diameter 6m and a cross-polar term 
+        # Airy beam corresponding to a co-polar pattern of a uniformly
+        # illuminated aperture of diameter 6m and a cross-polar term
         # -60 dB suppressed (in voltage) with the same pattern.
         type: airy
         diameter: 6 # effective dish diameter in metres
@@ -53,9 +53,9 @@ Currently supported `beam_spec` types are:
 
 - `gaussian` provided by :py:class:`GaussianBeam`
 - `airy` provided by :py:class:`AiryBeam`
-- `healpix` provided by :py:class:`HEALPixBeam` 
+- `healpix` provided by :py:class:`HEALPixBeam`
 
-See their class and base class definitions for more parameter options. 
+See their class and base class definitions for more parameter options.
 """
 
 from __future__ import division, print_function, absolute_import, unicode_literals
@@ -84,8 +84,8 @@ FWHM2SIGMA = 1 / (2 * np.sqrt(2 * np.log(2)))
 
 def rot_mats_thetaphi(theta: float, phi: float) -> Tuple[np.ndarray, np.ndarray]:
     """Rotation matrices for rotating cartesian vectors by angles corresponding
-    to the HEALPix :math:`\\theta, \phi` directions. Convention is that a positive 
-    :math:`\\theta` rotation rotates the :math:`\hat{z}` direction south along the 
+    to the HEALPix :math:`\\theta, \phi` directions. Convention is that a positive
+    :math:`\\theta` rotation rotates the :math:`\hat{z}` direction south along the
     :math:`\phi=0` meridian and a positive :math:`\phi` rotation rotates the
     :math:`\hat{x}` direction eastwards.
 
@@ -151,7 +151,7 @@ def rotate_thetaphi_beam(
     Parameters
     ----------
     beam
-        (N, 2) vector beam pattern in Etheta, Ephi, assumed packed in RING 
+        (N, 2) vector beam pattern in Etheta, Ephi, assumed packed in RING
         ordering. May be complex.
     rot_theta
         Angle to rotate by in the theta direction in radians. Positive theta
@@ -169,7 +169,7 @@ def rotate_thetaphi_beam(
     # If a null rotation, do nothing and return the original beam
     if not hp_rot.do_rot(0):
         return beam
-        
+
     thph_amp_rot = np.empty_like(beam)
 
     # Healpy spams logs when on log level INFO (as in during a makeproducts run)
@@ -204,12 +204,12 @@ def rotate_thetaphi_beam(
 def pointing_offset_thetaphi_coords(
     angpos: np.ndarray, zenith: np.ndarray, altaz_pointing: np.ndarray
 ) -> np.ndarray:
-    """Offset radial (:math:`\\theta`) and azimuthal (:math:`\phi`) coordinates 
+    """Offset radial (:math:`\\theta`) and azimuthal (:math:`\phi`) coordinates
     for an input pointing relative to an observer with an input zenith.
 
     Useful for interpolating beams as functions of pointing offset coordinates
     onto sky coordinates for a given pointing. Phi convention is such that
-    it increases anti-clockwise from the local vertical for pointing's with 
+    it increases anti-clockwise from the local vertical for pointing's with
     an altitude <= pi/2. For altitude > pi/2 this is extended in an "over-the-top"
     sense.
 
@@ -224,7 +224,7 @@ def pointing_offset_thetaphi_coords(
 
     Returns
     -------
-        (N, 2) array of pointing offset coordinates 
+        (N, 2) array of pointing offset coordinates
     """
     cart_sky = coord.sph_to_cart(angpos)
 
@@ -249,7 +249,7 @@ def cocr_to_thetaphi(
     altaz_pointing: np.ndarray,
 ) -> np.ndarray:
     """Convert a co-pol, cross-pol beam pattern for an antenna with polarisation
-    axis aligned with the pointing-local vertical ("Y") or horizontal ("X") to 
+    axis aligned with the pointing-local vertical ("Y") or horizontal ("X") to
     an Etheta, Ephi pattern relative to the sky coordinates.
 
     Parameters
@@ -309,7 +309,7 @@ def pointing_offset_separation(
     altaz_pointing
         (2,) array of altitude, azimuth coordinates in radians.
     degrees
-        If True, return the offset separation angle in degrees. 
+        If True, return the offset separation angle in degrees.
         Default False
 
     Returns
@@ -345,7 +345,7 @@ def pointing_offset_angles(
 
         \mathrm{longitude} = \\theta  \sin(\phi),
 
-    For the :math:`\\theta` and :math:`\phi` convention used in 
+    For the :math:`\\theta` and :math:`\phi` convention used in
     :py:func:`pointing_offset_thetaphi`.
 
 
@@ -358,7 +358,7 @@ def pointing_offset_angles(
     altaz_pointing
         (2,) array of altitude, azimuth coordinates in radians.
     degrees
-        If True, return the offset great circle angles in degrees. 
+        If True, return the offset great circle angles in degrees.
         Default False
 
     Returns
@@ -395,7 +395,7 @@ def airy_beam(
     Parameters
     ----------
     separations
-        Angular separations (:math:`\\theta`) to calculate the 
+        Angular separations (:math:`\\theta`) to calculate the
         pattern at, units of radians.
     wavelength
         Wavelength (:math:`\lambda`) in metres to use.
@@ -434,7 +434,7 @@ def airy_beam(
     if voltage:
         return out
     else:
-        return out ** 2
+        return out**2
 
 
 def gaussian(
@@ -445,7 +445,7 @@ def gaussian(
     voltage: Optional[bool] = True,
 ) -> FloatArrayLike:
     """An azimuthally symmetric gaussian beam pattern with
-    FWHM of the power beam derived from an effective dish 
+    FWHM of the power beam derived from an effective dish
     diameter and wavelength.
 
     .. math::
@@ -461,14 +461,14 @@ def gaussian(
     Parameters
     ----------
     separations
-        Angular separations (:math:`\\theta`) to calculate the 
+        Angular separations (:math:`\\theta`) to calculate the
         pattern at, units of radians.
     wavelength
         Wavelength (:math:`\lambda`) in metres to use for FWHM calculation.
     diameter
         Effective dish diameter (:math:`D`) in metres to use for FWHM calculation.
     fwhm_factor
-        Scaling factor (:math:`f`) for relationship between FWHM and 
+        Scaling factor (:math:`f`) for relationship between FWHM and
         wavelength/diameter. A value of one approximates the
         main lobe of a uniformally illuminated aperture.
     voltage
@@ -485,7 +485,7 @@ def gaussian(
     fwhm = fwhm_factor * wavelength / diameter
 
     sigma = FWHM2SIGMA * fwhm
-    arg = -(separations ** 2) / 2 / sigma ** 2
+    arg = -(separations**2) / 2 / sigma**2
 
     if voltage:
         return np.exp(arg / 2)
@@ -494,7 +494,7 @@ def gaussian(
 
 
 class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
-    """Base class for beams derived from analytic co-pol beam patterns 
+    """Base class for beams derived from analytic co-pol beam patterns
     with options to add a scaled cross-pol term.
 
     Attributes
@@ -506,7 +506,7 @@ class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
         of the co-pol beam.
         Default: "pure".
     crosspol_scale_dB: :py:class:`caput.config.enum(["pure", "scaled"])`
-        Amplitude of the scaled voltage cross-pol beam relative to the 
+        Amplitude of the scaled voltage cross-pol beam relative to the
         co-pol voltage beam in dB. Not used if crosspol_type is "pure".
         Default: -40
     """
@@ -535,7 +535,9 @@ class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
         if altaz_pointing is None:
             altaz_pointing = np.radians([90, 180])
 
-        copol_beam = np.sqrt(self.aperture_efficiency) * self.beam_func(tel_obj, feed_ind, freq_ind, angpos, altaz_pointing)
+        copol_beam = np.sqrt(self.aperture_efficiency) * self.beam_func(
+            tel_obj, feed_ind, freq_ind, angpos, altaz_pointing
+        )
 
         if tel_obj.num_pol_sky == 1:
             return copol_beam
@@ -572,7 +574,12 @@ class AiryBeam(AnalyticCoPolBeam):
     diameter = config.Property(proptype=float, default=6.0)
 
     def beam_func(
-        self, tel_obj: TransitTelescope, feed_ind: int, freq_ind: int, angpos: np.ndarray, altaz_pointing
+        self,
+        tel_obj: TransitTelescope,
+        feed_ind: int,
+        freq_ind: int,
+        angpos: np.ndarray,
+        altaz_pointing,
     ) -> np.ndarray:
 
         seps = pointing_offset_separation(
@@ -601,7 +608,12 @@ class GaussianBeam(AnalyticCoPolBeam):
     fwhm_factor = config.Property(proptype=float, default=1.0)
 
     def beam_func(
-        self, tel_obj: TransitTelescope, feed_ind: int, freq_ind: int, angpos: np.ndarray, altaz_pointing
+        self,
+        tel_obj: TransitTelescope,
+        feed_ind: int,
+        freq_ind: int,
+        angpos: np.ndarray,
+        altaz_pointing,
     ) -> np.ndarray:
 
         seps = pointing_offset_separation(
@@ -619,9 +631,9 @@ class GaussianBeam(AnalyticCoPolBeam):
 
 
 class HEALPixBeamFile(config.Reader):
-    """Beam file read in from a HEALPix map. This uses the 
+    """Beam file read in from a HEALPix map. This uses the
     `draco.core.containers.HEALPixBeam` container. Note that
-    `draco` is therefore a requirement to use beams stored in 
+    `draco` is therefore a requirement to use beams stored in
     this way. However, it is not included in the `requirements.txt`
     and must be installed separately to avoid a circular dependency.
 
@@ -637,7 +649,7 @@ class HEALPixBeamFile(config.Reader):
     freq_index_type : :py:class:`caput.config.enum(["matched", "nearest"])`
         If "matched", the HEALPixBeam container's frequency index will be
         indexed by the telescope's `freq_ind`. If "nearest", frequency index
-        of the HEALPixBeam nearest to the frequency requested from the 
+        of the HEALPixBeam nearest to the frequency requested from the
         telescope object will be used.
         Default "matched".
     """

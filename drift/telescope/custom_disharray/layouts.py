@@ -1,9 +1,9 @@
 """Helpers for parameterised construction of array layouts.
 
-The classes provide parameterised array layouts made use of by the 
-:py:class:`..core.CustomDishArray` mixin. These can be specified in the 
-`layout_spec` section of the configuration file. If the 
-:py:class:`drift.core.telescope.TransitTelescope` is a polarised telescope, 
+The classes provide parameterised array layouts made use of by the
+:py:class:`..core.CustomDishArray` mixin. These can be specified in the
+`layout_spec` section of the configuration file. If the
+:py:class:`drift.core.telescope.TransitTelescope` is a polarised telescope,
 each station will be assumed to have an "X" and "Y" polarised feed.
 
 For example:
@@ -13,9 +13,9 @@ For example:
     # In a drift-makeproducts configuration file:
 
     telescope:
-      
+
       # Must be a TransitTelescope (sub)-class with CustomDishArray mixin.
-      type: PolarisedDishArray 
+      type: PolarisedDishArray
 
       # Any TransitTelescope / CustomDishArray Parameters
       ...
@@ -28,8 +28,8 @@ For example:
         grid_ns: 10
         spacing_ew: 6.5 # metres
         spacing_ns: 8.5 # metres
-                
-      
+
+
 Other examples:
 
 .. code-block:: yaml
@@ -63,7 +63,7 @@ Currently supported `layout_spec` types are:
 - `grid` provided by :py:class:`GridLayout`
 - `file` provided by :py:class:`SimpleLayoutFile`
 
-See their class and base class definitions for more parameter options. 
+See their class and base class definitions for more parameter options.
 
 """
 
@@ -83,10 +83,10 @@ class GridLayout(config.Reader):
     grid_ns: :py:class:`caput.config.Property(proptype=int)`
         Number of rows of dishes along the NS direction
     spacing_ew: :py:class:`caput.config.Property(proptype=float)`
-        Spacing between the EW columns in metres. 
+        Spacing between the EW columns in metres.
         Default: 6 m
     spacing_ns: :py:class:`caput.config.Property(proptype=float)`
-        Spacing between the NS rows in metres. 
+        Spacing between the NS rows in metres.
         Default: 6 m
     """
 
@@ -129,8 +129,8 @@ class SimpleLayoutFile(config.Reader):
     filenames: :py:class:`caput.config.Property(proptype=list)`
         List of filenames to read array layout from.
     spacing_ew, spacing_ns: :py:class:`caput.config.Property(proptype=float)`
-        Multiplicative factor for EW and NS dish positions respectively. 
-        Useful if locations in the files are a template with the spacing factored 
+        Multiplicative factor for EW and NS dish positions respectively.
+        Useful if locations in the files are a template with the spacing factored
         out so that is can be changed with these parameters.
         Default: 1 (Assumes positions in file have the desired spacing in metres)
     """

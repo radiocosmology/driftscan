@@ -16,7 +16,7 @@ using broader frequency channels over a sub-band is often useful.
 
 """
 
-from pkg_resources import resource_filename
+from importlib.resources import files
 import abc
 from caput import config
 
@@ -74,9 +74,10 @@ class _HIRAXHexTile(_HIRAXDefaults, config.Reader, metaclass=abc.ABCMeta):
         default={
             "type": "file",
             "filenames": [
-                resource_filename(
-                    "drift.telescope.custom_disharray",
-                    "data/hirax_hextile_template_1024.dat",
+                str(
+                    files("drift.telescope.custom_disharray")
+                    / "data"
+                    / "hirax_hextile_template_1024.dat"
                 )
             ],
             "spacing_ew": 6.5,

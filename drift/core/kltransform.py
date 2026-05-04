@@ -245,7 +245,7 @@ class KLTransform(config.Reader):
             if npol != 1 and npol != 3 and npol != 4:
                 raise Exception("Can only handle unpolarised only (num_pol_sky \
                                 = 1), or I, Q and U (num_pol_sky = 3).")
-            
+
             self._cvsg = skymodel.im21cm_model(
                 self.telescope.lmax, self.telescope.frequencies, npol
             )

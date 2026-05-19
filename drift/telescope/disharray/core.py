@@ -13,7 +13,12 @@ from drift.core import telescope
 from drift.core.telescope import PolarisedTelescope, UnpolarisedTelescope
 
 from .layouts import AVAILABLE_LAYOUTS
-from .beams import AVAILABLE_BEAMS, rotate_thetaphi_beam, airy_beam, pointing_offset_separation
+from .beams import (
+    AVAILABLE_BEAMS,
+    rotate_thetaphi_beam,
+    airy_beam,
+    pointing_offset_separation,
+)
 
 
 def _confdict_from_classes(list_of_classes: list) -> dict:

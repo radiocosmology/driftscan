@@ -1,7 +1,7 @@
 """Helpers for parameterised primary beams for pointed dish arrays.
 
 The classes provide parameterised beams made use of by the
-:py:class:`..core.CustomDishArray` mixin.
+:py:class:`..core.DishArrayMixin` mixin.
 
 These can be specified in the `beam_spec` section of the configuration file.
 
@@ -13,10 +13,10 @@ For example:
 
     telescope:
 
-      # Must be a TransitTelescope (sub)-class with CustomDishArray mixin.
+      # Must be a TransitTelescope (sub)-class with DishArrayMixin mixin.
       type: PolarisedDishArray
 
-      # Any TransitTelescope / CustomDishArray Parameters
+      # Any TransitTelescope / DishArrayMixin Parameters
       ...
 
       beam_spec:

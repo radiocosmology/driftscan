@@ -1,7 +1,7 @@
 """Helpers for parameterised construction of array layouts.
 
 The classes provide parameterised array layouts made use of by the
-:py:class:`..core.CustomDishArray` mixin. These can be specified in the
+:py:class:`..core.DishArrayMixin` mixin. These can be specified in the
 `layout_spec` section of the configuration file. If the
 :py:class:`drift.core.telescope.TransitTelescope` is a polarised telescope,
 each station will be assumed to have an "X" and "Y" polarised feed.
@@ -14,10 +14,10 @@ For example:
 
     telescope:
 
-      # Must be a TransitTelescope (sub)-class with CustomDishArray mixin.
+      # Must be a TransitTelescope (sub)-class with DishArrayMixin mixin.
       type: PolarisedDishArray
 
-      # Any TransitTelescope / CustomDishArray Parameters
+      # Any TransitTelescope / DishArrayMixin Parameters
       ...
 
       layout_spec:

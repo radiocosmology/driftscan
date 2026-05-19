@@ -5,10 +5,13 @@ from typing import Tuple, Union, Optional
 
 import numpy as np
 import scipy.linalg as linalg
+from scipy.special import jn
 from caput import config
+from caput.astro.coordinates import spherical
 import abc
 
 from drift.core.telescope import _remap_keyarray
+from drift.core import telescope
 from drift.core.telescope import PolarisedTelescope, UnpolarisedTelescope
 
 from .layouts import AVAILABLE_LAYOUTS
@@ -40,9 +43,8 @@ def _confdict_from_classes(list_of_classes: list) -> dict:
     return confdict
 
 
-class CustomDishArray(config.Reader, metaclass=abc.ABCMeta):
-    """
-    Mixin for :py:class:`drift.core.telescope.TransitTelescope` that
+class DishArrayMixin(config.Reader, metaclass=abc.ABCMeta):
+    """Mixin for :py:class:`drift.core.telescope.TransitTelescope` that
     provides configurable primary beams and array layouts for dish array
     surveys.
 
@@ -170,7 +172,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
     This works by duplicating the telescope feeds (and hence baselines),
     for each pointing. However pairs across pointings are masked so we
     only linearly increase the number of baselines. Primary beams from the
-    :py:class:`CustomDishArray` may support a pointing  argument. Otherwise,
+    :py:class:`DishArrayMixin` may support a pointing  argument. Otherwise,
     the polarised HEALPix beam pattern is directly rotated. A caveat to this
     approach is that the feed and baselines indices as well as related telescope
     state is now a mixture of physical indices and pointings. Some helper
@@ -314,7 +316,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
     def beam(
         self, feed_ind: int, freq_ind: int, angpos: Optional[np.ndarray] = None
     ) -> np.ndarray:
-        """Primary beam pattern. If a beam_obj from a `:py:class:.CustomDishArray`
+        """Primary beam pattern. If a beam_obj from a `:py:class:.DishArrayMixin`
         that supports a pointing argument is detected, the offset pointing is
         passed through. Otherwise the evaluated HEALPix beam pattern of the
         `single_pointing_telescope` is directly rotated.
@@ -337,7 +339,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
         if hasattr(self, "beam_obj") and getattr(
             self.beam_obj, "supports_pointing", False
         ):
-            # We're working on a CustomDishArray with a beam object that supports a pointing
+            # We're working on a DishArrayMixin with a beam object that supports a pointing
             # argument.
             altaz_pointing = np.radians(np.array([90 + ddec, 180]))
             return self.beam_obj(
@@ -350,7 +352,7 @@ class MultiElevationSurvey(config.Reader, metaclass=abc.ABCMeta):
             return rotate_thetaphi_beam(beam, np.radians(-ddec), angpos)
 
 
-class PolarisedDishArray(CustomDishArray, PolarisedTelescope):
+class PolarisedDishArray(DishArrayMixin, PolarisedTelescope):
     """A polarised, configurable dish array."""
 
     pass
@@ -362,7 +364,7 @@ class PolarisedDishArraySurvey(MultiElevationSurvey, PolarisedDishArray):
     pass
 
 
-class UnpolarisedDishArray(CustomDishArray, UnpolarisedTelescope):
+class UnpolarisedDishArray(DishArrayMixin, UnpolarisedTelescope):
     """An unpolarised, configurable dish array."""
 
     pass
@@ -372,3 +374,98 @@ class UnpolarisedDishArraySurvey(MultiElevationSurvey, UnpolarisedDishArray):
     """An unpolarised, configurable dish array survey with multiple elevation pointings."""
 
     pass
+
+
+# ---------------------------------------------------------------------------
+# Legacy simple dish array (preserved from the original disharray module)
+# ---------------------------------------------------------------------------
+
+
+def _jinc(x):
+    return 0.5 * (jn(0, x) + jn(2, x))
+
+
+def beam_circular(angpos, zenith, uv_diameter):
+    """Beam pattern for a circular dish.
+
+    Parameters
+    ----------
+    angpos : np.ndarray
+        Array of angular positions
+    zenith : np.ndarray
+        Co-ordinates of the zenith.
+    uv_diameter : scalar
+        Diameter of the dish (in units of wavelength).
+
+    Returns
+    -------
+    beam : np.ndarray
+        Beam pattern at each position in angpos.
+    """
+    x = (1.0 - spherical.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
+    return 2 * _jinc(x)
+
+
+class DishArray(telescope.TransitTelescope):
+    """A simple interferometric array of dishes arranged on a regular grid.
+
+    This is the original simple dish array implementation. For a more
+    configurable dish array see :py:class:`PolarisedDishArray` or
+    :py:class:`UnpolarisedDishArray`.
+
+    Attributes
+    ----------
+    gridu, gridv : integer
+        Number of dishes in u and v directions.
+    dish_width : scalar
+        Width of the dish in metres.
+    """
+
+    dish_width = 3.5
+    gridu = 4
+    gridv = 4
+    freq_lower = 1000
+    freq_upper = 1200
+    num_freq = 100
+
+    _bc_freq = None
+    _bc_nside = None
+
+    @property
+    def u_width(self):
+        return self.dish_width
+
+    @property
+    def v_width(self):
+        return self.dish_width
+
+    def beam(self, feed, freq):
+        if self._bc_freq != freq or self._bc_nside != self._nside:
+            self._bc_map = beam_circular(
+                self._angpos, self.zenith, self.dish_width / self.wavelengths[freq]
+            )
+            self._bc_freq = freq
+            self._bc_nside = self._nside
+        return self._bc_map
+
+    beamx = beam
+    beamy = beam
+
+    @property
+    def feedpositions(self):
+        pos = np.zeros((self.gridu, self.gridv, 2))
+        for i in range(self.gridu):
+            for j in range(self.gridv):
+                pos[i, j, 0] = i * self.dish_width
+                pos[i, j, 1] = j * self.dish_width
+        return pos.reshape((self.gridu * self.gridv, 2))
+
+    def _get_unique(self, feedpairs):
+        bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
+        bl1 = telescope.map_half_plane(bl1)
+        ub, ind, inv = np.unique(
+            bl1[..., 0] + 1.0j * bl1[..., 1], return_index=True, return_inverse=True
+        )
+        redundancy = np.bincount(inv)
+        upairs = feedpairs[:, ind]
+        return upairs, redundancy

@@ -6,19 +6,16 @@ are provided.
 
 Mixins
 ======
-- :py:class:`.core.CustomDishArray`
+- :py:class:`.core.DishArrayMixin`
 - :py:class:`.core.MultiElevationSurvey`
 
 Concrete Implementations
 ========================
+- :py:class:`.core.DishArray`
 - :py:class:`.core.PolarisedDishArray`
 - :py:class:`.core.PolarisedDishArraySurvey`
 - :py:class:`.core.UnpolarisedDishArray`
 - :py:class:`.core.UnpolarisedDishArraySurvey`
-- :py:class:`.hirax.HIRAX`
-- :py:class:`.hirax.HIRAXSurvey`
-- :py:class:`.hirax.HIRAXHexTile`
-- :py:class:`.hirax.HIRAXHexTileSurvey`
 
 .. note::
 
@@ -35,7 +32,6 @@ Concrete Implementations
 
     core
     beams
-    hirax
     layouts
 
 Example Usage
@@ -49,7 +45,7 @@ For a concrete example of a 10x10 disharray, multi-pointed survey:
 
     telescope:
 
-      # drift.telescope.custom_disharray.core.PolarisedDishArraySurvey
+      # drift.telescope.disharray.core.PolarisedDishArraySurvey
       type: PolarisedDishArraySurvey
 
       # Configuration options inherited from
@@ -65,7 +61,7 @@ For a concrete example of a 10x10 disharray, multi-pointed survey:
       maxlength: 50
 
       # Configuration sections for functionality provided by
-      # drift.telescope.custom_disharray.core.CustomDishArray Mixin
+      # drift.telescope.disharray.core.MultiElevationSurvey Mixin
       #
       # This simulates 7 elevation pointings from -10 to 10 degrees
       # off the telescope zenith (or fiducial) pointing by replicating
@@ -75,7 +71,7 @@ For a concrete example of a 10x10 disharray, multi-pointed survey:
       npointings: 7
 
       # Configuration parameters and sections for functionality provided by
-      # drift.telescope.custom_disharray.core.CustomDishArray Mixin
+      # drift.telescope.disharray.core.DishArrayMixin Mixin
 
       # Set array location
       latitude: -30
@@ -89,7 +85,7 @@ For a concrete example of a 10x10 disharray, multi-pointed survey:
       beam_spec:
         # Gaussian beam with FWHM = lambda/(6 m)
         # (See other options and examples in docs for
-        # drift.telescope.custom_disharray.beams)
+        # drift.telescope.disharray.beams)
         type: gaussian
         diameter: 6 # effective dish diameter in metres
 
@@ -97,7 +93,7 @@ For a concrete example of a 10x10 disharray, multi-pointed survey:
         # 10 x 10 array with 6.5 feed separation in the EW direction and
         # 8.5 m feed separation in the NS direction.
         # (See other options and examples in docs for
-        # drift.telescope.custom_disharray.layouts)
+        # drift.telescope.disharray.layouts)
         type: grid
         grid_ew: 10
         grid_ns: 10

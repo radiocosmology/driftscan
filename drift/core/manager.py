@@ -16,17 +16,12 @@ from ..telescope import (
     exotic_cylinder,
 )
 
-from drift.telescope.custom_disharray.core import (
+from drift.telescope.disharray.core import (
+    DishArray,
     PolarisedDishArray,
     PolarisedDishArraySurvey,
     UnpolarisedDishArray,
     UnpolarisedDishArraySurvey,
-)
-from drift.telescope.custom_disharray.hirax import (
-    HIRAX,
-    HIRAXSurvey,
-    HIRAXHexTile,
-    HIRAXHexTileSurvey,
 )
 
 from . import (
@@ -52,14 +47,11 @@ teltype_dict = {
     "RestrictedExtra": restrictedcylinder.RestrictedExtra,
     "GradientCylinder": exotic_cylinder.GradientCylinder,
     "PertCylinder": exotic_cylinder.CylinderPerturbed,
+    "DishArray": DishArray,
     "PolarisedDishArray": PolarisedDishArray,
     "PolarisedDishArraySurvey": PolarisedDishArraySurvey,
     "UnpolarisedDishArray": UnpolarisedDishArray,
     "UnpolarisedDishArraySurvey": UnpolarisedDishArraySurvey,
-    "HIRAX": HIRAX,
-    "HIRAXSurvey": HIRAXSurvey,
-    "HIRAXHexTile": HIRAXHexTile,
-    "HIRAXHexTileSurvey": HIRAXHexTileSurvey,
 }
 
 

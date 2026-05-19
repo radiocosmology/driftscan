@@ -379,11 +379,6 @@ class UnpolarisedDishArraySurvey(MultiElevationSurvey, UnpolarisedDishArray):
     pass
 
 
-# ---------------------------------------------------------------------------
-# Legacy simple dish array (preserved from the original disharray module)
-# ---------------------------------------------------------------------------
-
-
 class DishArray(telescope.TransitTelescope):
     """A simple interferometric array of dishes arranged on a regular grid.
 
@@ -432,19 +427,55 @@ class DishArray(telescope.TransitTelescope):
 
     @property
     def feedpositions(self):
+        """The set of feed positions in the CMU telescope.
+
+        Returns
+        -------
+        feedpositions : np.ndarray
+            The positions in the telescope plane of the receivers. Packed as
+            [[u1, v1], [u2, v2], ...].
+        """
         pos = np.zeros((self.gridu, self.gridv, 2))
+
         for i in range(self.gridu):
             for j in range(self.gridv):
                 pos[i, j, 0] = i * self.dish_width
                 pos[i, j, 1] = j * self.dish_width
+
         return pos.reshape((self.gridu * self.gridv, 2))
 
     def _get_unique(self, feedpairs):
+        """Calculate the unique baseline pairs.
+
+        Pairs are considered identical if they have the same baseline
+        separation,
+
+        Parameters
+        ----------
+        fpairs : np.ndarray
+            An array of all the feed pairs, packed as [[i1, i2, ...], [j1, j2, ...] ].
+
+        Returns
+        -------
+        baselines : np.ndarray
+            An array of all the unique pairs. Packed as [ [i1, i2, ...], [j1, j2, ...]].
+        redundancy : np.ndarray
+            For each unique pair, give the number of equivalent pairs.
+        """
+        # Calculate separation of all pairs, and map into a half plane (so
+        # baselines and their negative are identical).
         bl1 = self.feedpositions[feedpairs[0]] - self.feedpositions[feedpairs[1]]
         bl1 = telescope.map_half_plane(bl1)
+
+        # Turn separation into a complex number and find unique elements
         ub, ind, inv = np.unique(
             bl1[..., 0] + 1.0j * bl1[..., 1], return_index=True, return_inverse=True
         )
+
+        # Bin to find redundancy of each pair
         redundancy = np.bincount(inv)
+
+        # Construct array of pairs
         upairs = feedpairs[:, ind]
+
         return upairs, redundancy

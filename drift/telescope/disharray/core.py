@@ -5,9 +5,7 @@ from typing import Tuple, Union, Optional
 
 import numpy as np
 import scipy.linalg as linalg
-from scipy.special import jn
 from caput import config
-from caput.astro.coordinates import spherical
 import abc
 
 from drift.core.telescope import _remap_keyarray
@@ -15,7 +13,7 @@ from drift.core import telescope
 from drift.core.telescope import PolarisedTelescope, UnpolarisedTelescope
 
 from .layouts import AVAILABLE_LAYOUTS
-from .beams import AVAILABLE_BEAMS, rotate_thetaphi_beam
+from .beams import AVAILABLE_BEAMS, rotate_thetaphi_beam, airy_beam, pointing_offset_separation
 
 
 def _confdict_from_classes(list_of_classes: list) -> dict:
@@ -381,31 +379,6 @@ class UnpolarisedDishArraySurvey(MultiElevationSurvey, UnpolarisedDishArray):
 # ---------------------------------------------------------------------------
 
 
-def _jinc(x):
-    return 0.5 * (jn(0, x) + jn(2, x))
-
-
-def beam_circular(angpos, zenith, uv_diameter):
-    """Beam pattern for a circular dish.
-
-    Parameters
-    ----------
-    angpos : np.ndarray
-        Array of angular positions
-    zenith : np.ndarray
-        Co-ordinates of the zenith.
-    uv_diameter : scalar
-        Diameter of the dish (in units of wavelength).
-
-    Returns
-    -------
-    beam : np.ndarray
-        Beam pattern at each position in angpos.
-    """
-    x = (1.0 - spherical.sph_dot(angpos, zenith) ** 2) ** 0.5 * np.pi * uv_diameter
-    return 2 * _jinc(x)
-
-
 class DishArray(telescope.TransitTelescope):
     """A simple interferometric array of dishes arranged on a regular grid.
 
@@ -441,9 +414,10 @@ class DishArray(telescope.TransitTelescope):
 
     def beam(self, feed, freq):
         if self._bc_freq != freq or self._bc_nside != self._nside:
-            self._bc_map = beam_circular(
-                self._angpos, self.zenith, self.dish_width / self.wavelengths[freq]
+            seps = pointing_offset_separation(
+                self._angpos, self.zenith, altaz_pointing=np.radians([90, 180])
             )
+            self._bc_map = airy_beam(seps, self.wavelengths[freq], self.dish_width)
             self._bc_freq = freq
             self._bc_nside = self._nside
         return self._bc_map

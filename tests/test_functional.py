@@ -68,8 +68,8 @@ def _gen_prod(output_dir: Path, config: Path):
         # On macOS this has recently been giving problems when running the MPI
         # job from within pytest
         if "DRIFT_NO_MPI" not in os.environ:
-            nproc = 2  # Use a fixed number to check that the MPI code works
-            cmd = ("mpirun -np %i --oversubscribe -bind-to none " % nproc) + cmd
+            # Use a fixed number to check that the MPI code works
+            cmd = "mpirun -n 2 --oversubscribe " + cmd
 
         print(f"Running test in: {output_dir}")
         print("Generating products:", cmd)

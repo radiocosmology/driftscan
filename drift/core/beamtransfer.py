@@ -14,6 +14,7 @@ from caput import config
 from caput.memdata import lock_file
 from caput.util import mpitools, profiler
 from caput.util.truncate import bit_truncate_max_complex
+from caput.pipeline import tasklib
 
 from ..util import util, blockla
 from . import kltransform
@@ -1998,3 +1999,185 @@ def _find_index_sorted(a: np.ndarray, v: int) -> Optional[int]:
     ind = np.searchsorted(a, v)
 
     return ind if v == a[ind] else None
+
+
+class CombineBeamTransfers(tasklib.base.ContainerTask):
+    """Combine beam transfer matrices for frequency sub-bands.
+
+    Here are the recommended steps for generating BTMs in sub-bands (useful
+    if the BTMs over the full band would take too much walltime for a single
+    batch job):
+
+    1. Create a telescope manager for the desired full set of BTMs (by running
+    drift-makeproducts with a config file that doesn't generate any BTMs).
+    Make note of the `lmax` and `mmax` computed by this telescope manager.
+
+    2. Generate separate BTMs for sub-bands which cover the desired full band.
+    In each separate config file, set `force_lmax` and `force_mmax` to the
+    values for the full telescope, to ensure that the combined BTMs will exactly
+    match what would be generated with a single job for the full band.
+
+    3. Run this task.
+
+    Attributes
+    ----------
+    partial_btm_configs : list
+        List of config files for partial BTMs.
+    overwrite : bool
+        Whether to overwrite existing m files. Default: False.
+    pol_pair_copy : list
+        If specified, only copy BTM elements with polarization in the list.
+        (For example, to only copy co-pol elements for CHIME: ["XX", "YY"].)
+        Default: None.
+    """
+
+    partial_btm_configs = config.Property(proptype=list)
+    overwrite = config.Property(proptype=bool, default=False)
+    pol_pair_copy = config.Property(proptype=list, default=None)
+
+    def process(self, bt_full):
+        """Combine beam transfer matrices and write to new set of files.
+
+        Parameters
+        ----------
+        bt_full : ProductManager or BeamTransfer
+            Beam transfer manager for desired output beam transfer matrices.
+        """
+        from ..core import manager
+        from ..core.telescope import PolarisedTelescope
+
+        if isinstance(bt_full, BeamTransfer):
+            self.beamtransfer_full = bt_full
+        elif isinstance(bt_full, manager.ProductManager):
+            self.beamtransfer_full = bt_full.beamtransfer
+        else:
+            raise RuntimeError(
+                "bt_full is not a BeamTransfer or ProductManager instance"
+            )
+
+        self.telescope_full = bt_full.telescope
+
+        self.n_partials = len(self.partial_btm_configs)
+
+        self.beamtransfer_partial = []
+        self.telescope_partial = []
+
+        for file in self.partial_btm_configs:
+            man = manager.ProductManager.from_config(file)
+            self.beamtransfer_partial.append(man.beamtransfer)
+            self.telescope_partial.append(man.telescope)
+            self.log.info(
+                f"Loaded product manager for {file}",
+            )
+
+        # Get lists of frequencies included in full BTM and each partial BTM
+        self.desired_freqs = list(
+            self.telescope_full.frequencies[self.telescope_full.included_freq]
+        )
+        self.partial_freqs = []
+        for tel in self.telescope_partial:
+            self.partial_freqs.append(list(tel.frequencies[tel.included_freq]))
+
+        # Check that total set of frequencies in partial BTMs exactly matches
+        # frequencies in desired BTM
+        if len(self.desired_freqs) != len(np.concatenate(self.partial_freqs)):
+            raise ValueError(
+                "Provided BTMs have different number of frequencies than set of "
+                "desired frequencies!"
+            )
+        if not np.allclose(
+            np.sort(self.desired_freqs), np.sort(np.concatenate(self.partial_freqs))
+        ):
+            raise ValueError(
+                "Frequencies of provided BTMs do not match set of desired frequencies!"
+            )
+
+        # Compute some quantities needed to define shapes of output files
+        nf_inc = len(self.telescope_full.included_freq)
+        nb_inc = len(self.telescope_full.included_baseline)
+        np_inc = len(self.telescope_full.included_pol)
+        nl = self.telescope_full.lmax + 1
+
+        # Determine compression arguments for output BTM files
+        if self.beamtransfer_full.truncate and BITSHUFFLE_IMPORTED:
+            compression_kwargs = {
+                "compression": bitshuffle.h5.H5FILTER,
+                "compression_opts": (0, bitshuffle.h5.H5_COMPRESS_LZ4),
+            }
+        else:
+            compression_kwargs = {"compression": "lzf"}
+
+        # Determine which elements of baseline axis to copy.
+        # pol_mask selects elements we *do not* want to copy.
+        if self.pol_pair_copy is not None:
+            if not isinstance(self.telescope_full, PolarisedTelescope):
+                raise Exception("pol_pair_copy only works for polarized telescopes!")
+            pol_pairs = [
+                p[0] + p[1]
+                for p in self.telescope_full.polarisation[
+                    self.telescope_full.uniquepairs[
+                        self.telescope_full.included_baseline
+                    ]
+                ]
+            ]
+            pol_mask = [p not in self.pol_pair_copy for p in pol_pairs]
+
+        # Make output directories for new BTMs
+        self.beamtransfer_full._generate_dirs()
+
+        # Interate over m's local to this rank.
+        # BTM for lower m's are generally larger, so we use method="alt"
+        # in mpirange for better load-balancing.
+        for mi in mpitools.mpirange(self.telescope_full.mmax + 1, method="alt"):
+            # Check whether file exists
+            if os.path.exists(self.beamtransfer_full._mfile(mi)) and not self.overwrite:
+                self.log.info(f"BTM file for m = {mi} exists. Skipping...")
+                continue
+
+            f_out = h5py.File(self.beamtransfer_full._mfile(mi), "w")
+
+            # Create beam_m dataset
+            dsize = (nf_inc, 2, nb_inc, np_inc, nl - mi)
+            csize = (1, 2, min(10, nb_inc), np_inc, nl - mi)
+            f_out.create_dataset(
+                "beam_m", dsize, chunks=csize, dtype=np.complex128, **compression_kwargs
+            )
+
+            # Write a few useful attributes.
+            f_out.attrs["m"] = mi
+            f_out.attrs["frequencies"] = self.telescope_full.frequencies
+
+            # Loop over partial BTMs
+            for i in range(self.n_partials):
+                # Get indices of partial frequencies within full frequency list
+                nl_sub = self.telescope_partial[i].lmax + 1
+                freq_sub = self.partial_freqs[i]
+                freq_sub_idx = [self.desired_freqs.index(f) for f in freq_sub]
+
+                # Copy partial BTMs into correct slice of full BTM output.
+                # Full BTM ell axis may stretch beyond partial BTM ell axis,
+                # but only elements of the full axis up to nl_sub-mi will be nonzero.
+                if mi <= self.telescope_partial[i].mmax:
+                    with h5py.File(
+                        self.beamtransfer_partial[i]._mfile(mi), "r"
+                    ) as f_sub:
+                        # First load BTM elements from partial-BTM file, then write to
+                        # new file, to avoid broadcasting error for complex selections.
+                        # If copying specific polarizations, set unwanted pols to zero
+                        # in the process.
+                        block_to_copy = f_sub["beam_m"][..., :nl_sub]
+                        if self.pol_pair_copy is not None:
+                            block_to_copy[:, :, pol_mask, :, :] = 0.0
+                        f_out["beam_m"][
+                            freq_sub_idx, :, :, :, : nl_sub - mi
+                        ] = block_to_copy
+                        del block_to_copy
+
+            # Close output file
+            f_out.close()
+
+            self.log.debug(f"Wrote file for m = {mi}")
+
+        mpitools.barrier()
+        if mpitools.rank0:
+            self.log.info("New BTMs complete!")

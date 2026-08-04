@@ -62,14 +62,7 @@ def _gen_prod(output_dir: Path, config: Path):
 
         shutil.copy(config, output_dir / "params.yaml")
 
-        cmd = "drift-makeproducts run params.yaml"
-
-        # If we're not on macOS try running under MPI
-        # On macOS this has recently been giving problems when running the MPI
-        # job from within pytest
-        if "DRIFT_NO_MPI" not in os.environ:
-            # Use a fixed number to check that the MPI code works
-            cmd = "mpirun -n 2 --oversubscribe " + cmd
+        cmd = "mpirun -np 2 --oversubscribe drift-makeproducts run params.yaml"
 
         print(f"Running test in: {output_dir}")
         print("Generating products:", cmd)

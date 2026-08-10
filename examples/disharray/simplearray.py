@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import jn
 
-from cora.util import coord
+from caput.astro.coordinates import spherical as coord
 from drift.core import telescope
 
 

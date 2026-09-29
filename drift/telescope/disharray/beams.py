@@ -319,7 +319,7 @@ def pointing_offset_separation(
 
     if degrees:
         return np.degrees(off_theta)
-    
+
     return off_theta
 
 
@@ -372,7 +372,7 @@ def pointing_offset_angles(
     latlon = np.stack([off_lat, off_lon], axis=-1)
     if degrees:
         return np.degrees(latlon)
-    
+
     return latlon
 
 
@@ -431,7 +431,7 @@ def airy_beam(
 
     if voltage:
         return out
-    
+
     return out**2
 
 
@@ -487,7 +487,7 @@ def gaussian(
 
     if voltage:
         return np.exp(arg / 2)
-    
+
     return np.exp(arg)
 
 

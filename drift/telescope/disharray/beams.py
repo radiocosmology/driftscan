@@ -58,8 +58,6 @@ Currently supported `beam_spec` types are:
 See their class and base class definitions for more parameter options.
 """
 
-from __future__ import division, print_function, absolute_import, unicode_literals
-
 from typing import Literal, Optional, Tuple, Union
 import abc
 import logging
@@ -321,8 +319,8 @@ def pointing_offset_separation(
 
     if degrees:
         return np.degrees(off_theta)
-    else:
-        return off_theta
+    
+    return off_theta
 
 
 def pointing_offset_angles(
@@ -374,8 +372,8 @@ def pointing_offset_angles(
     latlon = np.stack([off_lat, off_lon], axis=-1)
     if degrees:
         return np.degrees(latlon)
-    else:
-        return latlon
+    
+    return latlon
 
 
 def airy_beam(
@@ -433,8 +431,8 @@ def airy_beam(
 
     if voltage:
         return out
-    else:
-        return out**2
+    
+    return out**2
 
 
 def gaussian(
@@ -489,8 +487,8 @@ def gaussian(
 
     if voltage:
         return np.exp(arg / 2)
-    else:
-        return np.exp(arg)
+    
+    return np.exp(arg)
 
 
 class AnalyticCoPolBeam(config.Reader, metaclass=abc.ABCMeta):
